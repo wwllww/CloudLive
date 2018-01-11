@@ -1,0 +1,248 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="源文件">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="头文件">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="资源文件">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BaseAfx.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BaseAudio.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BaseVideo.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BMap.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Encoder.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Error.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ErrorBase.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Exception.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\HTTPClient.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Instance.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\OperatNew.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\PArry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\RtmpPublish.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\RTMPPublisherVector.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\RTMPStuff.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SLiveApi.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SLiveInterface.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SLiveManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\TThread.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BaseFilter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\DrawFrame.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MultimediaRender.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\AudioWaveOut.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\VolumeControl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ColorControl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\VolumeMeter.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\DataPacketHelpers.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\FileStream.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\BlackMagic.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Deinterlacer.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\D3DResize.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\AACEncoder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\AudioProcess.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\BaseAfx.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\BaseAudio.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\dllmain.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\EncoderX264.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ErrorBase.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Exception.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\HTTPClient.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Instance.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\OperatNew.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Parry.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\RtmpPublish.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\RTMPPublisherVector.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\RTMPStuff.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SLiveApi.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\SLiveManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\StreamProcesser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ThreadCapture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\VideoCapture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ManagerOperator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\DrawFrame.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MultimediaRender.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\AudioWaveOut.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\VolumeControl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ColorControl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\VolumeMeter.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MP3Encoder.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\FLVFileStream.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MP4FileStream.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\DelayedPublisher.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\BlackMagic.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\NewEncoder_AAC.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\NewEncoder_x264_RD.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\NewFLVFileStream.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Deinterlacer.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\D3DResize.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Encoder_Nvidia.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="UltraliveApi.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>

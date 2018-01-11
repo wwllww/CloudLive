@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="../include\DateTimeProcess.h">
+      <Filter>Head</Filter>
+    </ClInclude>
+    <ClInclude Include="../libDateTime.h">
+      <Filter>Head</Filter>
+    </ClInclude>
+    <ClInclude Include="../resource.h">
+      <Filter>Head</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source">
+      <UniqueIdentifier>{d1b43f73-9780-4b18-85ce-1acb61b23653}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Head">
+      <UniqueIdentifier>{d7077695-0594-460e-9458-8dbe96dab009}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{a02c1639-73d4-4025-88b0-cf4435f5e539}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\DateTime.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\DateTimeProcess.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="..\libDateTime.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DateTime.rc">
+      <Filter>Resources</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cursor1.cur" />
+  </ItemGroup>
+</Project>

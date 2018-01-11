@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/image_default.png</file>
+        <file>images/btn_upload_bg.png</file>
+        <file>images/btn_golive_bg.png</file>
+        <file>images/image_error.png</file>
+        <file>images/btn_live_bg.png</file>
+    </qresource>
+</RCC>

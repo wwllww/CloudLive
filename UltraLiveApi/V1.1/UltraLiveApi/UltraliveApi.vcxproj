@@ -1,0 +1,244 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FC66170F-F475-408F-BA36-22F3E74744E4}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>UltraliveApi</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>Z:\releaseM_x32\</OutDir>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include;</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x86);$(WindowsSDK_LibraryPath_x86);$(DXSDK_DIR)Lib\x86;</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include;</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(DXSDK_DIR)Lib\x64;</LibraryPath>
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>Z:\releaseM_x64\</OutDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>Disabled</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;Z:\Log_writer;Z:\public\;..\..\..\D3DRender\v1.0\;Z:\Common\;Z:\x264\;Z:\libfaac;Z:\librtmp\;Z:\tbb;</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ImportLibrary>Z:\rlib_x32\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>json_vc71_libmt.lib;libsamplerate.lib;Winmm.lib;Psapi.lib;strmiids.lib;D3DRender.lib;Iphlpapi.lib;Common.lib;libx264.lib;Ws2_32.lib;libfaac.lib;librtmp.lib;Winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;Gdiplus.lib;d3dx11.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Z:\rlib_x32</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;__STDC_LIMIT_MACROS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;Z:\Log_writer;Z:\public\;..\..\..\D3DRender\v1.1\;..\..\..\Common\v1.1\;Z:\x264\;Z:\libfaac;Z:\librtmp\;Z:\tbb;Z:\RDCodec;Z:\Cur64bit\include\Curl;</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ImportLibrary>Z:\rlib_x64\$(TargetName).lib</ImportLibrary>
+      <AdditionalDependencies>NvEncode.lib;libcurl.lib;json_vc71_libmt.lib;libsamplerate.lib;Winmm.lib;Psapi.lib;strmiids.lib;D3DRender.lib;Iphlpapi.lib;Common.lib;libx264.lib;Ws2_32.lib;libfaac.lib;librtmp.lib;Winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;Gdiplus.lib;d3dx11.lib;libmp3lame-static.lib;;dxgi.lib;RDCodec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>Z:\rlib_x64;</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\AudioWaveOut.h" />
+    <ClInclude Include="..\BaseAfx.h" />
+    <ClInclude Include="..\BaseAudio.h" />
+    <ClInclude Include="..\BaseFilter.h" />
+    <ClInclude Include="..\BaseVideo.h" />
+    <ClInclude Include="..\BlackMagic.h" />
+    <ClInclude Include="..\BMap.h" />
+    <ClInclude Include="..\ColorControl.h" />
+    <ClInclude Include="..\D3DResize.h" />
+    <ClInclude Include="..\DataPacketHelpers.h" />
+    <ClInclude Include="..\Deinterlacer.h" />
+    <ClInclude Include="..\DrawFrame.h" />
+    <ClInclude Include="..\Encoder.h" />
+    <ClInclude Include="..\Error.h" />
+    <ClInclude Include="..\ErrorBase.h" />
+    <ClInclude Include="..\Exception.h" />
+    <ClInclude Include="..\FileStream.h" />
+    <ClInclude Include="..\HTTPClient.h" />
+    <ClInclude Include="..\Instance.h" />
+    <ClInclude Include="..\MultimediaRender.h" />
+    <ClInclude Include="..\OperatNew.h" />
+    <ClInclude Include="..\PArry.h" />
+    <ClInclude Include="..\RtmpPublish.h" />
+    <ClInclude Include="..\RTMPPublisherVector.h" />
+    <ClInclude Include="..\RTMPStuff.h" />
+    <ClInclude Include="..\SLiveApi.h" />
+    <ClInclude Include="..\SLiveInterface.h" />
+    <ClInclude Include="..\SLiveManager.h" />
+    <ClInclude Include="..\TThread.h" />
+    <ClInclude Include="..\VolumeControl.h" />
+    <ClInclude Include="..\VolumeMeter.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\AACEncoder.cpp" />
+    <ClCompile Include="..\AudioProcess.cpp" />
+    <ClCompile Include="..\AudioWaveOut.cpp" />
+    <ClCompile Include="..\BaseAfx.cpp" />
+    <ClCompile Include="..\BaseAudio.cpp" />
+    <ClCompile Include="..\BlackMagic.cpp" />
+    <ClCompile Include="..\ColorControl.cpp" />
+    <ClCompile Include="..\D3DResize.cpp" />
+    <ClCompile Include="..\Deinterlacer.cpp" />
+    <ClCompile Include="..\DelayedPublisher.cpp" />
+    <ClCompile Include="..\dllmain.cpp" />
+    <ClCompile Include="..\DrawFrame.cpp" />
+    <ClCompile Include="..\EncoderX264.cpp" />
+    <ClCompile Include="..\Encoder_Nvidia.cpp" />
+    <ClCompile Include="..\ErrorBase.cpp" />
+    <ClCompile Include="..\Exception.cpp" />
+    <ClCompile Include="..\FLVFileStream.cpp" />
+    <ClCompile Include="..\HTTPClient.cpp" />
+    <ClCompile Include="..\Instance.cpp" />
+    <ClCompile Include="..\ManagerOperator.cpp" />
+    <ClCompile Include="..\MP3Encoder.cpp" />
+    <ClCompile Include="..\MP4FileStream.cpp" />
+    <ClCompile Include="..\MultimediaRender.cpp" />
+    <ClCompile Include="..\OperatNew.cpp" />
+    <ClCompile Include="..\Parry.cpp" />
+    <ClCompile Include="..\RtmpPublish.cpp" />
+    <ClCompile Include="..\RTMPPublisherVector.cpp" />
+    <ClCompile Include="..\RTMPStuff.cpp" />
+    <ClCompile Include="..\SLiveApi.cpp" />
+    <ClCompile Include="..\SLiveManager.cpp" />
+    <ClCompile Include="..\NewEncoder_AAC.cpp" />
+    <ClCompile Include="..\NewEncoder_x264_RD.cpp" />
+    <ClCompile Include="..\NewFLVFileStream.cpp" />
+    <ClCompile Include="..\StreamProcesser.cpp" />
+    <ClCompile Include="..\ThreadCapture.cpp" />
+    <ClCompile Include="..\VideoCapture.cpp" />
+    <ClCompile Include="..\VolumeControl.cpp" />
+    <ClCompile Include="..\VolumeMeter.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="UltraliveApi.rc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

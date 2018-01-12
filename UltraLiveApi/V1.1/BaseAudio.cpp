@@ -104,8 +104,8 @@ IBaseAudio::IBaseAudio()
 	rightdesktopVol = 1.0f;
 	desktopVol = 1.0f;              
 
-	m_bPlayPcmLocal = true;
-	m_bPlayPcmLive = true;
+	m_bPlayPcmLocal = false;
+	m_bPlayPcmLive = false;
 	m_quotietyVolume = 3.0f;
 	bProjector = false;
 	audioFramesUpdate = 0;

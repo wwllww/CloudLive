@@ -429,7 +429,7 @@ void CSLiveManager::MainVideoLoop()
 
 						if (TransEscapeTime >= 1.0f)
 						{
-							Process->ClearVideo();
+							Process->ClearVideo(false,false,false);
 							Process->CopyNewToVideoList();
 							Process->ClearVideoTransForm();
 						}

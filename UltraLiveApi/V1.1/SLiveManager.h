@@ -165,8 +165,8 @@ public:
 	void AddLiveInstanceAudio(IBaseVideo *Video, IBaseVideo *Agent);
 	void AddFilter2PGMOrPVM(IBaseVideo *Video);
 	void AddFilter2PGMOrPVM(IBaseVideo *Video, const List<Filter> &FilterList);
-	void RemoveFilterFromPGMOrPVM(IBaseVideo *Video);
-	void RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filter> &FilterList);
+	void RemoveFilterFromPGMOrPVM(IBaseVideo *Video,bool bRemovePGM);
+	void RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filter> &FilterList, bool bRemovePGM);
 	D3DAPI *GetD3DRender() const;
 
 

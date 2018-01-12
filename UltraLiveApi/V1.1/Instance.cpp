@@ -2033,10 +2033,10 @@ void CInstanceProcess::SetHwnd(uint64_t hwnd)
 	RenderHwnd = (HWND)hwnd;
 }
 
-void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut)
+void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgent)
 {
 	std::vector<IBaseVideo *> vAgentListLocal;
-	//std::vector<shared_ptr<IBaseVideo>> vAgentList;
+	std::vector<shared_ptr<IBaseVideo>> vAgentList;
 	EnterCriticalSection(&VideoSection);
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
@@ -2077,11 +2077,20 @@ void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut)
 					if (BaseVideo)
 					{
 						//为了区域占位源不影响PVW切换做的更改
-// 						if (IsLiveInstance)
-// 						{
-// 							vAgentList.push_back(Video.VideoStream);
-// 						}
-// 						else
+						if (IsLiveInstance)
+						{
+							if (bCanAddAgent)
+							{
+								vAgentList.push_back(Video.VideoStream);
+							}
+							else
+							{
+								//为了防止在有特效切换时区域占位源的析构而导致音频被移除
+								vEffectAgentList.push_back(Video.VideoStream);
+							}
+							
+						}
+						else
 						{
 							if (bRemoveDelay && bCut)
 							{
@@ -2171,26 +2180,36 @@ void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut)
 
 void CInstanceProcess::ClearVideoTransForm()
 {
+	std::vector<shared_ptr<IBaseVideo>> vAgentList;
 	for (UINT i = 0; i < m_VideoListTransForm.Num(); ++i)
 	{
 		VideoStruct &Video = m_VideoListTransForm[i];
 		if (Video.VideoStream)
 		{
-			if (Video.bGlobalStream && Video.VideoStream.use_count() == 2)
+			if (strcmp(Video.VideoStream->GainClassName(), "AgentSource") == 0)
 			{
-				IBaseVideo *BaseVideo = Video.VideoStream.get();
-
-				if (BaseVideo)
+				//如果是区域占位源，则让它在自己析构的时候GlobalSourceLeaveScene
+				vAgentList.push_back(Video.VideoStream);
+			}
+			else
+			{
+				if (Video.bGlobalStream && Video.VideoStream.use_count() == 2)
 				{
-					BaseVideo->GlobalSourceLeaveScene();
-					if (Video.VideoDevice)
+					IBaseVideo *BaseVideo = Video.VideoStream.get();
+
+					if (BaseVideo)
 					{
-						Video.VideoDevice->GlobalSourceLeaveScene();
-						Video.VideoDevice->SetCanEnterScene(true);
+						BaseVideo->GlobalSourceLeaveScene();
+						if (Video.VideoDevice)
+						{
+							Video.VideoDevice->GlobalSourceLeaveScene();
+							Video.VideoDevice->SetCanEnterScene(true);
+						}
+						BaseVideo->SetCanEnterScene(true);
 					}
-					BaseVideo->SetCanEnterScene(true);
 				}
 			}
+		
 
 			Video.VideoStream.reset();
 
@@ -2206,6 +2225,8 @@ void CInstanceProcess::ClearVideoTransForm()
 	m_VideoListTransForm.Clear();
 
 	ClearFilterTransForm();
+
+	vEffectAgentList.clear();
 }
 
 void CInstanceProcess::ClearAudio()

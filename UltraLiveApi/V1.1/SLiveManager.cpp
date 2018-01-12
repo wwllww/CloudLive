@@ -3085,36 +3085,47 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 		{
 			if (type == Cut)
 			{
-// 				if (strcmp(VSTem.VideoStream->GainClassName(), "AgentSource") == 0)
-// 				{
-// 					//区域占位源重新生成一个
-// 					IBaseVideo *AgentSource = dynamic_cast<IBaseVideo*>(CreatStreamObject("AgentSource"));
-// 					if (AgentSource)
-// 					{
-// 						AgentSource->Init(*VSTem.Config);
-// 						VideoStruct VSAgent;
-// 
-// 						VSAgent.bRender = true;
-// 						VSAgent.AudioStream = VSTem.AudioStream;
-// 						VSAgent.bGlobalStream = VSTem.bGlobalStream;
-// 						VSAgent.bScale = VSTem.bScale;
-// 						VSAgent.Config = VSTem.Config;
-// 						VSAgent.Crop = VSTem.Crop;
-// 						VSAgent.pos = VSTem.pos;
-// 						VSAgent.size = VSTem.size;
-// 						VSAgent.VideoStream = shared_ptr<IBaseVideo>(AgentSource);
-// 
-// 						EnterCriticalSection(&InstanceD->VideoSection);
-// 						InstanceD->m_VideoList.SetSize(InstanceD->m_VideoList.Num() + 1);
-// 						VideoStruct &VS = InstanceD->m_VideoList[InstanceD->m_VideoList.Num() - 1];
-// 						VS = VSAgent;
-// 						VS.bSelect = false;
-// 						LeaveCriticalSection(&InstanceD->VideoSection);
-// 
-// 						VSAgent.VideoStream->GlobalSourceEnterScene();
-// 					}
-// 				}
-// 				else
+				if (strcmp(VSTem.VideoStream->GainClassName(), "AgentSource") == 0)
+				{
+					//区域占位源重新生成一个
+					IBaseVideo *AgentSource = dynamic_cast<IBaseVideo*>(CreatStreamObject("AgentSource"));
+					if (AgentSource)
+					{
+						AgentSource->Init(*VSTem.Config);
+						VideoStruct VSAgent;
+
+						Value *Config = new Value;
+						*Config = *VSTem.Config.get();
+
+						VSAgent.bRender = true;
+						VSAgent.AudioStream = VSTem.AudioStream;
+						VSAgent.bGlobalStream = VSTem.bGlobalStream;
+						VSAgent.bScale = VSTem.bScale;
+						VSAgent.Config = shared_ptr<Value>(Config);
+						VSAgent.Crop = VSTem.Crop;
+						VSAgent.pos = VSTem.pos;
+						VSAgent.size = VSTem.size;
+						VSAgent.VideoStream = shared_ptr<IBaseVideo>(AgentSource);
+
+						char Tem[50] = { 0 };
+						sprintf_s(Tem, "%llu", (uint64_t)AgentSource);
+
+						(*VSAgent.Config)["SourceID"] = Tem;
+
+						sprintf_s(Tem, "%llu", (uint64_t)InstanceD);
+						(*VSAgent.Config)["InstanceID"] = Tem;
+
+						EnterCriticalSection(&InstanceD->VideoSection);
+						InstanceD->m_VideoList.SetSize(InstanceD->m_VideoList.Num() + 1);
+						VideoStruct &VS = InstanceD->m_VideoList[InstanceD->m_VideoList.Num() - 1];
+						VS = VSAgent;
+						VS.bSelect = false;
+						LeaveCriticalSection(&InstanceD->VideoSection);
+
+						VSAgent.VideoStream->GlobalSourceEnterScene();
+					}
+				}
+				else
 				{
 					EnterCriticalSection(&InstanceD->VideoSection);
 					InstanceD->m_VideoList.SetSize(InstanceD->m_VideoList.Num() + 1);
@@ -3126,15 +3137,57 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 			}
 			else
 			{
-				InstanceD->m_VideoListTransForm.SetSize(InstanceD->m_VideoListTransForm.Num() + 1);
-				VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
-				VS = VSTem;
-				VS.bSelect = false;
+				if (strcmp(VSTem.VideoStream->GainClassName(), "AgentSource") == 0)
+				{
+					//区域占位源重新生成一个
+					IBaseVideo *AgentSource = dynamic_cast<IBaseVideo*>(CreatStreamObject("AgentSource"));
+					if (AgentSource)
+					{
+						AgentSource->Init(*VSTem.Config);
+						VideoStruct VSAgent;
+
+						Value *Config = new Value;
+						*Config = *VSTem.Config.get();
+
+						VSAgent.bRender = true;
+						VSAgent.AudioStream = VSTem.AudioStream;
+						VSAgent.bGlobalStream = VSTem.bGlobalStream;
+						VSAgent.bScale = VSTem.bScale;
+						VSAgent.Config = shared_ptr<Value>(Config);
+						VSAgent.Crop = VSTem.Crop;
+						VSAgent.pos = VSTem.pos;
+						VSAgent.size = VSTem.size;
+						VSAgent.VideoStream = shared_ptr<IBaseVideo>(AgentSource);
+
+						char Tem[50] = { 0 };
+						sprintf_s(Tem, "%llu", (uint64_t)AgentSource);
+
+						(*VSAgent.Config)["SourceID"] = Tem;
+
+						sprintf_s(Tem, "%llu", (uint64_t)InstanceD);
+						(*VSAgent.Config)["InstanceID"] = Tem;
+
+						InstanceD->m_VideoListTransForm.SetSize(InstanceD->m_VideoListTransForm.Num() + 1);
+						VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
+						VS = VSAgent;
+						VS.bSelect = false;
+
+						VSAgent.VideoStream->GlobalSourceEnterScene();
+					}
+				}
+				else
+				{
+					InstanceD->m_VideoListTransForm.SetSize(InstanceD->m_VideoListTransForm.Num() + 1);
+					VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
+					VS = VSTem;
+					VS.bSelect = false;
+				}
+				
 			}
 
 			if (strcmp(VSTem.VideoStream->GainClassName(), "AgentSource") == 0)
 			{
-				VSTem.VideoStream->GlobalSourceEnterScene();
+				//VSTem.VideoStream->GlobalSourceEnterScene();
 				IBaseVideo *BaseVideo = VSTem.VideoStream->GetGlobalSource();
 				if (BaseVideo)
 				{
@@ -3929,7 +3982,7 @@ int CSLiveManager::SLiveReNameStream(uint64_t iIntanceID, uint64_t iStreamID, co
 
 int CSLiveManager::SLiveAdd2Agent(const char *StreamName, bool bAdd2PGM)
 {
-	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! bSelect", __FUNCTION__);
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! bAdd2PGM %s", __FUNCTION__, bAdd2PGM ? "ture" : "false");
 	try
 	{
 		if (!bInit)
@@ -3981,6 +4034,7 @@ int CSLiveManager::SLiveAdd2Agent(const char *StreamName, bool bAdd2PGM)
 int CSLiveManager::ReNameStreamSec(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! bSelect", __FUNCTION__);
+
 	try
 	{
 		if (!bInit)
@@ -4511,14 +4565,11 @@ void CSLiveManager::RemoveLiveInstanceAudio(IBaseVideo *BaseVideo, bool bMustDel
 		return;
 	}
 
-	RemoveFilterFromPGMOrPVM(BaseVideo);
-
-
-	if (!BaseVideo->GetAudioRender())
-	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Audio为空", __FUNCTION__);
-		return;
-	}
+// 	if (!BaseVideo->GetAudioRender())
+// 	{
+// 		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Audio为空", __FUNCTION__);
+// 		return;
+// 	}
 
 	if (LiveInstance)
 	{
@@ -4556,54 +4607,91 @@ void CSLiveManager::RemoveLiveInstanceAudio(IBaseVideo *BaseVideo, bool bMustDel
 		}
 		LeaveCriticalSection(&LiveInstance->VideoSection);
 
-		EnterCriticalSection(&LiveInstance->AudioSection);
-		for (int i = 0; i < LiveInstance->m_AudioList.Num(); ++i)
+		if (!bAgentFind && !bFind)
+			RemoveFilterFromPGMOrPVM(BaseVideo, true);
+
+		if (BaseVideo->GetAudioRender())
 		{
-			AudioStruct &OneAudio = LiveInstance->m_AudioList[i];
-
-			if (OneAudio.AudioStream.get() == BaseVideo->GetAudioRender())
+			EnterCriticalSection(&LiveInstance->AudioSection);
+			for (int i = 0; i < LiveInstance->m_AudioList.Num(); ++i)
 			{
-				if (!bAgentFind && !bFind)//在直播中没有找到
-				{
-					OneAudio.AudioStream->SetLiveInstance(false);
-				}
+				AudioStruct &OneAudio = LiveInstance->m_AudioList[i];
 
-				//这里不要删除，延后删除
-
-				if (bMustDel)
+				if (OneAudio.AudioStream.get() == BaseVideo->GetAudioRender())
 				{
-					OneAudio.AudioStream.reset();
-					LiveInstance->m_AudioList.Remove(i);
+					if (!bAgentFind && !bFind)//在直播中没有找到
+					{
+						OneAudio.AudioStream->SetLiveInstance(false);
+					}
+
+					//这里不要删除，延后删除
+
+					if (bMustDel)
+					{
+						OneAudio.AudioStream.reset();
+						LiveInstance->m_AudioList.Remove(i);
+					}
+
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 找到Audio", __FUNCTION__);
+					break;
 				}
-				
-				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 找到Audio", __FUNCTION__);
-				break;
 			}
+			LeaveCriticalSection(&LiveInstance->AudioSection);
 		}
-		LeaveCriticalSection(&LiveInstance->AudioSection);
 	}
 
 	if (LocalInstance)
 	{
-		EnterCriticalSection(&LocalInstance->AudioSection);
-		for (int i = 0; i < LocalInstance->m_AudioList.Num(); ++i)
-		{
-			AudioStruct &OneAudio = LocalInstance->m_AudioList[i];
+		bool bRemove = true;
+		EnterCriticalSection(&LocalInstance->VideoSection);
 
-			if (OneAudio.AudioStream.get() == BaseVideo->GetAudioRender())
+		for (int i = 0; i < LocalInstance->m_VideoList.Num(); ++i)
+		{
+			VideoStruct &OneVideo = LocalInstance->m_VideoList[i];
+
+			if (OneVideo.bRender && OneVideo.VideoStream && OneVideo.VideoStream.get() == BaseVideo)
 			{
-				bool bRemove = false;
-				if (OneAudio.AudioStream.use_count() == 2)
-				{
-					OneAudio.AudioStream.reset();
-					LocalInstance->m_AudioList.Remove(i);
-					bRemove = true;
-				}
-				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s LocalInstance找到Audio bRemove %s", __FUNCTION__,bRemove ? "true" : "false");
+				bRemove = false;
 				break;
 			}
+
+			IBaseVideo *Global = NULL;
+			if (OneVideo.bRender && (Global = OneVideo.VideoStream->GetGlobalSource()))
+			{
+
+				//找到区域占位源
+				if (Global == BaseVideo)
+				{
+					bRemove = false;
+					break;
+				}
+			}
 		}
-		LeaveCriticalSection(&LocalInstance->AudioSection);
+
+		LeaveCriticalSection(&LocalInstance->VideoSection);
+
+		if (bRemove)
+		{
+			if (BaseVideo->GetAudioRender())
+			{
+				EnterCriticalSection(&LocalInstance->AudioSection);
+				for (int i = 0; i < LocalInstance->m_AudioList.Num(); ++i)
+				{
+					AudioStruct &OneAudio = LocalInstance->m_AudioList[i];
+
+					if (OneAudio.AudioStream.get() == BaseVideo->GetAudioRender())
+					{
+						OneAudio.AudioStream.reset();
+						LocalInstance->m_AudioList.Remove(i);
+						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s LocalInstance找到Audio", __FUNCTION__);
+						break;
+					}
+				}
+				LeaveCriticalSection(&LocalInstance->AudioSection);
+			}
+
+			RemoveFilterFromPGMOrPVM(BaseVideo, false);
+		}
 	}
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 }
@@ -5775,7 +5863,7 @@ void CSLiveManager::AddFilter2PGMOrPVM(IBaseVideo *Video, const List<Filter> &Fi
 	}
 }
 
-void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video)
+void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video,bool bRemovePGM)
 {
 	if (!Video)
 		return;
@@ -5796,7 +5884,7 @@ void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video)
 				{
 					if (OneProcess->m_Filter.Num())
 					{
-						RemoveFilterFromPGMOrPVM(Video, OneProcess->m_Filter);
+						RemoveFilterFromPGMOrPVM(Video, OneProcess->m_Filter, bRemovePGM);
 					}
 
 					bFind = true;
@@ -5813,9 +5901,9 @@ void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video)
 	}
 }
 
-void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filter> &FilterList)
+void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filter> &FilterList, bool bRemovePGM)
 {
-	if (LocalInstance)
+	if (LocalInstance && !bRemovePGM)
 	{
 		EnterCriticalSection(&LocalInstance->VideoSection);
 
@@ -5851,7 +5939,7 @@ void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filte
 
 
 
-	if (LiveInstance)
+	if (LiveInstance && bRemovePGM)
 	{
 		EnterCriticalSection(&LiveInstance->VideoSection);
 

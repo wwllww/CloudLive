@@ -444,7 +444,7 @@ public:
 
 	void StartLive(bool bRecordOnly);
 	void StopLive(bool bUI = true);
-	void ClearVideo(bool bRemoveDelay = false,bool bCut = false);
+	void ClearVideo(bool bRemoveDelay = false,bool bCut = false,bool bCanAddAgent = true);
 	void ClearVideoTransForm();
 	void ClearFilterTransForm();
 	void ClearAudio();
@@ -602,6 +602,7 @@ private:
 	HANDLE              m_hMutexRawV;
 	bool                bHasAudio;
 	D3DAPI              *D3DRender;
+	std::vector<shared_ptr<IBaseVideo>> vEffectAgentList;
 };
 
 #endif

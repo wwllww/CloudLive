@@ -31,6 +31,7 @@ DAudioSource::DAudioSource()
 	m_pSecWaveOut = NULL;
 	bLiveInstance = false;
 	fVolume = 1.0f;
+	m_pCSpeexDenoise = CreateSpeexDenoiseInstance();
 }
 
 bool DAudioSource::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp)
@@ -130,6 +131,9 @@ bool DAudioSource::Initialize(DSource *parent)
 		m_pAudioWaveOut->Uninitialize();
 	}
 
+	m_pCSpeexDenoise->InitSpeexDenoise(inputSamplesPerSec, inputChannels, sampleSegmentSize);
+	m_pCSpeexDenoise->SetSpeexDenoiseValue(m_nDenoiseValue);
+
 	String strReanderName = GetDirectorMonitorDevices();
 	if (NULL == m_pAudioWaveOut)
 	{
@@ -199,6 +203,10 @@ DAudioSource::~DAudioSource()
 		delete m_pSecWaveOut;
 		m_pSecWaveOut = NULL;
 	}
+	if (m_pCSpeexDenoise)
+	{
+		DestorySpeexDenoiseInstance(m_pCSpeexDenoise);
+	}
 }
 
 
@@ -206,6 +214,15 @@ void DAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, bool bCanPlay)
 {
     if(lpData)
     {
+		if (m_bUseDenoise)
+		{
+			bool bRet = m_pCSpeexDenoise->ProcessSpeexDenoiseData((short *)lpData, dataLength);
+			if (!bRet)
+			{
+				return;
+			}
+		}
+		
 		if (fVolume != 1.0f)
 		{
 			short *Tem = (short*)lpData;
@@ -381,4 +398,18 @@ void DAudioSource::OnAudioDeviceChanged(const String &MonitorDevices, const Stri
 	this->SecMonitor = SecMonitor;
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
+}
+
+void DAudioSource::SetDenoise(int nDenoise, bool isUseDenoise)
+{
+	m_bUseDenoise = isUseDenoise;
+	if (m_nDenoiseValue != nDenoise)
+	{
+		m_nDenoiseValue = nDenoise;
+		if (m_pCSpeexDenoise)
+		{
+			m_pCSpeexDenoise->SetSpeexDenoiseValue(m_nDenoiseValue);
+		}
+
+	}
 }

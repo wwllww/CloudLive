@@ -757,7 +757,9 @@ void CSLiveManager::MainVideoLoop()
 						DrawSpriteEx(Deinterlacer->GetRenderTexture(), 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
 					}
 
-					if (bUseBack)
+					bool bSameResolut = bUseBack && (outputCX == outputCX_back) && (outputCY == outputCY_back);
+
+					if (!bSameResolut && bUseBack)
 					{
 						SetRenderTarget(yuvRenderTextures_back);
 
@@ -810,7 +812,7 @@ void CSLiveManager::MainVideoLoop()
 					InterlockedExchangePointer((volatile PVOID*)&Outpic, outPics[swapIndex]);
 
 
-					if (bUseBack)
+					if (!bSameResolut && bUseBack)
 					{
 						BYTE *lpData;
 						UINT Pitch;
@@ -828,6 +830,10 @@ void CSLiveManager::MainVideoLoop()
 						Unmap(copyTextures_back);
 
 						InterlockedExchangePointer((volatile PVOID*)&Outpic_back, outPics_back[swapIndex]);
+					}
+					else if (bSameResolut)
+					{
+						InterlockedExchangePointer((volatile PVOID*)&Outpic_back, outPics[swapIndex]);
 					}
 				}
 			//profileOut

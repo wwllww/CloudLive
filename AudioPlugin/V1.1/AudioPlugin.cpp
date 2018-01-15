@@ -487,6 +487,17 @@ bool FillOutListOfDevices(HWND hwndCombo, GUID matchGUID, StringList *deviceList
 
 			if (SUCCEEDED(err))
 			{
+				if (sstri(friendlyNameValue.bstrVal, L"Blackmagic") || sstri(friendlyNameValue.bstrVal, L"Decklink"))
+				{
+					if (propertyData)
+						propertyData->Release();
+
+					if (deviceInfo)
+						deviceInfo->Release();
+
+					continue;
+				}
+
 				IBaseFilter *filter;
 				err = deviceInfo->BindToObject(NULL, 0, IID_IBaseFilter, (void**)&filter);
 				if (SUCCEEDED(err))
@@ -796,7 +807,12 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 				EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET), enable);
 				EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT), enable);
 				EnableWindow(GetDlgItem(hwnd, IDC_VOLUME), enable);
-
+				SendMessage(GetDlgItem(hwnd, IDC_DENOISE), TBM_SETRANGE, (WPARAM)(int)(1), MAKELPARAM(-60, 0));
+				SendMessage(GetDlgItem(hwnd, IDC_DENOISE), TBM_SETPOS, (WPARAM)(int)(1), (LPARAM)configData->data["audioDenoise"].asInt());
+				EnableWindow(GetDlgItem(hwnd, IDC_DENOISE), enable);
+				SendMessage(GetDlgItem(hwnd, IDC_CHECKDENOISE), BM_SETCHECK, configData->data["audioDenoiseCheck"].asInt(), 0);
+				EnableWindow(GetDlgItem(hwnd, IDC_CHECKDENOISE), enable);
+				
                 ConfigureDialogProc(hwnd, WM_COMMAND, MAKEWPARAM(IDC_AUDIOLIST, CBN_SELCHANGE), (LPARAM)hwndAudioList);
 
 				//==============================================
@@ -892,12 +908,16 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET),       FALSE);
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT),  FALSE);
 							EnableWindow(GetDlgItem(hwnd, IDC_VOLUME), FALSE);
+							EnableWindow(GetDlgItem(hwnd, IDC_DENOISE), FALSE);
+							EnableWindow(GetDlgItem(hwnd, IDC_CHECKDENOISE), FALSE);
                         }
 						else 
 						{
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET),       TRUE);
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT),  TRUE);
 							EnableWindow(GetDlgItem(hwnd, IDC_VOLUME), TRUE);
+							EnableWindow(GetDlgItem(hwnd, IDC_DENOISE), TRUE);
+							EnableWindow(GetDlgItem(hwnd, IDC_CHECKDENOISE), TRUE);
                         }
                     }
                     break;
@@ -905,6 +925,12 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 				case IDOK:
 				{
 							 ConfigDialogData *configData = (ConfigDialogData*)GetWindowLongPtr(hwnd, DWLP_USER);
+
+							 int nPos = SendMessage(GetDlgItem(hwnd, IDC_DENOISE), TBM_GETPOS, (WPARAM)0, (LPARAM)0);
+							 configData->data["audioDenoise"] = nPos;
+
+							 bool isDenoiseChecked = SendMessage(GetDlgItem(hwnd, IDC_CHECKDENOISE), BM_GETCHECK, 0, 0) == BST_CHECKED;
+							 configData->data["audioDenoiseCheck"] = isDenoiseChecked;
 
 							 UINT audioDeviceID = (UINT)SendMessage(GetDlgItem(hwnd, IDC_AUDIOLIST), CB_GETCURSEL, 0, 0);
 

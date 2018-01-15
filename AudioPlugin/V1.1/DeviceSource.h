@@ -22,7 +22,7 @@
 #include <memory>
 #include "BaseAudio.h"
 #include "BaseVideo.h"
-
+#include "SpeexDenoise.h"
 class DSource;
 class AudioWaveOut;
 
@@ -45,7 +45,11 @@ class DAudioSource : public IBaseAudio
 	QWORD         lastTimestamp;
 	bool          bLiveInstance;
 	float         fVolume;
-
+	CSpeexDenoise *m_pCSpeexDenoise = NULL;
+	int m_nDenoiseBufferSize = 0;
+	int m_nBufferRetrunLen = 0;
+	int m_nDenoiseValue = 0;
+	bool m_bUseDenoise = false;
 protected:
     virtual bool GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp);
     virtual void ReleaseBuffer();
@@ -60,6 +64,8 @@ public:
     void ReceiveAudio(LPBYTE lpData, UINT dataLength,bool bCanPlay);
 
     void FlushSamples();
+
+	void SetDenoise(int nDenoise, bool isUseDenoise);
 
     inline void SetAudioOffset(int offset) {this->offset = offset; SetTimeOffset(offset);}
 	virtual void UpdateSettings(Value &JsonParam);

@@ -260,13 +260,12 @@ public:
 			NvEncodeDestroy(m_pEncoder);
 	}
 
-	void HandleVideo(unsigned char *pFrame, int frameLen, uint64_t ts, bool bKey, bool bFrame)
+	void HandleVideo(unsigned char *pFrame, int frameLen, uint64_t ts, bool bKey, bool bFrame, NV_ENC_PIC_TYPE pictureType)
 	{
 		int timeOffset = 0;
 		timeOffset = htonl(timeOffset);
 		BYTE *timeOffsetAddr = ((BYTE*)&timeOffset) + 1;
 		VideoPacketNvidia *newPacket = NULL;
-		PacketType bestType = PacketType_VideoDisposable;
 		bool bFoundFrame   = false;	
 
 		BYTE *skip = pFrame;
@@ -306,9 +305,6 @@ public:
 			BufferOutputSerializer packetOut(newPacket->Packet);
 			packetOut.OutputDword(htonl(newPayloadSize));
 			packetOut.Serialize(skip, newPayloadSize);
-			bestType = PacketType_VideoLow;
-			if (bKey)
-				bestType = PacketType_VideoHighest;
 		}
 		else if (nNalType == NAL_SPS)
 		{
@@ -322,12 +318,17 @@ public:
 		}
 		if (newPacket)
 		{
-			newPacket->type = bestType;
+			if (pictureType == NV_ENC_PIC_TYPE_I || pictureType == NV_ENC_PIC_TYPE_IDR)
+				newPacket->type = PacketType_VideoHighest;
+			else if (pictureType == NV_ENC_PIC_TYPE_P)
+				newPacket->type = PacketType_VideoHigh;
+			else 
+				newPacket->type = PacketType_VideoDisposable;
 			newPacket->pts = ts;
 		}
 	}
 
-	void parse_encode_stream(char* pbuffer, int bufferlen, bool iskey, uint64_t ts)
+	void parse_encode_stream(char* pbuffer, int bufferlen, bool iskey, uint64_t ts, NV_ENC_PIC_TYPE pictureType)
 	{
 		char *tmpframe = pbuffer;
 		int tmpfrmlen = bufferlen;
@@ -401,10 +402,10 @@ public:
 					{
 						if (naltype == H264_IDR && m_spslen > 0 && m_ppslen > 0)
 						{
-							HandleVideo((unsigned char*)m_sps, m_spslen, ts, iskey, false);
-							HandleVideo((unsigned char*)m_pps, m_ppslen, ts, iskey, false);
+							HandleVideo((unsigned char*)m_sps, m_spslen, ts, iskey, false, pictureType);
+							HandleVideo((unsigned char*)m_pps, m_ppslen, ts, iskey, false, pictureType);
 						}
-						HandleVideo((unsigned char*)tmpframe, tmpfrmlen, ts, iskey, true);
+						HandleVideo((unsigned char*)tmpframe, tmpfrmlen, ts, iskey, true, pictureType);
 					}
 				}
 				break;
@@ -430,7 +431,7 @@ public:
 			if (pOut && pOut->pFrame)
 			{
 // 				Log::writeMessage(LOG_RTSPSERV, 1, "Encode_Nvidia 输出ts=%d, 帧类型=%d\n", pOut->ts * fps_ms, pOut->pictureType);
-				parse_encode_stream((char*)pOut->pFrame, pOut->frameLen, pOut->is_key, pOut->ts * fps_ms);
+				parse_encode_stream((char*)pOut->pFrame, pOut->frameLen, pOut->is_key, pOut->ts * fps_ms, pOut->pictureType);
 			}
 		}	
 		else
@@ -441,7 +442,7 @@ public:
 			if (pOut && pOut->pFrame)
 			{
 // 				Log::writeMessage(LOG_RTSPSERV, 1, "Encode_Nvidia Flush输出ts=%d, 帧类型=%d\n", pOut->ts * fps_ms, pOut->pictureType);
-				parse_encode_stream((char*)pOut->pFrame, pOut->frameLen, pOut->is_key, pOut->ts * fps_ms);
+				parse_encode_stream((char*)pOut->pFrame, pOut->frameLen, pOut->is_key, pOut->ts * fps_ms, pOut->pictureType);
 			}
 		}
 

@@ -47,6 +47,7 @@
 #define IDC_TIMEOFFSET                  1033
 #define IDC_CHECK1                      1034
 #define IDC_TFF                         1034
+#define IDC_CHECKDENOISE                1034
 #define IDC_VOLUME                      1035
 #define IDC_VOLMETER                    1036
 #define IDC_POINTFILTERING              1036
@@ -61,6 +62,7 @@
 #define IDC_USEAUDIORENDER              1044
 #define IDC_COMBO1                      1045
 #define IDC_AUDIORENDERLIST             1045
+#define IDC_DENOISE                     1046
 #define IDC_GAMMAVAL                    1151
 
 // Next default values for new objects
@@ -69,7 +71,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        107
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1046
+#define _APS_NEXT_CONTROL_VALUE         1047
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

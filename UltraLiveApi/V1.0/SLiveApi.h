@@ -822,7 +822,7 @@ extern "C" {
 	2017年02月28日                                           修改定义接口
 	/************************************************************************/
 
-	API_EXPORT int SLiveAdd2Agent(const char *StreamName,bool bAdd2PGM = false);
+	API_EXPORT int SLiveAdd2Agent(const char *StreamName);
 
 	/************************************************************************/
 	/* 函数功能：                  获取流的大小StreamID必须为视频流

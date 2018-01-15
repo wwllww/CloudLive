@@ -236,7 +236,7 @@
       <BrowseInformation>true</BrowseInformation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>strmbase.lib;strmiids.lib;Winmm.lib;D3DRender.lib;UltraLiveApi.lib;Common.lib;json_vc71_libmt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>strmbase.lib;strmiids.lib;Winmm.lib;D3DRender.lib;UltraLiveApi.lib;Common.lib;json_vc71_libmt.lib;SpeexDenoise.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>Z:\rlib_x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
@@ -267,6 +267,7 @@
     <ClInclude Include="../DeviceSource.h" />
     <ClInclude Include="..\AudioPlugin.h" />
     <ClInclude Include="../MediaInfoStuff.h" />
+    <ClInclude Include="..\SpeexDenoise.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>

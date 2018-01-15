@@ -2653,6 +2653,17 @@ bool CSLiveManager::FillOutListOfDevices(GUID matchGUID, Json::Value& deviceList
 
 			if (SUCCEEDED(err))
 			{
+				if (sstri(friendlyNameValue.bstrVal, L"Blackmagic") || sstri(friendlyNameValue.bstrVal, L"Decklink"))
+				{
+					if (propertyData)
+						propertyData->Release();
+
+					if (deviceInfo)
+						deviceInfo->Release();
+
+					continue;
+				}
+
 				IBaseFilter *filter;
 				err = deviceInfo->BindToObject(NULL, 0, IID_IBaseFilter, (void**)&filter);
 				if (SUCCEEDED(err))

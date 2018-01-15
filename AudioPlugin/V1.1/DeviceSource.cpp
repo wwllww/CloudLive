@@ -188,6 +188,14 @@ bool DSource::LoadAudioInputDevice()
 	if (!data["volume"].isNull())
 		volume = data["volume"].asDouble();
 
+	int nDenoise = -30;
+	if (!data["audioDenoise"].isNull())
+		nDenoise = data["audioDenoise"].asInt();
+
+	bool bUseDenoise = false;
+	if (!data["audioDenoiseCheck"].isNull())
+		bUseDenoise = data["audioDenoiseCheck"].asInt();
+
 	soundOutputType = 1;
 
 	if (strAudioName.CompareI(TEXT("禁用")))
@@ -338,6 +346,7 @@ bool DSource::LoadAudioInputDevice()
 
 			audioOut->SetAudioOffset(soundTimeOffset);
 			audioOut->SetVolume(volume);
+			audioOut->SetDenoise(nDenoise, bUseDenoise);
 		}
 	}
 	else if (soundOutputType == 1)
@@ -347,6 +356,7 @@ bool DSource::LoadAudioInputDevice()
 
 		audioOut->SetAudioOffset(soundTimeOffset);
 		audioOut->SetVolume(volume);
+		audioOut->SetDenoise(nDenoise, bUseDenoise);
 	}
 	bSucceeded = true;
 
@@ -466,11 +476,13 @@ void DSource::GlobalSourceEnterScene()
         return;
 
     float sourceVolume = data["volume"].asDouble();
-
+	int nDenoise = data["audioDenoise"].asDouble();
+	bool bUseDenoise = data["audioDenoiseCheck"].asInt();
 	OSEnterMutex(hSampleMutex);
 	if (audioOut) {
 		audioOut->Initialize(this);
         audioOut->SetVolume(1.0f);
+		audioOut->SetDenoise(nDenoise, bUseDenoise);
     }
 	OSLeaveMutex(hSampleMutex);
 }
@@ -524,8 +536,13 @@ void DSource::Preprocess()
 	if (bCapturing && bRequestVolume)
     {
 		OSEnterMutex(hSampleMutex);
-        if(audioOut)
-            audioOut->SetVolume(fNewVol);
+		if (audioOut)
+		{
+			audioOut->SetVolume(fNewVol);
+			int nDenoise = data["audioDenoise"].asDouble();
+			bool bUseDenoise = data["audioDenoiseCheck"].asInt();
+			audioOut->SetDenoise(nDenoise, bUseDenoise);
+		}
 		OSLeaveMutex(hSampleMutex);
 
         bRequestVolume = false;

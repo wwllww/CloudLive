@@ -2560,19 +2560,22 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 
 				String Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(),Data->cx, Data->cy);
 
-				
-				if (bHasAudio && audioEncoder)
+				if (videoEncoder)
 				{
-					fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, true , false, this));
-					DataPacket packet;
-					audioEncoder->GetHeaders(packet);
-					fileStream->AddPacket((const BYTE *)packet.lpPacket, packet.size, (DWORD)0, 0, PacketType_Audio_HEAD);
-				}
-				else if (!bHasAudio)
-				{
-					fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, false, false, this));
-				}
+					if (bHasAudio && audioEncoder)
+					{
+						fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, true, false, this));
+						DataPacket packet;
+						audioEncoder->GetHeaders(packet);
+						fileStream->AddPacket((const BYTE *)packet.lpPacket, packet.size, (DWORD)0, 0, PacketType_Audio_HEAD);
+					}
+					else if (!bHasAudio)
+					{
+						fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, false, false, this));
+					}
 
+				}
+				
 				//RTMP
 
 // 				String URL = Asic2WChar(LiveParam.LiveSetting.LivePushUrl).c_str();
@@ -2763,23 +2766,28 @@ void CInstanceProcess::VideoEncoderLoop()
 	//x264_picture_alloc(picIn, X264_CSP_NV12, m_recordPara.uWidth, m_recordPara.uHeight);
 
 	QWORD streamTimeStart = GetQPCNS(); // current nano second		
-	bool bufferedFrames = true; //to avoid constantly polling number of frames
-	int numTotalDuplicatedFrames = 0, numTotalFrames = 0, numFramesSkipped = 0;
-	UINT encoderInfo = 0;
-	QWORD messageTime = 0;
 
-	UINT no_sleep_counter = 0;
-	bool  bFirstEncodeV = false;
 	Log::writeMessage(LOG_RTSPSERV, 1, "%llu 录制线程启动", GetQPCMS());
-	QWORD StartEncodeTime = GetQPCMS();
-	int EncodeFrameCount = 0;
+
+	CircularList<QWORD> bufferedTimes;
+	CSampleData *LastSampleData = NULL;
 #if SAVE_YUV_TEST
 	// 输出文件创建
 	FILE *fyuv = fopen("D://Test.yuv", "wb");
 #endif
 	while (bRecord)
 	{
-		if (QueryNewVideo(templistVideo))
+		if (!RecordFPS)
+			RecordFPS = 25;
+
+		QWORD frameTimeNS = 1000000000 / RecordFPS;
+
+		if (!QueryNewVideo(templistVideo) && LastSampleData)
+		{
+			LastSampleData->timestamp = GetQPCNS() / 1000000;
+			templistVideo.push_back(LastSampleData);
+		}
+		if (templistVideo.size() > 0)
 		{
 			for (auto pFrame : templistVideo)
 			{
@@ -2793,10 +2801,11 @@ void CInstanceProcess::VideoEncoderLoop()
 				// 需要发送的视频数据
 				std::list<std::shared_ptr<VideoSegment>> segmentOuts;
 
+				bufferedTimes << pFrame->timestamp;
+
 				bool bProcessedFrame, bSendFrame = false;
 				EnterCriticalSection(&NetWorkSection);
 
-				DWORD out_pts = pFrame->timestamp/* / 10000*/;
 				DWORD pts;
 				if(videoEncoder)
 					videoEncoder->Encode(picIn, videoPackets, videoPacketTypes, pFrame->timestamp, pts);
@@ -2804,8 +2813,14 @@ void CInstanceProcess::VideoEncoderLoop()
 				fwrite(pFrame->lpData, 1, pFrame->dataLength, fyuv);
 #endif
 				bProcessedFrame = (videoPackets.Num() != 0);// encode success if videoPackets have data 
-				pFrame->Release();
 
+				if (LastSampleData != pFrame)
+				{
+					if (LastSampleData)
+						LastSampleData->Release();
+
+					LastSampleData = pFrame;
+				}
 				
 				if (bHasAudio && QueryNewAudio(templistAuido))
 				{
@@ -2836,7 +2851,7 @@ void CInstanceProcess::VideoEncoderLoop()
 					if (-1 == m_firstFrameTimestamp || fileStream)
 					{
 						if (-1 == m_firstFrameTimestamp)
-							m_firstFrameTimestamp = out_pts;
+							m_firstFrameTimestamp = bufferedTimes[0];
 
 						// 视频数据
 						DataPacket packet;
@@ -2863,13 +2878,16 @@ void CInstanceProcess::VideoEncoderLoop()
 
 					if (bHasAudio)
 					{
-						bSendFrame = BufferVideoDataList(videoPackets, videoPacketTypes, out_pts - m_firstFrameTimestamp, out_pts - m_firstFrameTimestamp, m_firstFrameTimestamp, segmentOuts);
+						bSendFrame = BufferVideoDataList(videoPackets, videoPacketTypes, bufferedTimes[0] - m_firstFrameTimestamp, bufferedTimes[0] - m_firstFrameTimestamp, m_firstFrameTimestamp, segmentOuts);
+						bufferedTimes.Remove(0);
 					}
 					else
 					{
 						VideoSegment &segmentIn = *bufferedVideo.CreateNew();
-						segmentIn.timestamp = out_pts - m_firstFrameTimestamp;
+						segmentIn.timestamp = bufferedTimes[0] - m_firstFrameTimestamp;
 						segmentIn.pts = segmentIn.timestamp;
+
+						bufferedTimes.Remove(0);
 
 						segmentIn.packets.SetSize(videoPackets.Num());
 						for (UINT i = 0; i < videoPackets.Num(); i++)
@@ -2904,10 +2922,8 @@ void CInstanceProcess::VideoEncoderLoop()
 			}
 			templistVideo.clear();
 		}
-		else
-		{
-			OSSleep(20); //screw it, just run it every 5ms
-		}
+
+		Sleep2NS(streamTimeStart += frameTimeNS);
 	}
 
 	for(auto Vdata : m_listVRawData)
@@ -2933,6 +2949,9 @@ void CInstanceProcess::VideoEncoderLoop()
 
 	if(picIn)
 		delete picIn;
+
+	if (LastSampleData)
+		LastSampleData->Release();
 
 #if SAVE_YUV_TEST
 	fclose(fyuv);

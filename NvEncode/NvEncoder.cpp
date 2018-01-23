@@ -743,31 +743,19 @@ int CNvEncoder::NvEncodeFrame(VCodecBuffer* pIn, VCodecBuffer** pOut)
 	int width = m_stEncoderConfig.width;
 	int height = m_stEncoderConfig.height;
 
-// 	if (m_stEncoderConfig.inputFormat == NV_ENC_BUFFER_FORMAT_YV12)
-// 	{
-// 		uint8_t *y = (uint8_t*)pIn->pFrame;
-// 		uint8_t *v = (uint8_t*)pIn->pFrame + width * height;
-// 		uint8_t *u = (uint8_t*)pIn->pFrame + width * height * 5 / 4;
-// 		unsigned char *pInputSurfaceV = pInputSurface + (pEncodeBuffer->stInputBfr.dwHeight * lockedPitch);
-// 		unsigned char *pInputSurfaceU = pInputSurface + (pEncodeBuffer->stInputBfr.dwHeight * lockedPitch) * 5 / 4;
-// 		for (int i = 0; i < height; i++)
-// 		{
-// 			memcpy(pInputSurface + i*lockedPitch, y + i*width, width);
-// 		}
-// 		for (int i = 0; i < height / 2; i++)
-// 		{
-// 			memcpy(pInputSurfaceV + i*lockedPitch/2, v + i*width/2, width/2);
-// 		}
-// 		for (int i = 0; i < height / 2; i++)
-// 		{
-// 			memcpy(pInputSurfaceU + i*lockedPitch/2, u + i*width/2, width/2);
-// 		}
-// 	}
 	if (m_stEncoderConfig.RealInputFormat == NV_ENC_BUFFER_FORMAT_YV12)
 	{
 		uint8_t *y = (uint8_t*)pIn->pFrame;
 		uint8_t *v = (uint8_t*)pIn->pFrame + width * height;
 		uint8_t *u = (uint8_t*)pIn->pFrame + width * height * 5 / 4;
+		unsigned char *pInputSurfaceCh = pInputSurface + (pEncodeBuffer->stInputBfr.dwHeight*lockedPitch);
+		convertYUVpitchtoNV12(y, u, v, pInputSurface, pInputSurfaceCh, width, height, width, lockedPitch);
+	}
+	else if (m_stEncoderConfig.RealInputFormat == NV_ENC_BUFFER_FORMAT_IYUV)
+	{
+		uint8_t *y = (uint8_t*)pIn->pFrame;
+		uint8_t *u = (uint8_t*)pIn->pFrame + width * height;
+		uint8_t *v = (uint8_t*)pIn->pFrame + width * height * 5 / 4;
 		unsigned char *pInputSurfaceCh = pInputSurface + (pEncodeBuffer->stInputBfr.dwHeight*lockedPitch);
 		convertYUVpitchtoNV12(y, u, v, pInputSurface, pInputSurfaceCh, width, height, width, lockedPitch);
 	}

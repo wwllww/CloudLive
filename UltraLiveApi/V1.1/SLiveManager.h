@@ -153,7 +153,7 @@ public:
 
 	void SwitchInstanceDisSolve(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD, UINT TransTime);
 
-	void SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD, TransFormType type);
+	void SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD, TransFormType type, UINT TransTime);
 
 	void ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD, TransFormType type);
 
@@ -229,6 +229,7 @@ private:
 	Texture *PreRenderTexture;
 	Texture *yuvRenderTextures, *yuvRenderTextures_back;
 	Texture *transitionTexture;
+	unique_ptr<Texture> transitionAddress;
 	Texture *transNewTexture;
 	Texture *copyRGBTexture;
 	Texture *SDITexture;
@@ -241,8 +242,12 @@ private:
 
 	bool bTransDisSolving;
 	bool bTransUpDown;
+	bool bTransDownUp;
+	bool bTransLeftRight;
+	bool bTransRightLeft;
 	bool bTransDiffuse;
 	bool bRadius;
+	bool bClock;
 	float TransFormTime;
 	float TransEscapeTime;
 

@@ -555,7 +555,11 @@ CSLiveManager::CSLiveManager()
 	TransEscapeTime = 0.0f;
 	bTransUpDown = false;
 	bTransDiffuse = false;
+	bTransDownUp = false;
+	bTransLeftRight = false;
+	bTransRightLeft = false;
 	bRadius = false;
+	bClock = false;
 	ss = NULL;
 	bUseBack = false;
 	LiveInstance = NULL;
@@ -1365,7 +1369,16 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 								{
 									LiveProcess->DeleteStream((uint64_t)VS.VideoStream.get());
 									bFind = true;
-									break;
+									//break;
+								}
+
+								if (0 == strcmp(VSLive.VideoStream->GainClassName(), "AgentSource"))
+								{
+									IBaseVideo *Gloabl = VSLive.VideoStream->GetGlobalSource();
+									if (Gloabl && (Gloabl == VS.VideoStream.get()))
+									{
+										VSLive.VideoStream->RestSetGlobalSource();
+									}
 								}
 
 							}
@@ -1386,9 +1399,11 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 
 								if (0 == strcmp(VSAgent.VideoStream->GainClassName(), "AgentSource"))
 								{
-									if (!(*VSAgent.Config)["SecName"].isNull())
+									//if (!(*VSAgent.Config)["SecName"].isNull())
 									{
-										if (0 == strcmp((*VSAgent.Config)["SecName"].asString().c_str(), (*VS.Config)["Name"].asString().c_str()))
+										//if (0 == strcmp((*VSAgent.Config)["SecName"].asString().c_str(), (*VS.Config)["Name"].asString().c_str()))
+										IBaseVideo *Gloabl = VSAgent.VideoStream->GetGlobalSource();
+										if (Gloabl && (Gloabl == VS.VideoStream.get()))
 										{
 											VSAgent.VideoStream->RestSetGlobalSource();
 										}
@@ -2967,26 +2982,34 @@ int CSLiveManager::SLiveSwitchInstance(uint64_t iIntanceID_S, uint64_t iIntanceI
 		CInstanceProcess *Process_S = m_InstanceList[iIntanceID_S];
 		CInstanceProcess *Process_D = m_InstanceList[iIntanceID_D];
 		LeaveCriticalSection(&MapInstanceSec);
-
-		if (!bTransDisSolving && !bTransUpDown && !bTransDiffuse && !bRadius)
+		
+		if (!bTransDisSolving && !bTransUpDown && !bTransDiffuse && !bRadius && !bTransDownUp && !bTransLeftRight && !bTransRightLeft && !bClock)
 		{
+			if (TransTime < 100)
+				TransTime = 100;
+
 			if(Type == Cut)
 				SwitchInstanceCut(Process_S, Process_D);
 			else if (Type == DisSolve)
 			{
 				SwitchInstanceDisSolve(Process_S, Process_D, TransTime);
 			}
-			else if(Type == UpDown || Type == Diffuse || Type == Radius)
+			else if(Type == UpDown || Type == Diffuse || Type == Radius || Type == DownUp || Type == LeftRight || Type == RightLeft || Type == Clock)
 			{
-				SwitchInstanceUpDownOrDiffuse(Process_S, Process_D, Type);
+				SwitchInstanceUpDownOrDiffuse(Process_S, Process_D, Type,TransTime);
 			}
 		}
 		else
 		{
-			Log::writeMessage(LOG_RTSPSERV, 1, "正在进行切换直播操作bTransDisSolving = %s,bTransUpDown = %s,bTransDiffuse = %s,bRadius = %s", bTransDisSolving ? "true":"false",
+			Log::writeMessage(LOG_RTSPSERV, 1, "正在进行切换直播操作bTransDisSolving = %s,bTransUpDown = %s,bTransDiffuse = %s,bRadius = %s,bTransDownUp = %s,bTransLeftRight = %s,bTransRightLeft = %s,bClock = %s",
+				bTransDisSolving ? "true":"false",
 				bTransUpDown ? "true" : "false",
 				bTransDiffuse ? "true" : "false",
-				bRadius ? "true" : "false");
+				bRadius ? "true" : "false",
+				bTransDownUp ? "true" : "false",
+				bTransLeftRight ? "true" : "false",
+				bTransRightLeft ? "true" : "false",
+				bClock ? "ture" : "false");
 		}
 
 	}
@@ -3027,14 +3050,12 @@ void CSLiveManager::SwitchInstanceDisSolve(CInstanceProcess *InstanceS, CInstanc
 		BUTEL_THORWERROR("使用淡出模式iIntanceID_D必须为直播实例");
 	}
 
-	if (TransTime < 100)
-		TransTime = 100;
-
 	TransFormTime = TransTime;
 
 	InstanceD->ClearAudio();
 	InstanceD->ClearVideoTransForm();
 	InstanceD->ClearFilterTransForm();
+	InstanceD->ClearEmptyAgent();
 
 	ProcessSwitch(InstanceS, InstanceD, DisSolve);
 
@@ -3044,7 +3065,7 @@ void CSLiveManager::SwitchInstanceDisSolve(CInstanceProcess *InstanceS, CInstanc
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 }
 
-void CSLiveManager::SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD,TransFormType Type)
+void CSLiveManager::SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, CInstanceProcess *InstanceD, TransFormType Type, UINT TransTime)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
 
@@ -3058,25 +3079,42 @@ void CSLiveManager::SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, C
 
 	InstanceD->ClearAudio();
 	InstanceD->ClearVideoTransForm();
+	InstanceD->ClearEmptyAgent();
 
 	ProcessSwitch(InstanceS, InstanceD, Type);
 
 	TransEscapeTime = 0.0f;
-
-	if (Type == UpDown)
+	TransFormTime = TransTime;
+	if (Type == UpDown || Type == DownUp || Type == LeftRight || Type == RightLeft)
 	{
-		bTransUpDown = true;
-		TransFormTime = 500;
+		if (Type == UpDown)
+		{
+			bTransUpDown = true;
+		}
+		else if (Type == RightLeft)
+		{
+			bTransRightLeft = true;
+		}
+		else if (Type == DownUp)
+		{
+			bTransDownUp = true;
+		}
+		else if (Type == LeftRight)
+		{
+			bTransLeftRight = true;
+		}
 	}
 	else if (Type == Diffuse)
 	{
 		bTransDiffuse = true;
-		TransFormTime = 1000;
 	}
 	else if (Type == Radius)
 	{
 		bRadius = true;
-		TransFormTime = 1000;
+	}
+	else if (Type == Clock)
+	{
+		bClock = true;
 	}
 
 
@@ -4618,7 +4656,7 @@ void CSLiveManager::RemoveLiveInstanceAudio(IBaseVideo *BaseVideo, bool bMustDel
 		}
 		LeaveCriticalSection(&LiveInstance->VideoSection);
 
-		if (!bAgentFind && !bFind)
+		if ((!bAgentFind && !bFind) || bMustDel)
 			RemoveFilterFromPGMOrPVM(BaseVideo, true);
 
 		if (BaseVideo->GetAudioRender())
@@ -4681,7 +4719,7 @@ void CSLiveManager::RemoveLiveInstanceAudio(IBaseVideo *BaseVideo, bool bMustDel
 
 		LeaveCriticalSection(&LocalInstance->VideoSection);
 
-		if (bRemove)
+		if (bRemove || bMustDel)
 		{
 			if (BaseVideo->GetAudioRender())
 			{

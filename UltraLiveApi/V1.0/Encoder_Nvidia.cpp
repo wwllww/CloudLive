@@ -83,10 +83,12 @@ protected:
 	void                *m_pEncoder;	
 	EncodeConfig        m_encodeConfig;
     
+	uint64_t			m_nFrameCount;
     int fps_ms;
     bool m_bRequestKeyframe;      
     UINT m_width, m_height;   
-   
+	int frameShift;
+
 	List<BYTE> m_PacketPPS;
 	List<BYTE> m_PacketSPS;
 
@@ -117,6 +119,8 @@ public:
     {  
 		Log::writeMessage(LOG_RTSPSERV, 1, "CNvidiaEncoder ππ‘Ï!\n");
 
+		m_nFrameCount = 0;
+		frameShift = 0;
 		memset(m_sps, 0, MAX_SPS_PPS_LEN);
 		memset(m_pps, 0, MAX_SPS_PPS_LEN);
 		m_spslen = 0;
@@ -263,8 +267,22 @@ public:
 	void HandleVideo(unsigned char *pFrame, int frameLen, uint64_t ts, bool bKey, bool bFrame, NV_ENC_PIC_TYPE pictureType)
 	{
 		int timeOffset = 0;
+		if (m_encodeConfig.numB != 0)
+		{
+			timeOffset = int(ts - m_nFrameCount * fps_ms);
+		}
+		
+		timeOffset += frameShift;
+		if (timeOffset < 0)
+		{
+			frameShift -= timeOffset;
+			timeOffset = 0;
+		}
 		timeOffset = htonl(timeOffset);
 		BYTE *timeOffsetAddr = ((BYTE*)&timeOffset) + 1;
+
+		m_nFrameCount++;
+
 		VideoPacketNvidia *newPacket = NULL;
 		bool bFoundFrame   = false;	
 
@@ -498,7 +516,7 @@ public:
 	{
 		return m_encodeConfig.fps;
 	}
-
+	virtual void GetWH(int& Width, int& Height){ Width = m_width; Height = m_height; }
     String GetInfoString() const
     {
         String strInfo;

@@ -128,6 +128,7 @@ void CSLiveManager::MainVideoLoop()
 	HANDLE hScaleVal = yuvScalePixelShader->GetParameterByName(TEXT("baseDimensionI"));
 	HANDLE hTransitionTime = transitionPixel->GetParameterByName(TEXT("transitionTime"));
 	HANDLE HRadius = circleTransitionPixel->GetParameterByName(TEXT("radius"));
+	HANDLE HClock = circleTransitionPixel->GetParameterByName(TEXT("clock"));
 	int CopyI = 0;
 	Vect2 baseSize = Vect2(float(baseCX), float(baseCY));
 	Vect2 baseSize_back = Vect2(float(baseCX_back), float(baseCY_back));
@@ -358,7 +359,7 @@ void CSLiveManager::MainVideoLoop()
 
 				if (Process->IsLiveInstance)
 				{
-					if (!bTransUpDown && !bTransDiffuse)
+					//if (!bTransUpDown && !bTransDiffuse)
 					{
 						m_D3DRender->SetRenderTarget(mainRenderTextures[swapIndex]);
 						Process->DrawRender(mainRenderTextures[swapIndex], mainVertexShader, mainPixelShader);
@@ -366,14 +367,13 @@ void CSLiveManager::MainVideoLoop()
 						RenderTexture = mainRenderTextures[swapIndex];
 					}
 
-
-					if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius)
+					if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock
+						|| bTransDownUp || bTransLeftRight || bTransRightLeft)
 					{
 						Process->DrawTransFormProcess(fSeconds);
 						m_D3DRender->SetRenderTarget(transNewTexture);
 
 						Process->DrawTransFormRender(transNewTexture, mainVertexShader, mainPixelShader);
-
 
 						m_D3DRender->SetRenderTarget(transitionTexture);
 						m_D3DRender->ClearRenderTarget(0xFF000000);
@@ -392,17 +392,54 @@ void CSLiveManager::MainVideoLoop()
 							m_D3DRender->LoadTexture(nullptr, 1U);
 							m_D3DRender->LoadPixelShader(oldPixelShader);
 						}
-						else if (bTransUpDown)
+						else if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft)
 						{
 							m_D3DRender->LoadSamplerState(ss, 0);
-							m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
-								0, 0, baseSize.x, baseSize.y, 0.0f, 1.0f - TransEscapeTime, 1.0f, 2 - TransEscapeTime);
+
+							if (bTransUpDown)
+							{
+								m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
+									0, 0, baseSize.x, baseSize.y, 0.0f, 1.0f - TransEscapeTime, 1.0f, 2.0f - TransEscapeTime);
+							}
+							else if (bTransDownUp)
+							{
+								m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
+									0, 0, baseSize.x, baseSize.y, 0.0f, TransEscapeTime - 1.0f, 1.0f, TransEscapeTime);
+							}
+							else if (bTransLeftRight)
+							{
+								m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
+									0, 0, baseSize.x, baseSize.y, 1.0f - TransEscapeTime, 0.0f, 2.0f - TransEscapeTime, 1.0f);
+							}
+							else if (bTransRightLeft)
+							{
+								m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
+									0, 0, baseSize.x, baseSize.y, TransEscapeTime - 1.0f, 0.0f, TransEscapeTime, 1.0f);
+							}
+							//保持切换之前的画面
+							m_D3DRender->SetRenderTarget(transitionAddress.get());
+							m_D3DRender->ClearRenderTarget(0xFF000000);
+
+							m_D3DRender->EnableBlending(TRUE);
+							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
+							m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0xFFFFFFFF,
+								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
+
+							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF,
+								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
+							m_D3DRender->EnableBlending(FALSE);
 						}
 						else if (bTransDiffuse)
 						{
+							m_D3DRender->DrawSprite(mainRenderTextures[swapIndex], 0xFFFFFFFF,
+								baseSize.x * TransEscapeTime,
+								baseSize.y * TransEscapeTime, 
+								baseSize.x * (1 - TransEscapeTime), 
+								baseSize.y * (1 - TransEscapeTime));
+
 							float halfWidth = baseSize.x / 2;
 							float halfHeight = baseSize.y / 2;
-
+							
 							m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
 								halfWidth * (1.0f - TransEscapeTime),
 								halfHeight * (1.0f - TransEscapeTime),
@@ -410,19 +447,46 @@ void CSLiveManager::MainVideoLoop()
 								halfHeight * (1.0f + TransEscapeTime),
 								0.0f, 0.0f, 1.0f, 1.0f);
 						}
-						else if (bRadius)
+						else if (bRadius || bClock)
 						{
 							Shader *oldPixelShader = m_D3DRender->GetCurrentPixelShader();
 							m_D3DRender->LoadPixelShader(circleTransitionPixel);
 							circleTransitionPixel->SetFloat(HRadius, TransEscapeTime);
+							if (bRadius)
+								circleTransitionPixel->SetFloat(HClock, 0.0f);
+							else if (bClock)
+							{
+								circleTransitionPixel->SetFloat(HClock, 1.0f);
+							}
 							m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
 
 							m_D3DRender->LoadPixelShader(oldPixelShader);
+
+
+							m_D3DRender->SetRenderTarget(transitionAddress.get());
+							m_D3DRender->ClearRenderTarget(0xFF000000);
+
+							m_D3DRender->EnableBlending(TRUE);
+							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
+							m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0x66FFFFFF,
+								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
+
+							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF,
+								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
+							m_D3DRender->EnableBlending(FALSE);
+
 						}
 
-
-						RenderTexture = transitionTexture;
+						if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft || bRadius || bClock)
+						{
+							RenderTexture = transitionAddress.get();
+						}
+						else
+						{
+							RenderTexture = transitionTexture;
+						}
+						
 
 
 						TransEscapeTime += frameTimeNS / (1000000 * TransFormTime);
@@ -678,12 +742,14 @@ void CSLiveManager::MainVideoLoop()
 			{
 				if (TransEscapeTime >= 1.0f)
 				{
-					if (bTransUpDown)
+					if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft)
 						m_D3DRender->LoadSamplerState(NULL, 0);
 					bTransDisSolving = false;
 					bTransUpDown = false;
 					bTransDiffuse = false;
 					bRadius = false;
+					bClock = false;
+					bTransDownUp = bTransLeftRight = bTransRightLeft = false;
 				}
 			}
 
@@ -730,7 +796,7 @@ void CSLiveManager::MainVideoLoop()
 
 					if (!bLiveIsHaveFieldSignal)
 					{
-						if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius)
+						if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock || bTransDownUp || bTransLeftRight || bTransRightLeft)
 						{
 							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
 						}
@@ -755,7 +821,7 @@ void CSLiveManager::MainVideoLoop()
 
 						if (!bLiveIsHaveFieldSignal)
 						{
-							if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius)
+							if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock || bTransDownUp || bTransLeftRight || bTransRightLeft)
 							{
 								m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX_back, outputCY_back, 0.0f, 0.0f, 1.0f, 1.0f);
 							}
@@ -770,12 +836,14 @@ void CSLiveManager::MainVideoLoop()
 
 					if (TransEscapeTime >= 1.0f)
 					{
-						if (bTransUpDown)
+						if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft)
 							m_D3DRender->LoadSamplerState(NULL, 0);
 						bTransDisSolving = false;
 						bTransUpDown = false;
 						bTransDiffuse = false;
 						bRadius = false;
+						bClock = false;
+						bTransDownUp = bTransLeftRight = bTransRightLeft = false;
 					}
 
 					BYTE *lpData;

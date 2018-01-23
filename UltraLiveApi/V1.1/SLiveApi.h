@@ -52,7 +52,11 @@ enum TransFormType
 	DisSolve,
 	UpDown,
 	Diffuse,
-	Radius
+	Radius,
+	DownUp,
+	LeftRight,
+	RightLeft,
+	Clock
 };
 
 
@@ -94,6 +98,7 @@ typedef struct LiveSettingParam
 	bool      bRecoder;
 	char      RecoderPath[MAX_PATH];
 	int       FileType;
+	int       RecordMin;
 
 	//高级
 	char      X264Preset[20];
@@ -130,6 +135,7 @@ typedef struct LiveSettingParam
 	bool      bRecoderSec;
 	char      RecoderPathSec[MAX_PATH];
 	int       FileTypeSec;
+	int       RecordMinSec;
 
 	//高级
 	char      X264PresetSec[20];

@@ -68,6 +68,8 @@
 #define IDC_PROGRESSIVE                 1047
 #define IDC_64BIT_WARNING2              1048
 #define IDC_INTERLACE                   1049
+#define IDC_RECORDTIMEEDIT              1050
+#define IDC_RECORDTIME                  1050
 #define IDC_GAMMAVAL                    1151
 
 // Next default values for new objects
@@ -76,7 +78,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        107
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1046
+#define _APS_NEXT_CONTROL_VALUE         1051
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

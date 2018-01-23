@@ -672,10 +672,19 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 
 		channelInfo->colorFormat = nColorFormat;
 		channelInfo->displayMode = mode;
+
+		float fScale = (float)channelInfo->uiFPS / 25.0f;
 		if (nBufferTime > 0)
-			channelInfo->uiTotalFrames = nBufferTime;
+		{
+			channelInfo->nBufferFrameCount = nBufferTime * fScale;
+			channelInfo->uiTotalFrames = nBufferTime * fScale;
+		}
 		else
-			channelInfo->uiTotalFrames = FRAMECOUNT;
+		{
+			channelInfo->nBufferFrameCount = FRAMECOUNT * fScale;
+			channelInfo->uiTotalFrames = FRAMECOUNT * fScale;
+		}
+		Log::writeMessage(LOG_SDI, 1, "SDI_StartOut Êä³öÖ¡ÂÊ=%d, »º³å´óÐ¡=%d!", channelInfo->uiFPS, channelInfo->nBufferFrameCount);
 
 		channelInfo->bStop = false;
 		listChannelInfo.push_back(channelInfo);
@@ -712,7 +721,7 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 		}
 		channelInfo->pOutputCallback = pOutputCallback;
 
-		SetPreroll(nDeviceID, nBufferTime, nColorFormat);
+		SetPreroll(nDeviceID, nColorFormat);
 
 		pCurDLOutput->StartScheduledPlayback(0, 100, 1.0);
 		SAFE_RELEASE(pDLIterator);
@@ -796,7 +805,7 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 			{
 				EnterCriticalSection(&(*pos)->pMutex);
 				pChannelInfo = (*pos);
-				bParaChange = Restart(bAudio, pChannelInfo, nChannel, nSample, nBytePerSample, nAudioLength, bParaChange, colorFormat, nWidth, nHeight);
+				bParaChange = Restart(bAudio, pChannelInfo, nChannel, nSample, nBytePerSample, nAudioLength, bParaChange, colorFormat, nWidth, nHeight);				
 				if (bParaChange)
 				{
 					LeaveCriticalSection(&(*pos)->pMutex);
@@ -899,6 +908,8 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 				float* tempFloat1 = (float*)pChannelInfo->pResampleBuffer;
 				while (tempFrameSize--)
 				{
+					if ((*tempFloat1 - 1.0f) > 0.00000001)
+						*tempFloat1 = 1.0f;
 					short tempShort = (*tempFloat1) * 32767.0f;
 					*tempConvert1 = tempShort;
 					tempFloat1++;
@@ -990,6 +1001,18 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 					}
 				}
 			}
+// 			if (bPGM)
+// 			{
+// 				unsigned int nCount = 0;
+// 				pChannelInfo->pDLOutput->GetBufferedAudioSampleFrameCount(&nCount);
+// 				Log::writeMessage(LOG_SDI, 1, "SDI_RenderDevice,PGM_SDI»º³åÒôÆµÊý=%d!", nCount);
+// 			}
+// 			else
+// 			{
+// 				unsigned int nCount = 0;
+// 				pChannelInfo->pDLOutput->GetBufferedAudioSampleFrameCount(&nCount);
+// 				Log::writeMessage(LOG_SDI, 1, "SDI_RenderDevice,SDI»º³åÒôÆµÖ¡Êý=%d!", nCount);
+// 			}
 		}
 		else
 		{
@@ -997,13 +1020,7 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 			int curHeight = pChannelInfo->uiFrameHeigh;
 			unsigned char* pFrame = nullptr;
 
-			int bufferMax = 0;
-			if (bPGM)
-				bufferMax = 15;
-			else
-				bufferMax = 9;
-
-			if (pChannelInfo->m_BufferList.unsafe_size() <= bufferMax)
+			if (pChannelInfo->m_BufferList.unsafe_size() <= pChannelInfo->nBufferFrameCount + 5)
 			{
 				if (colorFormat == ColorFormat_RGB24 || colorFormat == ColorFormat_RGBA32REVERSE || colorFormat == ColorFormat_RGB32)
 				{
@@ -1126,6 +1143,15 @@ int SDIOutput::SDI_StopOut(int nDeviceID)
 		{
 			if ((*pos)->nDeviceID == nDeviceID)
 			{
+// 				int nCount = 0;
+// 				while ((*pos)->ref > 0 && nCount < (*pos)->m_BufferList.unsafe_size())
+// 				{
+// 					Log::writeMessage(LOG_SDI, 1, "ref = %d!", (*pos)->ref);
+// 					Sleep(40);
+// 					nCount++;
+// 				}
+// 				(*pos)->bStop = true;
+
 				(*pos)->bStop = true;
 
 				int nCount = 0;
@@ -1215,15 +1241,9 @@ int SDIOutput::SDI_StopOut(int nDeviceID)
 	return errNone;
 }
 
-void SDIOutput::SetPreroll(int nDeviceID, int bufferTime, SDIOUT_COLORFORMAT nColorFormat)
+void SDIOutput::SetPreroll(int nDeviceID, SDIOUT_COLORFORMAT nColorFormat)
 {
 	IDeckLinkMutableVideoFrame* pDLVideoFrame;
-
-	int bufferFrameCount = 0;
-	if (bufferTime > 0)
-		bufferFrameCount = bufferTime;
-	else
-		bufferFrameCount = FRAMECOUNT;
 
 	// Set 1 second preroll
 	if (listChannelInfo.size())
@@ -1235,7 +1255,7 @@ void SDIOutput::SetPreroll(int nDeviceID, int bufferTime, SDIOUT_COLORFORMAT nCo
 // 			Log::writeMessage(LOG_SDI, 1, "SetPreroll%d»º³åÖ¡Êý=%d!", nDeviceID, bufferFrameCount);
 			if ((*pos)->nDeviceID == nDeviceID)
 			{
-				for (unsigned __int32 i = 0; i < bufferFrameCount; i++)
+				for (unsigned __int32 i = 0; i < (*pos)->nBufferFrameCount; i++)
 				{
 					if (nColorFormat == ColorFormat_RGB32 || nColorFormat == ColorFormat_RGBA32REVERSE || nColorFormat == ColorFormat_RGB24)
 					{
@@ -1261,6 +1281,8 @@ void SDIOutput::SetPreroll(int nDeviceID, int bufferTime, SDIOUT_COLORFORMAT nCo
 
 					if ((*pos)->pDLOutput->ScheduleVideoFrame(pDLVideoFrame, ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale) != S_OK)
 						goto bail;
+
+// 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame Êä³öÆðµã=%lld, Duration=%lld, Timescale=%lld!", ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale);
 
 					pDLVideoFrame->Release();
 					pDLVideoFrame = NULL;
@@ -1520,7 +1542,7 @@ bool SDIOutput::Restart(bool bAudio, ChannelInfo* pChannelInfo, int nChannel, in
 {
 	if (bAudio)
 	{
-		if (pChannelInfo->nPreSrcChannelCount != nChannel 
+		if (pChannelInfo->nPreSrcChannelCount != nChannel
 			|| pChannelInfo->nPreSrcSampleCount != nSample
 			|| pChannelInfo->nPreSrcBytePerSample != nBytePerSample
 			|| pChannelInfo->nPreSrcAudioLength != nAudioLength)

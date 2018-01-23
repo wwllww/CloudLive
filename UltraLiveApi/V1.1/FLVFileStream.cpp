@@ -17,6 +17,8 @@ class FLVFileStream : public VideoFileStream
 	bool   m_bBack;
     UINT64 metaDataPos;
     DWORD lastTimeStamp, initialTimestamp;
+	bool m_bNewSubsectionFlag = false;           //分时间段存储文件
+	UINT64 m_uSubsectionDuration = 0;  //读取配置文件
 
     decltype(GetBufferedSEIPacket()) sei = GetBufferedSEIPacket();
     decltype(GetBufferedAudioHeadersPacket()) audioHeaders = GetBufferedAudioHeadersPacket();
@@ -57,6 +59,90 @@ class FLVFileStream : public VideoFileStream
         lastTimeStamp = timestamp;
     }
 
+	bool ResetFileInit()
+	{
+		UINT64 fileSize = fileOut.GetPos();
+		fileOut.Close();
+
+		XFile file;
+		if (file.Open(strFile, XFILE_WRITE, XFILE_OPENEXISTING))
+		{
+			double doubleFileSize = double(fileSize);
+			double doubleDuration = double(lastTimeStamp / 1000);
+
+			file.SetPos(metaDataPos + 0x28, XFILE_BEGIN);
+			QWORD outputVal = *reinterpret_cast<QWORD*>(&doubleDuration);
+			outputVal = fastHtonll(outputVal);
+			file.Write(&outputVal, 8);
+
+			file.SetPos(metaDataPos + 0x3B, XFILE_BEGIN);
+			outputVal = *reinterpret_cast<QWORD*>(&doubleFileSize);
+			outputVal = fastHtonll(outputVal);
+			file.Write(&outputVal, 8);
+
+			file.Close();
+		}
+
+		if (m_bBack)
+		{
+			videoHeaders = GetBufferedVideoHeadersPacket_Back();
+			sei = GetBufferedSEIPacket_back();
+		}
+		bSentFirstPacket = false;
+		initialTimestamp = -1;
+		lastTimeStamp = -1;
+		bSentSEI = false;
+
+		SYSTEMTIME st;
+		GetLocalTime(&st);
+		String strOutputTime = FormattedString(TEXT("%u-%02u-%02u-%02u%02u-%02u"), st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+
+		int nRightPos = -1;
+		for (int iIndex = strFile.Length(); iIndex > 0;iIndex--)
+		{
+			if (strFile[iIndex] == L'(')
+			{
+				nRightPos = iIndex;
+				break;
+			}
+		}
+		
+		if (nRightPos >= 18)
+		{
+			String Tmp = strFile.Left(nRightPos - 18);
+			Tmp = Tmp + strOutputTime;
+			Tmp = Tmp + strFile.Right(strFile.Length() - nRightPos);
+			strFile = Tmp;
+		}
+		else
+		{
+			return false;
+		}
+		if (!fileOut.Open(strFile, XFILE_CREATEALWAYS, 1024 * 1024))
+			return false;
+
+		fileOut.OutputByte('F');
+		fileOut.OutputByte('L');
+		fileOut.OutputByte('V');
+		fileOut.OutputByte(1);
+		fileOut.OutputByte(5); //bit 0 = (hasAudio), bit 2 = (hasAudio)
+		fileOut.OutputDword(DWORD_BE(9));
+		fileOut.OutputDword(0);
+
+		metaDataPos = fileOut.GetPos();
+
+		char  metaDataBuffer[2048];
+		char *enc = metaDataBuffer;
+		char *pend = metaDataBuffer + sizeof(metaDataBuffer);
+
+		enc = AMF_EncodeString(enc, pend, &av_onMetaData);
+		char *endMetaData = G_LiveInstance->EncMetaData(enc, pend, true, m_bBack);
+		UINT  metaDataSize = endMetaData - metaDataBuffer;
+
+		AppendFLVPacket((LPBYTE)metaDataBuffer, metaDataSize, 18, 0);
+
+		return true;
+	}
 public:
 	bool Init(CTSTR lpFile, bool bBack)
     {
@@ -130,23 +216,47 @@ public:
 
     virtual void AddPacket(const BYTE *data, UINT size, DWORD timestamp, DWORD /*pts*/, PacketType type) override
     {
-        InitBufferedPackets();
+		if (m_bBack)
+		{
+			m_uSubsectionDuration = G_LiveInstance->LiveParam.LiveSetting.RecordMinSec * 60 * 1000;
+		}
+		else
+		{
+			m_uSubsectionDuration = G_LiveInstance->LiveParam.LiveSetting.RecordMin * 60 * 1000;
+		}
 
-        if(!bSentFirstPacket)
-        {
-            bSentFirstPacket = true;
+		if (m_uSubsectionDuration <= 0)
+		{
+			m_uSubsectionDuration = 10000000000000/*3600 * 1000 * 4*/;
+		}
 
-            AppendFLVPacket(audioHeaders.lpPacket, audioHeaders.size, 8, 0);
-            AppendFLVPacket(videoHeaders.lpPacket, videoHeaders.size, 9, 0);
-        }
+		if (m_bNewSubsectionFlag)
+		{
+			ResetFileInit();
+			m_bNewSubsectionFlag = false;
+		}
 
-        if(initialTimestamp == -1 && data[0] != 0x17)
-            return;
-        else if(initialTimestamp == -1 && data[0] == 0x17) {
-            initialTimestamp = timestamp;
-        }
+		InitBufferedPackets();
+
+		if (!bSentFirstPacket)
+		{
+			bSentFirstPacket = true;
+
+			AppendFLVPacket(audioHeaders.lpPacket, audioHeaders.size, 8, 0);
+			AppendFLVPacket(videoHeaders.lpPacket, videoHeaders.size, 9, 0);
+		}
+
+		if (initialTimestamp == -1 && data[0] != 0x17)
+			return;
+		else if (initialTimestamp == -1 && data[0] == 0x17) {
+			initialTimestamp = timestamp;
+		}
 
         AppendFLVPacket(data, size, (type == PacketType_Audio) ? 8 : 9, timestamp-initialTimestamp);
+		if (timestamp - initialTimestamp > m_uSubsectionDuration)  //满足文件分片时长
+		{
+			m_bNewSubsectionFlag = true;
+		}
     }
 };
 

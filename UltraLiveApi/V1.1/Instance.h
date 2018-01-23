@@ -448,6 +448,7 @@ public:
 	void ClearVideoTransForm();
 	void ClearFilterTransForm();
 	void ClearAudio();
+	void ClearEmptyAgent();
 	UINT GetRenderCount();
 
 	void CopyNewToVideoList();
@@ -492,6 +493,7 @@ public:
 	VideoEncoder* GetVideoEncoder() const { return videoEncoder; }
 	AudioEncoder* GetAudioEncoder() const { return audioEncoder; }
 
+	UINT GetRecordTime() const { return RecordTime; }
 	VideoEncoder* GetVideoEncoder_back() const { return videoEncoder_back; }
 	char* CInstanceProcess::EncMetaData(char *enc, char *pend, bool bFLVFile, bool bBack);
 
@@ -590,6 +592,7 @@ private:
 	std::unique_ptr<VideoFileStream> fileStream;
 	std::unique_ptr<VideoFileStream> fileStream_back;
 	UINT  RecordBitRate;
+	UINT  RecordTime;
 	String RecordPath;
 	int  RecordWidth;
 	int  RecordHeight;

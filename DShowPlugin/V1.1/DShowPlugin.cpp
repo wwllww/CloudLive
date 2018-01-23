@@ -1569,6 +1569,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 					EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), FALSE);
 					EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), FALSE);
 					EnableWindow(GetDlgItem(hwnd, IDC_BROSE), FALSE);
+					EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), FALSE);
 				}
 
 				UINT BitRate = 4000;
@@ -1607,6 +1608,15 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 				}
 
 				SetWindowText(GetDlgItem(hwnd, IDC_RECORDPATH), RecordPath.Array());
+
+				UINT RecordTime = 120;
+				if (!configData->data["RecordTime"].isNull())
+				{
+					RecordTime = configData->data["RecordTime"].asUInt();
+				}
+
+				String sRecordTime = FormattedString(L"%d", RecordTime).Array();
+				SetWindowText(GetDlgItem(hwnd, IDC_RECORDTIME), sRecordTime.Array());
 
                 UINT deviceID = CB_ERR;
 
@@ -1952,6 +1962,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 						EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), bStartRecorde);
 						EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), bStartRecorde);
 						EnableWindow(GetDlgItem(hwnd, IDC_BROSE), bStartRecorde);
+						EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), bStartRecorde);
 
 						UINT preferredType = -1;
 						int id = (int)SendMessage(GetDlgItem(hwnd, IDC_PREFERREDOUTPUT), CB_GETCURSEL, 0, 0);
@@ -1969,6 +1980,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 								EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), false);
 								EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
 								EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
+								EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
 
 								BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
 							}
@@ -3074,7 +3086,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 						configData->data["RecorderBitRate"] = String(BiteText).ToInt();
 						GetWindowText(GetDlgItem(hwnd, IDC_RECORDPATH), BiteText, sizeof BiteText);
 						configData->data["RecordPath"] = WcharToAnsi(BiteText).c_str();
-
+						GetWindowText(GetDlgItem(hwnd, IDC_RECORDTIME), BiteText, sizeof BiteText);
+						configData->data["RecordTime"] = String(BiteText).ToInt();
                     }
 
                 case IDCANCEL:

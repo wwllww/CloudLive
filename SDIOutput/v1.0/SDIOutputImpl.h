@@ -87,7 +87,7 @@ struct ChannelInfo
 	int nPreSrcBytePerSample;
 	int nPreSrcAudioLength;
 
-	int nBufferTime;
+	int nBufferFrameCount;
 	SRC_STATE *resampler;
 	float* pResampleBuffer;
 	float* convertBufferFloat;
@@ -124,9 +124,9 @@ struct ChannelInfo
 		nPreSrcHeight = 0;
 		nPreSrcChannelCount = 0;
 		nPreSrcSampleCount = 0;
+		nBufferFrameCount = 0;
 		nPreSrcBytePerSample = 0;
 		nPreSrcAudioLength = 0;
-		nBufferTime = 0;
 		pResampleBuffer = NULL;
 		convertBufferFloat = NULL;
 		convertBufferShort = NULL;
@@ -155,7 +155,7 @@ private:
 
 	CRITICAL_SECTION lock;
 
-	void SetPreroll(int nDeviceID, int bufferTime, SDIOUT_COLORFORMAT nColorFormat);
+	void SetPreroll(int nDeviceID, SDIOUT_COLORFORMAT nColorFormat);
 
 public:
 	SDIOutput();
@@ -213,6 +213,7 @@ public:
 // 				unsigned int nCount = 0;
 // 				(*pos)->pDLOutput->GetBufferedVideoFrameCount(&nCount);
 
+
 				int Width = (*pos)->uiFrameWidth;
 				int Height = (*pos)->uiFrameHeigh;
 
@@ -267,19 +268,15 @@ public:
 							if (completedFrame->GetWidth() == Width && completedFrame->GetHeight() == Height)
 								memcpy(pFrame, (*pos)->pPreBuffer, Width * Height * 4);
 							else
-							{
-								Log::writeMessage(LOG_SDI, 1, "completedFrame Width %d,completedFrame Height %d,Width %d,Height %d", completedFrame->GetWidth(), completedFrame->GetHeight(),Width,Height);
-							}
+								Log::writeMessage(LOG_SDI, 1, "completedFrame Width %d,completedFrame Height %d,Width %d,Height %d", completedFrame->GetWidth(), completedFrame->GetHeight(), Width, Height);
 						}
 						if ((*pos)->colorFormat == ColorFormat_UYVY || (*pos)->colorFormat == ColorFormat_YUY2
 							|| (*pos)->colorFormat == ColorFormat_I420 || (*pos)->colorFormat == ColorFormat_YV12)
 						{
 							if (completedFrame->GetWidth() == Width && completedFrame->GetHeight() == Height)
-									memcpy(pFrame, (*pos)->pPreBuffer, Width * Height * 2);
+								memcpy(pFrame, (*pos)->pPreBuffer, Width * Height * 2);
 							else
-							{
 								Log::writeMessage(LOG_SDI, 1, "completedFrame Width %d,completedFrame Height %d,Width %d,Height %d", completedFrame->GetWidth(), completedFrame->GetHeight(), Width, Height);
-							}
 						}
 					}
 // 					Log::writeMessage(LOG_SDI, 1, "ScheduledFrameCompleted%d Else=%d", curDeviceID, (*pos)->ref);
@@ -295,6 +292,7 @@ public:
 				if (!(*pos)->bStop)
 				{
 // 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame%d!引用计数=%d", curDeviceID, (*pos)->ref);
+// 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame 输出起点=%lld, Duration=%lld, Timescale=%lld!", ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale);
 
 					m_deckLinkOutput->ScheduleVideoFrame(completedFrame, (*pos)->uiTotalFrames * (*pos)->frameDuration, (*pos)->frameDuration, (*pos)->frameTimescale);
 					(*pos)->uiTotalFrames++;

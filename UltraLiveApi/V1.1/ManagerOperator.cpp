@@ -166,6 +166,8 @@ void CSLiveManager::BulidD3D()
 
 	transitionTexture = m_D3DRender->CreateRenderTarget(baseCX, baseCY, GS_BGRA, FALSE);
 
+	transitionAddress.reset(m_D3DRender->CreateRenderTarget(baseCX, baseCY, GS_BGRA, FALSE));
+
 	if (transNewTexture)
 	{
 		delete transNewTexture;

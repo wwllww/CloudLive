@@ -1361,24 +1361,31 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 
 						if (LiveProcess && LiveProcess->IsLiveInstance)
 						{
-							bool bFind = false;
 							for (int k = 0; k < LiveProcess->m_VideoList.Num(); ++k)
 							{
 								VideoStruct &VSLive = LiveProcess->m_VideoList[k];
-								if (VS.VideoStream.get() == VSLive.VideoStream.get())
-								{
-									LiveProcess->DeleteStream((uint64_t)VS.VideoStream.get());
-									bFind = true;
-									//break;
-								}
 
 								if (0 == strcmp(VSLive.VideoStream->GainClassName(), "AgentSource"))
 								{
 									IBaseVideo *Gloabl = VSLive.VideoStream->GetGlobalSource();
-									if (Gloabl && (Gloabl == VS.VideoStream.get()))
+									if (Gloabl && (Gloabl == VS.VideoStream.get() || Gloabl == VS.VideoDevice.get()))
 									{
 										VSLive.VideoStream->RestSetGlobalSource();
 									}
+								}
+
+							}
+							//循环二次
+							bool bFind = false;
+							for (int k = 0; k < LiveProcess->m_VideoList.Num(); ++k)
+							{
+								VideoStruct &VSLive = LiveProcess->m_VideoList[k];
+
+								if (VS.VideoStream.get() == VSLive.VideoStream.get())
+								{
+									LiveProcess->DeleteStream((uint64_t)VS.VideoStream.get());
+									bFind = true;
+									break;
 								}
 
 							}
@@ -1403,7 +1410,7 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 									{
 										//if (0 == strcmp((*VSAgent.Config)["SecName"].asString().c_str(), (*VS.Config)["Name"].asString().c_str()))
 										IBaseVideo *Gloabl = VSAgent.VideoStream->GetGlobalSource();
-										if (Gloabl && (Gloabl == VS.VideoStream.get()))
+										if (Gloabl && (Gloabl == VS.VideoStream.get() || Gloabl == VS.VideoDevice.get()))
 										{
 											VSAgent.VideoStream->RestSetGlobalSource();
 										}
@@ -3056,6 +3063,7 @@ void CSLiveManager::SwitchInstanceDisSolve(CInstanceProcess *InstanceS, CInstanc
 	InstanceD->ClearVideoTransForm();
 	InstanceD->ClearFilterTransForm();
 	InstanceD->ClearEmptyAgent();
+	InstanceD->ClearVideoTop();
 
 	ProcessSwitch(InstanceS, InstanceD, DisSolve);
 
@@ -3080,6 +3088,7 @@ void CSLiveManager::SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, C
 	InstanceD->ClearAudio();
 	InstanceD->ClearVideoTransForm();
 	InstanceD->ClearEmptyAgent();
+	InstanceD->ClearVideoTop();
 
 	ProcessSwitch(InstanceS, InstanceD, Type);
 
@@ -3154,6 +3163,7 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 						VSAgent.Crop = VSTem.Crop;
 						VSAgent.pos = VSTem.pos;
 						VSAgent.size = VSTem.size;
+						VSAgent.bTop = VSTem.bTop;
 						VSAgent.VideoStream = shared_ptr<IBaseVideo>(AgentSource);
 
 						char Tem[50] = { 0 };
@@ -3206,6 +3216,7 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 						VSAgent.Crop = VSTem.Crop;
 						VSAgent.pos = VSTem.pos;
 						VSAgent.size = VSTem.size;
+						VSAgent.bTop = VSTem.bTop;
 						VSAgent.VideoStream = shared_ptr<IBaseVideo>(AgentSource);
 
 						char Tem[50] = { 0 };
@@ -3230,6 +3241,7 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 					VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
 					VS = VSTem;
 					VS.bSelect = false;
+					
 				}
 				
 			}
@@ -3366,7 +3378,7 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 							{
 								VideoStruct &VSTem = InstanceS->m_VideoList[m];
 
-								if (VSTem.VideoStream && VSTem.VideoStream.get() == BaseVideo)
+								if ((VSTem.VideoStream && VSTem.VideoStream.get() == BaseVideo) || (VSTem.VideoDevice && VSTem.VideoDevice.get() == BaseVideo))
 								{
 									bStreamFind = true;
 									break;
@@ -3614,7 +3626,7 @@ int CSLiveManager::SLiveAdd2Intance(uint64_t iIntanceID_S, uint64_t iIntanceID_D
 				VS.Crop.z = Area->CropBottom;
 				VS.bSelect = false;
 				VS.bRender = bRender;
-
+				
 				if (bRender)
 				{
 					if (VS.bGlobalStream && VS.VideoStream->CanEnterScene())
@@ -5711,14 +5723,15 @@ int CSLiveManager::SLiveDeleteFilter(uint64_t iInstansID, uint64_t iStreamID, ui
 				//把PGM和PVW中的都删除
 				try
 				{
+					uint64_t DeviceID = Process->FindDShowDeviceID(iStreamID);
 					if (LocalInstance)
 					{
-						LocalInstance->DeleteFilter(iStreamID, iFilterID);
+						LocalInstance->DeleteFilter(iStreamID, iFilterID, DeviceID);
 					}
 
 					if (LiveInstance)
 					{
-						LiveInstance->DeleteFilter(iStreamID, iFilterID);
+						LiveInstance->DeleteFilter(iStreamID, iFilterID, DeviceID);
 					}
 				}
 				catch (CErrorBase& e)
@@ -5785,6 +5798,58 @@ int CSLiveManager::SLiveUpdateFilter(uint64_t iInstansID, uint64_t iStreamID, ui
 	}
 	return 0;
 }
+
+int CSLiveManager::SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
+	try
+	{
+		if (!bInit)
+		{
+			BUTEL_THORWERROR("SDK还未初始化,请先调用SLiveInit进行初始化!");
+		}
+
+		EnterCriticalSection(&MapInstanceSec);
+		CInstanceProcess *Process = m_InstanceList[iInstansID];
+		LeaveCriticalSection(&MapInstanceSec);
+
+
+		if (Process)
+		{
+			Process->SetTopest(iStreamID, bTopest);
+
+			if (Process->bLittlePre)
+			{
+				if (LocalInstance)
+				{
+					try
+					{
+						LocalInstance->SetTopest(iStreamID, bTopest);
+					}
+					catch (CErrorBase& e)
+					{
+
+					}
+					
+				}
+			}
+		}
+		else
+		{
+			BUTEL_THORWERROR("没有找到实例ID为 %llu 的实例 ", iInstansID);
+		}
+
+	}
+	catch (CErrorBase& e)
+	{
+		SLiveSetLastError(e.m_Error.c_str());
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! return -1", __FUNCTION__);
+		return -1;
+	}
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
+	return 0;
+}
+
 
 void CSLiveManager::AddFilter2PGMOrPVM(IBaseVideo *Video)
 {

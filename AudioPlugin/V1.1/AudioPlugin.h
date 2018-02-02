@@ -30,6 +30,15 @@
 #include "DeviceSource.h"
 #include "resource.h"
 
+//×Ô»æ»¬¿é
+#define DENOISE_SLIDER_CLASS TEXT("DenoiseSlider")
+enum {
+	ID_DENOISESLIDER = 9999,
+	ID_CHECKDENOISE,
+	ID_UPPOSDENOISE,
+	ID_DOWNPOSDENOISE
+};
+
 bool  CheckDeviceByValue(const IID &enumType, WSTR lpType, CTSTR lpName);
 IPin* GetOutputPin(IBaseFilter *filter, const GUID *majorType);
 IBaseFilter* GetDeviceByValue(const IID &enumType, WSTR lpType, CTSTR lpName, WSTR lpType2 = NULL, CTSTR lpName2 = NULL);

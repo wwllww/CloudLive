@@ -1135,6 +1135,20 @@ extern "C" {
 
 	API_EXPORT int SLiveUpdateFilter(uint64_t iInstansID, uint64_t iStreamID, uint64_t iFilterID,const char *cJson);
 
+	/************************************************************************/
+	/* 函数功能：                  设置或取消顶层属性
+	/* 输入参数：                  iInstansID 实例ID,iStreamID 流ID,bTopest  是否是顶层属性
+	/* 输出参数：
+
+	/* 返 回 值：                  0 : 成功
+	< 0 : 添加源失败 原因 SLiveGetLastError()
+
+	/* 时    间：                  操作人                     操作内容
+	2017年02月28日                                           修改定义接口
+	/************************************************************************/
+
+	API_EXPORT int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest);
+
 #ifdef  __cplusplus
 }
 #endif //  __cplusplus

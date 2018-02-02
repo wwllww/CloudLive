@@ -87,10 +87,10 @@ mapOutDevicePara& SDI_GetOutDeviceParaMap()
 }
 
 
-int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nBufferTime)
+int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount)
 {
 	if (pSDI)
-		return pSDI->SDI_StartOut(nDeviceID, mode, nColorFormat, nBufferTime);
+		return pSDI->SDI_StartOut(nDeviceID, mode, nColorFormat, nInnerBufferCount, nOutBufferCount);
 	return errCreateSDIOutputInstance;
 }
 

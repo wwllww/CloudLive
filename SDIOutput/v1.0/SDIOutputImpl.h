@@ -87,7 +87,8 @@ struct ChannelInfo
 	int nPreSrcBytePerSample;
 	int nPreSrcAudioLength;
 
-	int nBufferFrameCount;
+	int nInnerBufFrameCount;
+	int nOutBufFrameCount;
 	SRC_STATE *resampler;
 	float* pResampleBuffer;
 	float* convertBufferFloat;
@@ -124,7 +125,8 @@ struct ChannelInfo
 		nPreSrcHeight = 0;
 		nPreSrcChannelCount = 0;
 		nPreSrcSampleCount = 0;
-		nBufferFrameCount = 0;
+		nInnerBufFrameCount = 0;
+		nOutBufFrameCount = 0;
 		nPreSrcBytePerSample = 0;
 		nPreSrcAudioLength = 0;
 		pResampleBuffer = NULL;
@@ -168,7 +170,7 @@ public:
 	int SDI_ReleaseDisplayModeList();
 	int SDI_SetDeviceProperty(int deviceID, bool bInput);
 	int SDI_SetOutDevicePara(int deviceID, SDIOUT_DISPLAYMODE mode);
-	int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nBufferTime);
+	int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount);
 	int SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHeight, SDIOUT_COLORFORMAT colorFormat, bool bAudio, void* pAudioFormat, int nAudioLength, bool bPGM);
 	int SDI_StopOut(int nDeviceID);
 	mapProperty&  SDI_GetPropertyMap();
@@ -212,7 +214,6 @@ public:
 
 // 				unsigned int nCount = 0;
 // 				(*pos)->pDLOutput->GetBufferedVideoFrameCount(&nCount);
-
 
 				int Width = (*pos)->uiFrameWidth;
 				int Height = (*pos)->uiFrameHeigh;

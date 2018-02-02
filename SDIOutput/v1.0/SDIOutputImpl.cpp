@@ -44,6 +44,37 @@ void CopyRGB(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH,
 	}
 }
 
+void ResizeRGB720(unsigned char* pSrcImg, unsigned char* pDstImg)
+{
+	int tSrcH;
+	int* pdst = (int*)pDstImg;
+	LONGLONG* psrc = (LONGLONG*)pSrcImg;
+
+	for (int i = 0; i < 1080; i += 3)
+	{
+		for (int j = 0; j < 640; j += 2)
+		{
+			*((LONGLONG*)pdst) = *(psrc + j);
+			*((LONGLONG*)(pdst + 1)) = *(psrc + j);
+			*((LONGLONG*)(pdst + 3)) = *(psrc + j + 1);
+			*((LONGLONG*)(pdst + 4)) = *(psrc + j + 1);
+			pdst += 6;
+		}
+		psrc += 640;
+		memcpy(pdst, pdst - 1920, 1920 * 4);
+		pdst += 1920;
+		for (int j = 0; j < 640; j += 2)
+		{
+			*((LONGLONG*)pdst) = *(psrc + j);
+			*((LONGLONG*)(pdst + 1)) = *(psrc + j);
+			*((LONGLONG*)(pdst + 3)) = *(psrc + j + 1);
+			*((LONGLONG*)(pdst + 4)) = *(psrc + j + 1);
+			pdst += 6;
+		}
+		psrc += 640;
+	}
+}
+
 void ResizeRGB(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH, int pixformat)
 {
 	double rateH = (double)srcH / (double)dstH;
@@ -54,31 +85,45 @@ void ResizeRGB(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int src
 		tSrcW[j] = (int)(rateW * double(j));
 
 	int tSrcH;
-	for (int i = 0; i < dstH; i++)
+	if (pixformat == ColorFormat_RGBA32REVERSE)
 	{
-		tSrcH = (int)(rateH * double(i));
-		for (int j = 0; j < dstW; j++)
+		for (int i = 0; i < dstH; i++)
 		{
-			if (pixformat == ColorFormat_RGB24)
+			tSrcH = (int)(rateH * double(i));
+			for (int j = 0; j < dstW; j++)
 			{
-				pDstImg[i * dstW * 4 + j * 4] = pSrcImg[tSrcH * srcW * 3 + tSrcW[j] * 3];
-				pDstImg[i * dstW * 4 + j * 4 + 1] = pSrcImg[tSrcH * srcW * 3 + tSrcW[j] * 3 + 1];
-				pDstImg[i * dstW * 4 + j * 4 + 2] = pSrcImg[tSrcH * srcW * 3 + tSrcW[j] * 3 + 2];
-				pDstImg[i * dstW * 4 + j * 4 + 2] = 0;
+				int d = (i * dstW +j) * 4;
+				int s = (tSrcH * srcW + tSrcW[j]) * 4;
+				*((int*)(pDstImg + d)) = *((int*)(pSrcImg + s));
 			}
-			else if (pixformat == ColorFormat_RGBA32REVERSE)
+		}
+	}
+	else if (pixformat == ColorFormat_RGB32)
+	{
+		for (int i = 0; i < dstH; i++)
+		{
+			tSrcH = (int)(rateH * double(i));
+			for (int j = 0; j < dstW; j++)
 			{
-				pDstImg[i * dstW * 4 + j * 4] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4];
-				pDstImg[i * dstW * 4 + j * 4 + 1] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 1];
-				pDstImg[i * dstW * 4 + j * 4 + 2] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 2];
-				pDstImg[i * dstW * 4 + j * 4 + 3] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 3];
+				int d = ((dstH - i - 1) * dstW + j) * 4;
+				int s = (tSrcH * srcW + tSrcW[j]) * 4;
+				*((int*)(pDstImg + d)) = *((int*)(pSrcImg + s));
 			}
-			else if (pixformat == ColorFormat_RGB32)
+		}
+	}
+	else if (pixformat == ColorFormat_RGB24)
+	{
+		for (int i = 0; i < dstH; i++)
+		{
+			tSrcH = (int)(rateH * double(i));
+			for (int j = 0; j < dstW; j++)
 			{
-				pDstImg[(dstH - i - 1) * dstW * 4 + j * 4] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4];
-				pDstImg[(dstH - i - 1) * dstW * 4 + j * 4 + 1] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 1];
-				pDstImg[(dstH - i - 1) * dstW * 4 + j * 4 + 2] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 2];
-				pDstImg[(dstH - i - 1) * dstW * 4 + j * 4 + 3] = pSrcImg[tSrcH * srcW * 4 + tSrcW[j] * 4 + 3];
+				int d = (i * dstW + j)* 4;
+				int s = (tSrcH * srcW + tSrcW[j]) * 3;
+				pDstImg[d] = pSrcImg[s];
+				pDstImg[d + 1] = pSrcImg[s + 1];
+				pDstImg[d + 2] = pSrcImg[s + 2];
+				pDstImg[d + 3] = 0;
 			}
 		}
 	}
@@ -539,7 +584,7 @@ FILE* fp3;
 FILE* fp4;
 FILE* fp5;
 
-int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nBufferTime)
+int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount)
 {
 // 	fp1 = fopen("1.pcm", "wb");
 // 	fp2 = fopen("2.pcm", "wb");
@@ -674,17 +719,11 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 		channelInfo->displayMode = mode;
 
 		float fScale = (float)channelInfo->uiFPS / 25.0f;
-		if (nBufferTime > 0)
-		{
-			channelInfo->nBufferFrameCount = nBufferTime * fScale;
-			channelInfo->uiTotalFrames = nBufferTime * fScale;
-		}
-		else
-		{
-			channelInfo->nBufferFrameCount = FRAMECOUNT * fScale;
-			channelInfo->uiTotalFrames = FRAMECOUNT * fScale;
-		}
-		Log::writeMessage(LOG_SDI, 1, "SDI_StartOut 输出帧率=%d, 缓冲大小=%d!", channelInfo->uiFPS, channelInfo->nBufferFrameCount);
+		channelInfo->nInnerBufFrameCount = nInnerBufferCount * fScale;
+		channelInfo->nOutBufFrameCount = nOutBufferCount * fScale;
+		channelInfo->uiTotalFrames = nInnerBufferCount * fScale;
+
+		Log::writeMessage(LOG_SDI, 1, "SDI_StartOut 输出帧率=%d, SDI内部缓冲大小=%d， SDI外部缓冲大小=%d!", channelInfo->uiFPS, channelInfo->nInnerBufFrameCount, channelInfo->nOutBufFrameCount);
 
 		channelInfo->bStop = false;
 		listChannelInfo.push_back(channelInfo);
@@ -908,8 +947,14 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 				float* tempFloat1 = (float*)pChannelInfo->pResampleBuffer;
 				while (tempFrameSize--)
 				{
-					if ((*tempFloat1 - 1.0f) > 0.00000001)
+					if (*tempFloat1 > 1.0f)
+					{
 						*tempFloat1 = 1.0f;
+					}
+					else if (*tempFloat1 < -1.0f)
+					{
+						*tempFloat1 = -1.0f;
+					}
 					short tempShort = (*tempFloat1) * 32767.0f;
 					*tempConvert1 = tempShort;
 					tempFloat1++;
@@ -1020,13 +1065,18 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 			int curHeight = pChannelInfo->uiFrameHeigh;
 			unsigned char* pFrame = nullptr;
 
-			if (pChannelInfo->m_BufferList.unsafe_size() <= pChannelInfo->nBufferFrameCount + 5)
+			if (pChannelInfo->m_BufferList.unsafe_size() < pChannelInfo->nOutBufFrameCount)
 			{
 				if (colorFormat == ColorFormat_RGB24 || colorFormat == ColorFormat_RGBA32REVERSE || colorFormat == ColorFormat_RGB32)
 				{
 					pFrame = new unsigned char[curWidth * curHeight * 4];
 					if (nWidth != curWidth || nHeight != curHeight)
-						ResizeRGB((unsigned char*)pData, (unsigned char*)pFrame, nWidth, nHeight, curWidth, curHeight, colorFormat);
+					{
+						if (1280 == nWidth && 720 == nHeight && curWidth == 1920 && curHeight == 1080)
+							ResizeRGB720((unsigned char*)pData, (unsigned char*)pFrame);
+						else
+							ResizeRGB((unsigned char*)pData, (unsigned char*)pFrame, nWidth, nHeight, curWidth, curHeight, colorFormat);
+					}
 					else
 						CopyRGB((unsigned char*)pData, (unsigned char*)pFrame, nWidth, nHeight, colorFormat);
 				}
@@ -1255,7 +1305,7 @@ void SDIOutput::SetPreroll(int nDeviceID, SDIOUT_COLORFORMAT nColorFormat)
 // 			Log::writeMessage(LOG_SDI, 1, "SetPreroll%d缓冲帧数=%d!", nDeviceID, bufferFrameCount);
 			if ((*pos)->nDeviceID == nDeviceID)
 			{
-				for (unsigned __int32 i = 0; i < (*pos)->nBufferFrameCount; i++)
+				for (unsigned __int32 i = 0; i < (*pos)->nInnerBufFrameCount; i++)
 				{
 					if (nColorFormat == ColorFormat_RGB32 || nColorFormat == ColorFormat_RGBA32REVERSE || nColorFormat == ColorFormat_RGB24)
 					{
@@ -1317,7 +1367,6 @@ int SDIOutput::SDI_GetDeviceList(DeviceInfo** pDevicelist, int* nDeviceCnt)
 	{
 		int id = 1;
 		int nDeviceCount = 0;
-		DeviceInfo deviceinfo;
 		IDeckLink*	pDL = NULL;
 		IDeckLinkIterator*				pDLIterator = NULL;
 		HRESULT result = CoCreateInstance(CLSID_CDeckLinkIterator, NULL, CLSCTX_ALL, IID_IDeckLinkIterator, (void**)&pDLIterator);
@@ -1608,7 +1657,6 @@ int SDIOutput::SDI_Configuration()
 	while (pDLIterator->Next(&pDL) == S_OK)
 	{
 		HRESULT result;
-		LONGLONG value;
 		IDeckLinkConfiguration*				deckLinkConfiguration = NULL;
 		result = pDL->QueryInterface(IID_IDeckLinkConfiguration, (void**)&deckLinkConfiguration);
 		Log::writeMessage(LOG_SDI, 1, "SDI_GetDeviceList QueryInterface IID_IDeckLinkConfiguration! result = %d", result);

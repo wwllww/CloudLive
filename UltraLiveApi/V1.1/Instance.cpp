@@ -824,22 +824,28 @@ void CInstanceProcess::DrawTransFormProcess(float fSeconds)
 }
 
 
-void CInstanceProcess::DrawTransFormRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader)
+void CInstanceProcess::DrawTransFormRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader, bool bDrawTop)
 {
 	D3DRender->EnableBlending(TRUE);
 	D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f); //特效中切入直播混合不生效又加一次
-	D3DRender->ClearRenderTarget(0xFF000000);
+
+	if (!bDrawTop)
+		D3DRender->ClearRenderTarget(0xFF000000);
+
 	for (UINT i = 0; i < m_VideoListTransForm.Num(); ++i)
 	{
 		VideoStruct &OneVideo = m_VideoListTransForm[i];
-		if (OneVideo.VideoStream && OneVideo.bRender)
+
+		bool bNeedDraw = OneVideo.VideoStream && OneVideo.bRender;
+
+		if (bNeedDraw && (OneVideo.bTop == bDrawTop))
 		{
 			Texture *LastTexture = NULL;
 
 			IBaseVideo *Agent = OneVideo.VideoStream->GetGlobalSource();
 			for (int j = 0; j < m_FilterTransForm.Num(); ++j)
 			{
-				if (m_FilterTransForm[j].IVideo == OneVideo.VideoStream.get() || Agent == m_FilterTransForm[j].IVideo)
+				if (m_FilterTransForm[j].IVideo == OneVideo.VideoStream.get() || Agent == m_FilterTransForm[j].IVideo || (m_FilterTransForm[j].IVideo == OneVideo.VideoDevice.get()))
 				{
 					Vect2 &Size = OneVideo.VideoStream->GetSize();
 					D3DRender->SetRenderTarget(m_FilterTransForm[j].RenderTarget.get());
@@ -913,24 +919,27 @@ void CInstanceProcess::DrawTransFormRender(Texture *PreTexture, Shader *VertexSh
 			D3DRender->SetCropping(0, 0, 0, 0);
 		}
 	}
-	D3DRender->EnableBlending(false);
+	D3DRender->EnableBlending(FALSE);
 }
 
-void CInstanceProcess::DrawRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader)
+void CInstanceProcess::DrawRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader, bool bDrawTop)
 {
-	D3DRender->ClearRenderTarget(0xFF000000);
-	//ClearRenderTarget(0xFF008080);
+	if (!bDrawTop)
+		D3DRender->ClearRenderTarget(0xFF000000);
+
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
 		VideoStruct &OneVideo = m_VideoList[i];
-		if (OneVideo.VideoStream && OneVideo.bRender)
+		bool bNeedDraw = OneVideo.VideoStream && OneVideo.bRender;
+
+		if (bNeedDraw && (OneVideo.bTop == bDrawTop))
 		{
 			Texture *LastTexture = NULL;
 
 			IBaseVideo *Agent = OneVideo.VideoStream->GetGlobalSource();
 			for (int j = 0; j < m_Filter.Num(); ++j)
 			{
-				if (m_Filter[j].IVideo == OneVideo.VideoStream.get() || Agent == m_Filter[j].IVideo)
+				if (m_Filter[j].IVideo == OneVideo.VideoStream.get() || Agent == m_Filter[j].IVideo || (m_Filter[j].IVideo == OneVideo.VideoDevice.get()))
 				{
 					Vect2 &Size = OneVideo.VideoStream->GetSize();
 
@@ -2144,7 +2153,7 @@ void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgen
 				}
 				else
 				{
-					if (OneFilter.IVideo == Video.VideoStream.get())
+					if (OneFilter.IVideo == Video.VideoStream.get() || (OneFilter.IVideo == Video.VideoDevice.get()))
 					{
 						m_Filter.Remove(j);
 						break;
@@ -2570,7 +2579,20 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 					Log::writeError(LOG_RTSPSERV, 1, "%s CreateNvidiaEncoder or CreateRDX264EncoderNew failed", __FUNCTION__);
 				}
 
-				String Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(),Data->cx, Data->cy);
+				String RecordName;
+
+				EnterCriticalSection(&VideoSection);
+				if (m_VideoList.Num() > 0)
+				{
+					RecordName = Asic2WChar((*m_VideoList[0].Config)["Name"].asString()).c_str();
+				}
+				else
+				{
+					RecordName = Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str();
+				}
+				LeaveCriticalSection(&VideoSection);
+
+				String Path = GetOutputRecordFilename(RecordPath, RecordName, Data->cx, Data->cy);
 
 				if (videoEncoder)
 				{
@@ -3034,6 +3056,7 @@ Filter CInstanceProcess::AddFilter(uint64_t iStreamID, const char *FilterName, u
 	bool bFind = false;
 	bool bAgent = false;
 	Vect2 Size;
+	IBaseVideo *StreamDevice = NULL;
 	EnterCriticalSection(&VideoSection);
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
@@ -3046,6 +3069,13 @@ Filter CInstanceProcess::AddFilter(uint64_t iStreamID, const char *FilterName, u
 				break;
 			}
 			Size = m_VideoList[i].VideoStream->GetSize();
+
+			if (m_VideoList[i].VideoDevice)
+			{
+				Size = m_VideoList[i].VideoDevice->GetSize();
+				StreamDevice = m_VideoList[i].VideoDevice.get();
+			}
+
 			bFind = true;
 			break;
 		}
@@ -3076,7 +3106,7 @@ Filter CInstanceProcess::AddFilter(uint64_t iStreamID, const char *FilterName, u
 			for (UINT i = 0; i < m_Filter.Num(); ++i)
 			{
 				Filter &OneFilter = m_Filter[i];
-				if ((uint64_t)OneFilter.IVideo == iStreamID)
+				if ((uint64_t)OneFilter.IVideo == iStreamID || OneFilter.IVideo == StreamDevice)
 				{
 					OneFilter.BaseFilter.push_back(__Filter);
 					bFindFilter = true;
@@ -3097,8 +3127,15 @@ Filter CInstanceProcess::AddFilter(uint64_t iStreamID, const char *FilterName, u
 
 				SFilter.BaseFilter.push_back(__Filter);
 
-
-				SFilter.IVideo = (IBaseVideo*)iStreamID;
+				if (StreamDevice)
+				{
+					SFilter.IVideo = StreamDevice;
+				}
+				else
+				{
+					SFilter.IVideo = (IBaseVideo*)iStreamID;
+				}
+				
 				SFilter.RenderTarget = shared_ptr<Texture>(D3DRender->CreateRenderTarget(SFilter.Width, SFilter.Height, GS_BGRA, FALSE));
 
 				m_Filter.SetSize(m_Filter.Num() + 1);
@@ -3146,7 +3183,7 @@ void CInstanceProcess::AddFilter(const Filter &NewFilter)
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
 		IBaseVideo *Global = m_VideoList[i].VideoStream->GetGlobalSource();
-		if (m_VideoList[i].VideoStream.get() == NewFilter.IVideo || (Global && Global == NewFilter.IVideo))
+		if (m_VideoList[i].VideoStream.get() == NewFilter.IVideo || (Global && Global == NewFilter.IVideo) || (m_VideoList[i].VideoDevice && NewFilter.IVideo == m_VideoList[i].VideoDevice.get()))
 		{
 			bool bFind = false;
 			for (UINT j = 0; j < m_Filter.Num(); ++j)
@@ -3199,7 +3236,7 @@ void CInstanceProcess::AddFilter(const Filter &NewFilter)
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invode end!", __FUNCTION__);
 }
 
-void CInstanceProcess::DeleteFilter(uint64_t iStreamID, uint64_t iFilterID)
+void CInstanceProcess::DeleteFilter(uint64_t iStreamID, uint64_t iFilterID, uint64_t iDeviceID)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invode begin! StreamId = %llu", __FUNCTION__, iStreamID);
 	bool bFind = false;
@@ -3207,13 +3244,13 @@ void CInstanceProcess::DeleteFilter(uint64_t iStreamID, uint64_t iFilterID)
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
 		IBaseVideo *Global = m_VideoList[i].VideoStream->GetGlobalSource();
-		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID || (Global && (uint64_t)Global == iStreamID))
+		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID || (Global && (uint64_t)Global == iStreamID) || (iDeviceID && (uint64_t)(Global) == iDeviceID))
 		{
 			for (UINT j = 0; j < m_Filter.Num(); ++j)
 			{
 				Filter &OneFilter = m_Filter[j];
 
-				if (OneFilter.IVideo == m_VideoList[i].VideoStream.get() || OneFilter.IVideo == Global)
+				if (OneFilter.IVideo == m_VideoList[i].VideoStream.get() || OneFilter.IVideo == Global || (m_VideoList[i].VideoDevice && OneFilter.IVideo == m_VideoList[i].VideoDevice.get()))
 				{
 					vector<__FilterSturct> &BaseFilter = OneFilter.BaseFilter;
 
@@ -3272,7 +3309,7 @@ void CInstanceProcess::UpdateFilter(uint64_t iStreamID, uint64_t iFilterID, Valu
 			{
 				Filter &OneFilter = m_Filter[j];
 
-				if (OneFilter.IVideo == m_VideoList[i].VideoStream.get())
+				if (OneFilter.IVideo == m_VideoList[i].VideoStream.get() || (m_VideoList[i].VideoDevice && OneFilter.IVideo == m_VideoList[i].VideoDevice.get()))
 				{
 					vector<__FilterSturct> &BaseFilter = OneFilter.BaseFilter;
 
@@ -3305,6 +3342,26 @@ void CInstanceProcess::UpdateFilter(uint64_t iStreamID, uint64_t iFilterID, Valu
 
 }
 
+uint64_t CInstanceProcess::FindDShowDeviceID(uint64_t iStreamID)
+{
+	uint64_t DeviceId = 0;
+	bool bFind = false;
+	EnterCriticalSection(&VideoSection);
+	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	{
+		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID)
+		{
+			
+			DeviceId = (uint64_t)m_VideoList[i].VideoDevice.get();
+			bFind = true;
+			break;
+		}
+	}
+	LeaveCriticalSection(&VideoSection);
+
+	return DeviceId;
+}
+
 void CInstanceProcess::ClearEmptyAgent()
 {
 	EnterCriticalSection(&VideoSection);
@@ -3332,6 +3389,106 @@ void CInstanceProcess::ClearEmptyAgent()
 		}
 	}
 
+	LeaveCriticalSection(&VideoSection);
+}
+
+void CInstanceProcess::ClearVideoTop()
+{
+	std::vector<shared_ptr<IBaseVideo>> vAgentList;
+	EnterCriticalSection(&VideoSection);
+	for (UINT i = 0; i < m_VideoList.Num();)
+	{
+		VideoStruct &Video = m_VideoList[i];
+
+		if (Video.bTop && Video.VideoStream)
+		{
+			//如果是区域占位源要在bRender的时候调，如果不是则直接进入
+			if (Video.VideoStream->GetGlobalSource())
+			{
+				if (Video.bRender)
+				{
+					IBaseVideo *BaseVideo = Video.VideoStream.get();
+
+					if (BaseVideo)
+					{
+						//为了区域占位源不影响PVW切换做的更改
+						if (IsLiveInstance)
+						{
+							//为了防止在有特效切换时区域占位源的析构而导致音频被移除
+							vEffectAgentList.push_back(Video.VideoStream);
+						}
+						else
+						{
+							BaseVideo->GlobalSourceLeaveScene();
+						}
+
+					}
+				}
+			}
+			else if (Video.bRender)
+			{
+				if (Video.bGlobalStream && Video.VideoStream.use_count() == 2)
+				{
+					IBaseVideo *BaseVideo = Video.VideoStream.get();
+
+					if (BaseVideo)
+					{
+						BaseVideo->GlobalSourceLeaveScene();
+						if (Video.VideoDevice)
+						{
+							Video.VideoDevice->GlobalSourceLeaveScene();
+							Video.VideoDevice->SetCanEnterScene(true);
+						}
+						BaseVideo->SetCanEnterScene(true);
+					}
+				}
+			}
+
+			for (UINT j = 0; j < m_Filter.Num(); ++j)
+			{
+				Filter &OneFilter = m_Filter[j];
+
+				if (strcmp(Video.VideoStream->GainClassName(), "AgentSource") == 0)
+				{
+					IBaseVideo *BaseVideo = Video.VideoStream->GetGlobalSource();
+
+					if (BaseVideo && OneFilter.IVideo == BaseVideo)
+					{
+						m_Filter.Remove(j);
+						break;
+					}
+				}
+				else
+				{
+					if (OneFilter.IVideo == Video.VideoStream.get() || (OneFilter.IVideo == Video.VideoDevice.get()))
+					{
+						m_Filter.Remove(j);
+						break;
+					}
+				}
+
+			}
+
+			Video.VideoStream.reset();
+
+
+			if (Video.Config)
+			{
+				Video.Config.reset();
+			}
+
+			if (Video.VideoDevice)
+				Video.VideoDevice.reset();
+
+			m_VideoList.Remove(i);
+
+		}
+		else
+		{
+			++i;
+		}
+		
+	}
 	LeaveCriticalSection(&VideoSection);
 }
 

@@ -333,11 +333,10 @@ void CSLiveManager::MainVideoLoop()
 				if (!LiveInstance || !LocalInstance)
 					break;
 
-				CInstanceProcess *Process = i == 0 ? LocalInstance : LiveInstance;;
+				CInstanceProcess *Process = i == 0 ? LocalInstance : LiveInstance;
 
-// 				if (!Process || (Process && Process->bLittlePre))
-// 					continue;
-
+				bool bHasEffect = false;
+			
 				EnterCriticalSection(&Process->VideoSection);
 				//------------------------------------
 				// render the mini render texture
@@ -370,6 +369,9 @@ void CSLiveManager::MainVideoLoop()
 					if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock
 						|| bTransDownUp || bTransLeftRight || bTransRightLeft)
 					{
+
+						bHasEffect = true;
+
 						Process->DrawTransFormProcess(fSeconds);
 						m_D3DRender->SetRenderTarget(transNewTexture);
 
@@ -378,6 +380,7 @@ void CSLiveManager::MainVideoLoop()
 						m_D3DRender->SetRenderTarget(transitionTexture);
 						m_D3DRender->ClearRenderTarget(0xFF000000);
 
+					
 						if (bTransDisSolving)
 						{
 							Shader *oldPixelShader = m_D3DRender->GetCurrentPixelShader();
@@ -396,6 +399,7 @@ void CSLiveManager::MainVideoLoop()
 						{
 							m_D3DRender->LoadSamplerState(ss, 0);
 
+						
 							if (bTransUpDown)
 							{
 								m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
@@ -420,11 +424,11 @@ void CSLiveManager::MainVideoLoop()
 							m_D3DRender->SetRenderTarget(transitionAddress.get());
 							m_D3DRender->ClearRenderTarget(0xFF000000);
 
-							m_D3DRender->EnableBlending(TRUE);
-							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
 							m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0xFFFFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
 
+							m_D3DRender->EnableBlending(TRUE);
+							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
 							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
 							m_D3DRender->EnableBlending(FALSE);
@@ -458,24 +462,25 @@ void CSLiveManager::MainVideoLoop()
 							{
 								circleTransitionPixel->SetFloat(HClock, 1.0f);
 							}
+							m_D3DRender->EnableBlending(TRUE);
+							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
 							m_D3DRender->DrawSpriteEx(transNewTexture, 0xFFFFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
-
+	
 							m_D3DRender->LoadPixelShader(oldPixelShader);
 
 
 							m_D3DRender->SetRenderTarget(transitionAddress.get());
 							m_D3DRender->ClearRenderTarget(0xFF000000);
 
-							m_D3DRender->EnableBlending(TRUE);
-							m_D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
+							
 							m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0x66FFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
 
+							
 							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF,
 								0, 0, baseSize.x, baseSize.y, 0.0f, 0.0f, 1.0f, 1.0f);
 							m_D3DRender->EnableBlending(FALSE);
-
 						}
 
 						if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft || bRadius || bClock)
@@ -487,7 +492,8 @@ void CSLiveManager::MainVideoLoop()
 							RenderTexture = transitionTexture;
 						}
 						
-
+						//Draw Top Դ
+						Process->DrawTransFormRender(RenderTexture, mainVertexShader, mainPixelShader,true);
 
 						TransEscapeTime += frameTimeNS / (1000000 * TransFormTime);
 
@@ -498,6 +504,7 @@ void CSLiveManager::MainVideoLoop()
 							Process->ClearVideoTransForm();
 						}
 					}
+
 				}
 				else
 				{
@@ -507,6 +514,13 @@ void CSLiveManager::MainVideoLoop()
 					RenderTexture = PreRenderTexture;
 					//profileOut
 				}
+
+				if (!bHasEffect)
+				{
+					//Draw Top Դ
+					Process->DrawRender(RenderTexture, mainVertexShader, mainPixelShader, true);
+				}
+
 
 				m_D3DRender->EnableBlending(FALSE);
 

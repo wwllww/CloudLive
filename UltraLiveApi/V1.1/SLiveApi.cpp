@@ -311,3 +311,8 @@ int SLiveUpdateFilter(uint64_t iInstansID, uint64_t iStreamID, uint64_t iFilterI
 {
 	return CSLiveManager::GetInstance()->SLiveUpdateFilter(iInstansID, iStreamID, iFilterID, cJson);
 }
+
+int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest)
+{
+	return CSLiveManager::GetInstance()->SLiveSetTopest(iInstansID, iStreamID, bTopest);
+}

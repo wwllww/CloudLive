@@ -6,10 +6,15 @@
 #include "VideoSourceConfig.h"
 #include "resource.h"
 #include <array>
+#include "CGdiPlusImage.h"
 #define HANDLE_DEFAULT default: return false
 #define RGB102 RGB(102, 102, 102)
 #define RGB255 RGB(255, 255, 255)
 
+CGdiPlusImage* m_pCancleBtnGrayNor = NULL;
+CGdiPlusImage* m_pCancleBtnGrayHover = NULL;
+CGdiPlusImage* m_pOKBtnGrayNor = NULL;
+CGdiPlusImage* m_pOKBtnGrayHover = NULL;
 WNDPROC buttonproc = NULL;
 WNDPROC editproc = NULL;
 WNDPROC resetvideofilterproc = NULL;
@@ -394,10 +399,11 @@ BOOL Config_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 	ListView_SetTextBkColor(_this->hwndPlaylist, RGB(102, 102, 102));
 	ListView_SetTextColor(_this->hwndPlaylist, RGB(255, 255, 255));
 
+	SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 300, 220, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDOK), NULL, 150, 220, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_ADD_MEDIA), NULL, 450, 82, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+
 	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_ADD_MEDIA), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
-	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_REMOVE_MEDIA), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
-	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_BUTTON2), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
-	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_BUTTON3), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
 	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, 1), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
 	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, 2), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
 	editproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_SUBTIME), GWLP_WNDPROC, (LONG_PTR)EditProc);
@@ -703,6 +709,30 @@ void Config_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 				break;
 			}
 
+			if (m_pCancleBtnGrayHover)
+			{
+				delete m_pCancleBtnGrayHover;
+				m_pCancleBtnGrayHover = NULL;
+			}
+
+			if (m_pCancleBtnGrayNor)
+			{
+				delete m_pCancleBtnGrayNor;
+				m_pCancleBtnGrayNor = NULL;
+			}
+
+			if (m_pOKBtnGrayHover)
+			{
+				delete m_pOKBtnGrayHover;
+				m_pOKBtnGrayHover = NULL;
+			}
+
+			if (m_pOKBtnGrayNor)
+			{
+				delete m_pOKBtnGrayNor;
+				m_pOKBtnGrayNor = NULL;
+			}
+
 			if (config->LastPlayFile.Compare(newItem))
 			{
 				
@@ -729,7 +759,29 @@ void Config_OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
     case IDCANCEL:
         {
             VideoSourceConfigDialog *_this = (VideoSourceConfigDialog *)GetWindowLongPtr(hwnd, DWLP_USER);
+			if (m_pCancleBtnGrayHover)
+			{
+				delete m_pCancleBtnGrayHover;
+				m_pCancleBtnGrayHover = NULL;
+			}
 
+			if (m_pCancleBtnGrayNor)
+			{
+				delete m_pCancleBtnGrayNor;
+				m_pCancleBtnGrayNor = NULL;
+			}
+
+			if (m_pOKBtnGrayHover)
+			{
+				delete m_pOKBtnGrayHover;
+				m_pOKBtnGrayHover = NULL;
+			}
+
+			if (m_pOKBtnGrayNor)
+			{
+				delete m_pOKBtnGrayNor;
+				m_pOKBtnGrayNor = NULL;
+			}
             EndDialog(hwnd, IDCANCEL);
             break;
         }
@@ -845,7 +897,7 @@ void SeniorConfig_OnPaint(HWND hwnd) {
 	CSeniorVideoSourceConfigDialog *_this = (CSeniorVideoSourceConfigDialog *)GetWindowLongPtr(hwnd, DWLP_USER);
 	PAINTSTRUCT ps;
 
-	HBRUSH hBK_153 = CreateSolidBrush(RGB(153, 153, 153));
+	HBRUSH hBK_153 = CreateSolidBrush(RGB(42, 42, 44));
 	RECT rect;
 	HDC hDC = BeginPaint(hwnd, &ps);
 	GetClientRect(hwnd, &rect);
@@ -941,23 +993,15 @@ void Config_OnPaint(HWND hwnd) {
 	VideoSourceConfigDialog *_this = (VideoSourceConfigDialog *)GetWindowLongPtr(hwnd, DWLP_USER);
 	PAINTSTRUCT ps;
 
-	HBRUSH hBK_153 = CreateSolidBrush(RGB(153, 153, 153));
-	HBRUSH hBK_57 = CreateSolidBrush(RGB(57, 57, 59));
-	HBRUSH hBK_102 = CreateSolidBrush(RGB(102, 102, 102));
-	HFONT  m_hFont = CreateFont(20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
-		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
-
+	HBRUSH hBK_42 = CreateSolidBrush(RGB(42, 42, 44));
 	RECT rect;
 	
 	HDC hDC = BeginPaint(hwnd, &ps);
 	GetClientRect(hwnd, &rect);
-	FillRect(hDC, &rect, hBK_153);
+	FillRect(hDC, &rect, hBK_42);
 	EndPaint(hwnd, &ps);
 
-	DeleteObject(hBK_153);
-	DeleteObject(hBK_102);
-	DeleteObject(hBK_57);
-	DeleteObject(m_hFont);
+	DeleteObject(hBK_42);
 
 }
 
@@ -965,7 +1009,7 @@ HBRUSH Config_OnEditChangeColor(HWND hwnd, HDC wParam, HWND lParam, UINT ID) {
 	
 	HDC hdc = (HDC)wParam;
 	SetTextColor(hdc, RGB(255, 255, 255));
-	SetBkColor(hdc, RGB(121, 121, 121));
+	SetBkColor(hdc, RGB(31, 31, 32));
 	//HFont20 = CreateFont(20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
 		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
 	//HFONT  m_hOldFont = (HFONT)SelectObject(hdc, HFont20);
@@ -973,7 +1017,7 @@ HBRUSH Config_OnEditChangeColor(HWND hwnd, HDC wParam, HWND lParam, UINT ID) {
 	{
 		DeleteObject(HBrush);
 	}
-	HBrush = CreateSolidBrush(RGB(121, 121, 121));
+	HBrush = CreateSolidBrush(RGB(31, 31, 32));
 	return HBrush;
 
 }
@@ -982,7 +1026,7 @@ HBRUSH Config_OnStaticChangeColor(HWND hwnd, HDC wParam, HWND lParam, UINT ID){
 
 	HDC hdc = (HDC)wParam;
 	SetTextColor(hdc, RGB(255, 255, 255));
-	SetBkColor(hdc, RGB(153, 153, 153));
+	SetBkColor(hdc, RGB(42, 42, 44));
 	//HFont20 = CreateFont(20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
 				OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
 	//HFONT  m_hOldFont = (HFONT)SelectObject(hdc, HFont20);
@@ -990,7 +1034,7 @@ HBRUSH Config_OnStaticChangeColor(HWND hwnd, HDC wParam, HWND lParam, UINT ID){
 	{
 		DeleteObject(HBrush);
 	}
-	HBrush = CreateSolidBrush(RGB(153, 153, 153));
+	HBrush = CreateSolidBrush(RGB(42, 42, 44));
 	return HBrush;
 
 }
@@ -1036,33 +1080,196 @@ static INT_PTR CALLBACK EditProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 static INT_PTR CALLBACK ButtonProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
 	
+	static bool m_bMouseTrack = FALSE;
+
+	if (!m_pCancleBtnGrayHover)
+	{
+		m_pCancleBtnGrayHover = new CGdiPlusImage;
+		m_pCancleBtnGrayHover->LoadFromFile(L".\\img\\btn_gray_hover.png");
+	}
+
+	if (!m_pCancleBtnGrayNor)
+	{
+		m_pCancleBtnGrayNor = new CGdiPlusImage;
+		m_pCancleBtnGrayNor->LoadFromFile(L".\\img\\btn_gray_nor.png");
+	}
+
+	if (!m_pOKBtnGrayHover)
+	{
+		m_pOKBtnGrayHover = new CGdiPlusImage;
+		m_pOKBtnGrayHover->LoadFromFile(L".\\img\\btn_blue_hover.png");
+	}
+
+	if (!m_pOKBtnGrayNor)
+	{
+		m_pOKBtnGrayNor = new CGdiPlusImage;
+		m_pOKBtnGrayNor->LoadFromFile(L".\\img\\btn_blue_nor.png");
+	}
+
+
 	switch (message)
 	{
 	case WM_PAINT:
 	{
 					 PAINTSTRUCT ps;
-					 HBRUSH hBK_102 = CreateSolidBrush(RGB(102, 102, 102));
-					 HFONT  m_hFont = CreateFont(20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
-						 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
+					 HDC hdc = BeginPaint(hwnd, &ps);
+					 Graphics graphics(hdc);
+					 INT nImageWidth = m_pCancleBtnGrayNor->GetWidth();
+					 INT nImageHeight = m_pCancleBtnGrayNor->GetHeight();
 
-					 RECT rect;
-					 HDC hDC = BeginPaint(hwnd, &ps);
-					 GetClientRect(hwnd, &rect);
-					 FillRect(hDC, &rect, hBK_102);
-					 SetTextColor(hDC, RGB(176, 176, 176));
-					 SetBkMode(hDC, TRANSPARENT);
-					 HFONT  m_hOldFont = (HFONT)SelectObject(hDC, m_hFont);
+					 RectF rcDrawRect;
+					 rcDrawRect.X = (REAL)0;
+					 rcDrawRect.Y = (REAL)0;
+					 rcDrawRect.Width = (REAL)nImageWidth;
+					 rcDrawRect.Height = (REAL)nImageHeight;
+					 if (hwnd == GetDlgItem(GetParent(hwnd), IDOK))
+					 {
+						 graphics.DrawImage(m_pOKBtnGrayNor->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+					 }
+					 else /*if (hwnd == GetDlgItem(GetParent(hwnd), IDCANCEL))*/
+					 {
+						 graphics.DrawImage(m_pCancleBtnGrayNor->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+					 }
 
-					 TCHAR WndTitle[256] = { 0 };
-					 GetWindowText(hwnd, WndTitle, sizeof WndTitle);
-					 String DB_Tianjia = WndTitle;
-					 TextOut(hDC, 25, 6, DB_Tianjia, DB_Tianjia.Length());
-					 SelectObject(hDC, m_hOldFont);
+
+					 SetTextColor(hdc, RGB(255, 255, 255));
+
+					 SetBkColor(hdc, RGB(102, 102, 102));
+					 SetBkMode(hdc, TRANSPARENT);
+
+					 SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+
+					 TCHAR Title[MAX_PATH] = { 0 };
+
+					 GetWindowText(hwnd, Title, sizeof Title);
+
+					 RECT rtClient;
+					 GetClientRect(hwnd, &rtClient);
+
+					 if (wcslen(Title) > 0)
+					 {
+						 DrawText(hdc, Title, wcslen(Title), &rtClient, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+					 }
 					 EndPaint(hwnd, &ps);
-					 DeleteObject(hBK_102);
-					 DeleteObject(m_hFont);
-					 DeleteObject(m_hOldFont);
 					 break;
+	}
+	case WM_MOUSEHOVER:
+	{
+						  if (!m_bMouseTrack)
+						  {
+							  HDC hDC = GetDC(hwnd);
+							  Graphics graphics(hDC);
+							  INT nImageWidth = m_pCancleBtnGrayHover->GetWidth();
+							  INT nImageHeight = m_pCancleBtnGrayHover->GetHeight();
+
+							  //构造位置
+							  RectF rcDrawRect;
+							  rcDrawRect.X = (REAL)0;
+							  rcDrawRect.Y = (REAL)0;
+							  rcDrawRect.Width = (REAL)nImageWidth;
+							  rcDrawRect.Height = (REAL)nImageHeight;
+
+							  //绘画图像
+							  if (hwnd == GetDlgItem(GetParent(hwnd), IDOK))
+							  {
+								  graphics.DrawImage(m_pOKBtnGrayHover->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+							  }
+							  else /*if (hwnd == GetDlgItem(GetParent(hwnd), IDCANCEL))*/
+							  {
+								  graphics.DrawImage(m_pCancleBtnGrayHover->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+							  }
+
+							  SetTextColor(hDC, RGB(255, 255, 255));
+
+							  SetBkColor(hDC, RGB(102, 102, 102));
+							  SetBkMode(hDC, TRANSPARENT);
+
+							  SelectObject(hDC, GetStockObject(DEFAULT_GUI_FONT));
+
+							  TCHAR Title[MAX_PATH] = { 0 };
+
+							  GetWindowText(hwnd, Title, sizeof Title);
+
+							  RECT rtClient;
+							  GetClientRect(hwnd, &rtClient);
+
+							  if (wcslen(Title) > 0)
+							  {
+								  DrawText(hDC, Title, wcslen(Title), &rtClient, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+							  }
+
+							  ReleaseDC(hwnd, hDC);
+						  }
+						  break;
+	}
+
+	case WM_MOUSEMOVE:
+	{
+						 TRACKMOUSEEVENT csTME;
+						 csTME.cbSize = sizeof (csTME);
+						 csTME.dwFlags = TME_LEAVE | TME_HOVER;
+						 csTME.hwndTrack = hwnd;// 指定要 追踪 的窗口 
+						 csTME.dwHoverTime = 10;  // 鼠标在按钮上停留超过 10ms ，才认为状态为 HOVER
+						 ::_TrackMouseEvent(&csTME); // 开启 Windows 的 WM_MOUSELEAVE ， WM_MOUSEHOVER 事件支持
+
+						 m_bMouseTrack = FALSE;   // 若已经 追踪 ，则停止 追踪 
+						 break;
+	}
+	case WM_MOUSELEAVE:
+	{
+						  m_bMouseTrack = TRUE;
+						  //改变状态
+						  HDC hDC = GetDC(hwnd);
+						  RECT meterGray;
+						  HBRUSH  HBrushBackGround = CreateSolidBrush(RGB(42, 42, 44));
+						  meterGray.left = 0;
+						  meterGray.right = 100;
+						  meterGray.bottom = 0;
+						  meterGray.top = 36;
+						  FillRect(hDC, &meterGray, HBrushBackGround);
+						  DeleteObject(HBrushBackGround);
+
+						  Graphics graphics(hDC);
+						  INT nImageWidth = m_pCancleBtnGrayNor->GetWidth();
+						  INT nImageHeight = m_pCancleBtnGrayNor->GetHeight();
+
+						  //构造位置
+						  RectF rcDrawRect;
+						  rcDrawRect.X = (REAL)0;
+						  rcDrawRect.Y = (REAL)0;
+						  rcDrawRect.Width = (REAL)nImageWidth;
+						  rcDrawRect.Height = (REAL)nImageHeight;
+
+						  //绘画图像
+						  if (hwnd == GetDlgItem(GetParent(hwnd), IDOK))
+						  {
+							  graphics.DrawImage(m_pOKBtnGrayNor->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+						  }
+						  else /*if (hwnd == GetDlgItem(GetParent(hwnd), IDCANCEL))*/
+						  {
+							  graphics.DrawImage(m_pCancleBtnGrayNor->GetImage(), rcDrawRect, 0, 0, (REAL)nImageWidth, (REAL)nImageHeight, UnitPixel);
+						  }
+						  SetTextColor(hDC, RGB(255, 255, 255));
+
+						  SetBkColor(hDC, RGB(102, 102, 102));
+						  SetBkMode(hDC, TRANSPARENT);
+
+						  SelectObject(hDC, GetStockObject(DEFAULT_GUI_FONT));
+
+						  TCHAR Title[MAX_PATH] = { 0 };
+
+						  GetWindowText(hwnd, Title, sizeof Title);
+
+						  RECT rtClient;
+						  GetClientRect(hwnd, &rtClient);
+
+						  if (wcslen(Title) > 0)
+						  {
+							  DrawText(hDC, Title, wcslen(Title), &rtClient, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+						  }
+
+						  ReleaseDC(hwnd, hDC);
+						  break;
 	}
 
 	default:
@@ -1079,9 +1286,9 @@ static INT_PTR CALLBACK ResetVideoFilterProc(HWND hwnd, UINT message, WPARAM wPa
 	case WM_PAINT:
 	{
 					 PAINTSTRUCT ps;
-					 HBRUSH hBK_153 = CreateSolidBrush(RGB(153, 153, 153));
+					 HBRUSH hBK_153 = CreateSolidBrush(RGB(42, 42, 44));
 					 HBRUSH hBK_57 = CreateSolidBrush(RGB(57, 57, 59));
-					 HBRUSH hBK_102 = CreateSolidBrush(RGB(102, 102, 102));
+					 HBRUSH hBK_102 = CreateSolidBrush(RGB(42, 42, 44));
 					 HFONT  m_hFont = CreateFont(18, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
 						 OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
 
@@ -1089,7 +1296,7 @@ static INT_PTR CALLBACK ResetVideoFilterProc(HWND hwnd, UINT message, WPARAM wPa
 					 HDC hDC = BeginPaint(hwnd, &ps);
 					 GetClientRect(hwnd, &rect);
 					 FillRect(hDC, &rect, hBK_102);
-					 SetTextColor(hDC, RGB(176, 176, 176));
+					 SetTextColor(hDC, RGB(255, 255, 255));
 					 SetBkMode(hDC, TRANSPARENT);
 					 HFONT  m_hOldFont = (HFONT)SelectObject(hDC, m_hFont);
 
@@ -1368,7 +1575,7 @@ void InitScrollScene(HINSTANCE hInst)
 	wc.lpfnWndProc = CanvasProc;
 	wc.hInstance = hInst;//这里可以直接使用全局变量了  
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-	wc.hbrBackground = CreateSolidBrush(RGB(153, 153, 153));
+	wc.hbrBackground = CreateSolidBrush(RGB(42, 42, 44));
 
 	if (!RegisterClassEx(&wc)) {
 		MessageBox(NULL, L"Canvas Registration Failed!", L"Error!", MB_ICONEXCLAMATION | MB_OK);

@@ -156,10 +156,10 @@ Texture* D3D10Texture::CreateTextureFromFile(CTSTR lpFile, BOOL bBuildMipMaps, U
 
 	Width = ii.Width;
 	Height = ii.Height;
-	if (ii.Width * ii.Height > 20000000)
-	{
-		return NULL;
-	}
+// 	if (ii.Width * ii.Height > 20000000)
+// 	{
+// 		return NULL;
+// 	}
 
     if(bBuildMipMaps && (!IsPow2(ii.Width) || !IsPow2(ii.Height)))
         bBuildMipMaps = FALSE;

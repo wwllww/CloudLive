@@ -364,7 +364,6 @@
 #define VIFF_FORCEINSTALL               0x0001
 #define IDSOK                           1
 #define IDSENIOROK                      1
-#define WINAPI_PARTITION_APP            1
 #define __STDC_WANT_SECURE_LIB__        1
 #define _CRT_BUILD_DESKTOP_APP          1
 #define API_SET_LOAD_SCHEMA_ORDINAL     1
@@ -674,6 +673,7 @@
 #define RI_KEY_BREAK                    1
 #define RIDEV_REMOVE                    0x00000001
 #define GIDC_ARRIVAL                    1
+#define WINAPI_PARTITION_APP            1
 #define WINAPI_FAMILY_PC_APP            2
 #define ISOLATIONAWARE_MANIFEST_RESOURCE_ID 2
 #define SW_SHOWMINIMIZED                2
@@ -3688,6 +3688,7 @@
 #define IDC_PROGRESSIVE                 1012
 #define IDC_RADIOLIST2                  1013
 #define IDC_INTERLACE                   1013
+#define IDC_STATICLOOP                  1014
 #define IDC_AUDIO_OUTPUT_TYPE           1017
 #define IDC_AUDIO_OUTPUT_TO_STREAM      1018
 #define IDC_AUDIO_OUTPUT_TO_DEVICE      1019
@@ -3750,7 +3751,9 @@
 #define ID_SENCECHANGEBEGINPLAY         1029
 #define psh7                            0x0406
 #define IDC_REMOVE_MEDIA                1030
+#define ID_REMOVEALL                    1030
 #define psh8                            0x0407
+#define IDC_REMOVEALLVIDEO              1031
 #define psh9                            0x0408
 #define psh10                           0x0409
 #define psh11                           0x040a
@@ -4447,12 +4450,12 @@
 #define DISP_CHANGE_BADFLAGS            -4
 #define DISP_CHANGE_NOTUPDATED          -3
 #define THREAD_BASE_PRIORITY_MIN        -2
-#define HTERROR                         -2
 #define IDHOT_SNAPDESKTOP               -2
 #define LB_ERRSPACE                     -2
 #define LBN_ERRSPACE                    -2
 #define CB_ERRSPACE                     -2
 #define DISP_CHANGE_BADMODE             -2
+#define HTERROR                         -2
 #define UNICODE_NOCHAR                  0xFFFF
 #define IDC_VIDEOCONTRASTSENIOR         -1
 #define ALL_PROCESSOR_GROUPS            0xffff
@@ -4464,8 +4467,6 @@
 #define INVALID_OS_COUNT                0xffff
 #define WH_MIN                          -1
 #define WH_MSGFILTER                    -1
-#define PWR_FAIL                        -1
-#define HTTRANSPARENT                   -1
 #define IDHOT_SNAPWINDOW                -1
 #define EC_USEFONTINFO                  0xffff
 #define LB_ERR                          -1
@@ -4474,6 +4475,8 @@
 #define METRICS_USEDEFAULT              -1
 #define DISP_CHANGE_FAILED              -1
 #define IDC_STATIC                      -1
+#define PWR_FAIL                        -1
+#define HTTRANSPARENT                   -1
 
 // Next default values for new objects
 // 
@@ -4481,7 +4484,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        106
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1012
+#define _APS_NEXT_CONTROL_VALUE         1015
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

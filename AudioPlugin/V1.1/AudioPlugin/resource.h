@@ -63,6 +63,9 @@
 #define IDC_COMBO1                      1045
 #define IDC_AUDIORENDERLIST             1045
 #define IDC_DENOISE                     1046
+#define IDC_DENOISESPIN                 1051
+#define IDC_EDIT2                       1052
+#define IDC_DENOISEEDIT                 1052
 #define IDC_GAMMAVAL                    1151
 
 // Next default values for new objects
@@ -71,7 +74,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        107
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1047
+#define _APS_NEXT_CONTROL_VALUE         1053
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

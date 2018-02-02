@@ -111,7 +111,7 @@ void CInstanceProcess::DeleteStream(uint64_t StreamId)
 				{
 					Filter &OneFilter = m_Filter[j];
 					IBaseVideo *GlobalVideo = m_VideoList[i].VideoStream->GetGlobalSource();
-					if (OneFilter.IVideo == m_VideoList[i].VideoStream.get() || (bAgent && OneFilter.IVideo == GlobalVideo))
+					if (OneFilter.IVideo == m_VideoList[i].VideoStream.get() || (bAgent && OneFilter.IVideo == GlobalVideo) || (OneFilter.IVideo == m_VideoList[i].VideoDevice.get()))
 					{
 						vector<__FilterSturct> &BaseFilter = OneFilter.BaseFilter;
 
@@ -1088,10 +1088,10 @@ void CInstanceProcess::RecordCallBack(void *Context, CSampleData* Data)
 	CInstanceProcess *Process = reinterpret_cast<CInstanceProcess*>(Context);
 	if (Process && !Process->bNoPreView)
 	{
-		Data->timestamp = GetQPCNS() / 1000000; //必须自己打时戳
-		
 		if (Data)
 		{
+			Data->timestamp = GetQPCNS() / 1000000; //必须自己打时戳
+
 			Process->bCanRecord = (*Data->UserData)["UseRecorder"].asInt() == 1;
 			if (G_LiveInstance && G_LiveInstance->bStartLive && (Data->colorType == DeviceOutputType_I420 || Data->colorType == DeviceOutputType_YV12))
 					Process->ProcessRecord(Data);
@@ -1275,4 +1275,50 @@ void CInstanceProcess::SetPlayPreAudio(uint64_t iStreamID, bool *bRet)
 	}
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PlayAudio = %s", __FUNCTION__, *bRet ? "true" : "false");
+}
+
+void CInstanceProcess::SetTopest(uint64_t iStreamID, bool bTopest)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! StreamId = %llu, bTopest = %s", __FUNCTION__, iStreamID,bTopest ? "true":"false");
+	bool bFind = false;
+
+	EnterCriticalSection(&VideoSection);
+	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	{
+		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID)
+		{
+			m_VideoList[i].bTop = bTopest;
+
+			if (bTopest)
+			{
+				MoveStream(MoveTop, i);
+			}
+			else
+			{
+				//往下移动直到没有顶层源的位置之上
+				for (int j = int(i - 1); j >= 0; --j)
+				{
+					if (m_VideoList[j].bTop)
+					{
+						MoveStream(MoveDown, j + 1);
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+			bFind = true;
+			break;
+		}
+	}
+	LeaveCriticalSection(&VideoSection);
+
+	if (!bFind)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! StreamId = %llu", __FUNCTION__, iStreamID);
+		BUTEL_THORWERROR("没有找到或该流不是视频流,StreamID为 %llu", iStreamID);
+	}
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 }

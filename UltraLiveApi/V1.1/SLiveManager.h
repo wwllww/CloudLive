@@ -113,6 +113,7 @@ public:
 	int SLiveAddFilter(uint64_t iInstansID, uint64_t iStreamID, const char *FilterName, uint64_t *iFilterID);
 	int SLiveDeleteFilter(uint64_t iInstansID, uint64_t iStreamID, uint64_t iFilterID);
 	int SLiveUpdateFilter(uint64_t iInstansID, uint64_t iStreamID, uint64_t iFilterID, const char *cJson);
+	int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest);
 
 	int ReNameStreamSec(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName);
 	//内部使用

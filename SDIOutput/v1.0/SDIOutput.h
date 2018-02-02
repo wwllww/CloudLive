@@ -107,7 +107,7 @@ EXTERN_DLLEXPORT int SDI_Init();
 /* 输出参数：    无
 /* 返 回 值：    错误码
 /************************************************************************/
-EXTERN_DLLEXPORT int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE nMode, SDIOUT_COLORFORMAT nColorFormat, int nBufferTime);
+EXTERN_DLLEXPORT int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE nMode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount = 10);
 
 /************************************************************************/
 /* 函数名称：    SDI_StopOut

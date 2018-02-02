@@ -628,7 +628,7 @@ int SharedDevice::RegisterSharedDevice(DataCallBack Cb)
 
 	for (int i = 0; i < VideoList.size(); ++i)
 	{
-		ShardVideo OneVideo = VideoList[i];
+		ShardVideo &OneVideo = VideoList[i];
 
 		if (0 == strcmp(OneVideo.VideoStream->GainClassName(), "DeviceSource"))
 		{

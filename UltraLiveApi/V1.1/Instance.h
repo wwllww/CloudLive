@@ -159,6 +159,7 @@ typedef struct VideoStruct
 	Vect2 pos, size;
 	Vect4 Crop;
 	bool bGlobalStream;
+	bool bTop;
 
 	VideoStruct()
 	{
@@ -170,6 +171,7 @@ typedef struct VideoStruct
 		pos = Vect2(0, 0);
 		size = Vect2(640, 480);
 		Crop = Vect4(0, 0, 0, 0);
+		bTop = false;
 	}
 	VideoStruct(const VideoStruct & VStruct)
 	{
@@ -186,6 +188,7 @@ typedef struct VideoStruct
 			size = VStruct.size;
 			bGlobalStream = VStruct.bGlobalStream;
 			Crop = VStruct.Crop;
+			bTop = VStruct.bTop;
 		}
 	}
 
@@ -204,6 +207,7 @@ typedef struct VideoStruct
 			size = VStruct.size;
 			bGlobalStream = VStruct.bGlobalStream;
 			Crop = VStruct.Crop;
+			bTop = VStruct.bTop;
 		}
 
 		return *this;
@@ -428,8 +432,10 @@ public:
 	void SetDelayCancel();
 	Filter AddFilter(uint64_t iStreamID, const char *FilterName, uint64_t *iFilterID);
 	void   AddFilter(const Filter &NewFilter);
-	void DeleteFilter(uint64_t iStreamID, uint64_t iFilterID);
+	void DeleteFilter(uint64_t iStreamID, uint64_t iFilterID,uint64_t iDeviceID = 0);
 	void UpdateFilter(uint64_t iStreamID, uint64_t iFilterID, Value &JValue);
+	void SetTopest(uint64_t iStreamID, bool bTopest);
+	uint64_t FindDShowDeviceID(uint64_t iStreamID);
 	static void StreamCallBack(void *Context, CSampleData* Data);
 	static void RecordCallBack(void *Context, CSampleData* Data);
 	static DWORD VideoEncoderThread(LPVOID lparam);
@@ -449,6 +455,7 @@ public:
 	void ClearFilterTransForm();
 	void ClearAudio();
 	void ClearEmptyAgent();
+	void ClearVideoTop();
 	UINT GetRenderCount();
 
 	void CopyNewToVideoList();
@@ -458,8 +465,8 @@ public:
 	void DrawLittlePreview();
 	void DrawPreProcess(float fSeconds);
 	void DrawTransFormProcess(float fSeconds);
-	void DrawRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader);
-	void DrawTransFormRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader);
+	void DrawRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader,bool bDrawTop = false);
+	void DrawTransFormRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader, bool bDrawTop = false);
 	void SetHasPreProcess(bool bPrePro);
 	void ResizeRenderFrame(bool bRedrawRenderFrame);
 	void BulidD3D();

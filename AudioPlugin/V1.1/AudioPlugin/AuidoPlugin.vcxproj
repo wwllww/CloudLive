@@ -236,7 +236,7 @@
       <BrowseInformation>true</BrowseInformation>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>strmbase.lib;strmiids.lib;Winmm.lib;D3DRender.lib;UltraLiveApi.lib;Common.lib;json_vc71_libmt.lib;SpeexDenoise.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>strmbase.lib;strmiids.lib;Winmm.lib;D3DRender.lib;UltraLiveApi.lib;Common.lib;json_vc71_libmt.lib;SpeexDenoise.lib;gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>Z:\rlib_x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>

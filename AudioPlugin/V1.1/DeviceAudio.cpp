@@ -26,17 +26,22 @@ IMPLEMENT_DYNIC(DAudioSource, "DAudioSource", "1.0.0.1")
 DAudioSource::DAudioSource()
 {
 	lastTimestamp = 0;
-	hAudioMutex = NULL;
+	hAudioMutex = OSCreateMutex();
 	m_pAudioWaveOut = NULL;
 	m_pSecWaveOut = NULL;
 	bLiveInstance = false;
 	fVolume = 1.0f;
 	m_pCSpeexDenoise = CreateSpeexDenoiseInstance();
+
+	if (!m_pCSpeexDenoise)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "CreateSpeexDenoiseInstance Failed!!");
+	}
 }
 
 bool DAudioSource::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp)
 {
-    if(sampleBuffer.Num() >= sampleSegmentSize)
+    if(sampleBuffer.Num() >= sampleSegmentSize && hAudioMutex)
     {
         OSEnterMutex(hAudioMutex);
 
@@ -84,15 +89,6 @@ CTSTR DAudioSource::GetDeviceName() const
 bool DAudioSource::Initialize(DSource *parent)
 {
     device = parent;
-
-	if (hAudioMutex)
-	{
-		OSCloseMutex(hAudioMutex);
-		hAudioMutex = NULL;
-	}
-
-    hAudioMutex = OSCreateMutex();
-
     //---------------------------------
 
     bool  bFloat = false;
@@ -131,8 +127,11 @@ bool DAudioSource::Initialize(DSource *parent)
 		m_pAudioWaveOut->Uninitialize();
 	}
 
-	m_pCSpeexDenoise->InitSpeexDenoise(inputSamplesPerSec, inputChannels, sampleSegmentSize);
-	m_pCSpeexDenoise->SetSpeexDenoiseValue(m_nDenoiseValue);
+	if (m_pCSpeexDenoise && inputChannels && inputSamplesPerSec && sampleSegmentSize)
+	{
+		m_pCSpeexDenoise->InitSpeexDenoise(inputSamplesPerSec, inputChannels, sampleSegmentSize);
+		m_pCSpeexDenoise->SetSpeexDenoiseValue(m_nDenoiseValue);
+	}
 
 	String strReanderName = GetDirectorMonitorDevices();
 	if (NULL == m_pAudioWaveOut)
@@ -214,7 +213,7 @@ void DAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, bool bCanPlay)
 {
     if(lpData)
     {
-		if (m_bUseDenoise)
+		if (m_bUseDenoise && m_pCSpeexDenoise)
 		{
 			bool bRet = m_pCSpeexDenoise->ProcessSpeexDenoiseData((short *)lpData, dataLength);
 			if (!bRet)

@@ -302,6 +302,7 @@ volatile long g_RD264Init = 0;
 			RDVideoCodecRelease(m_pEncoder);
 			RDVideoCodecDestroy(m_pEncoder);
 
+			Log::writeMessage(LOG_RTSPSERV, 1, "%s m_CurrentPackets.Num %d", __FUNCTION__,m_CurrentPackets.Num());
 			ClearPackets();
 			OSCloseMutex(m_hLock);
 			if (0 == InterlockedDecrement(&g_RD264Init))

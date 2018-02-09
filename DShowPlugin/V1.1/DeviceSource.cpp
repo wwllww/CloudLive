@@ -2629,7 +2629,7 @@ DWORD DeviceSource::CheckDevice()
 	BOOLEAN bDone = FALSE;
 	HRESULT hr = S_OK;	
 
-	while (!m_bCheckExit)
+	while (!m_bCheckExit && bFiltersLoaded)
 	{
 		if (NULL == hEventArray[0])
 		{
@@ -2750,7 +2750,7 @@ DWORD DeviceSource::CheckDevice()
 			}
 		}
 	}
-	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!,ThreadID = %d", __FUNCTION__, GetCurrentThreadId());
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!,ThreadID = %d, bFiltersLoaded %s", __FUNCTION__, GetCurrentThreadId(), bFiltersLoaded ? "true":"false");
 	return 0;
 }
 

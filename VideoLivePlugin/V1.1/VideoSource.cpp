@@ -605,7 +605,7 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 			videoSample->bAudio = true;
 			videoSample->dataLength = pMPFrameInfo->frame_size[0];
 			videoSample->lpData = (LPBYTE)Allocate_Bak(videoSample->dataLength);//pointer; //
-			//VolumeCaculate((char *)videoSample->lpData, pMPFrameInfo->frame_data[0], pMPFrameInfo->frame_size[0], This_->m_iVolume / 100.0);
+			memcpy(videoSample->lpData, pMPFrameInfo->frame_data[0], pMPFrameInfo->frame_size[0]);
 			videoSample->timestamp = pMPFrameInfo->pts;
 			if (This_->m_StatusStream == PCM_STREAM) {
 				This_->m_iPCMCount++;

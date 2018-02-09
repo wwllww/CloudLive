@@ -1339,7 +1339,7 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 		EnterCriticalSection(&MapInstanceSec);
 		CInstanceProcess *Process = m_InstanceList[iIntanceID];
 
-		if (Process->IsLiveInstance)
+		if (Process && Process->IsLiveInstance)
 		{
 			LeaveCriticalSection(&MapInstanceSec);
 			BUTEL_THORWERROR("不允许删除直播实例");
@@ -1398,7 +1398,7 @@ int CSLiveManager::SLiveDestroyInstance(uint64_t iIntanceID)
 						}
 
 						//置空所有用到该流的区域占位源
-						if (!Process->bNoPreView && LiveProcess->bLittlePre && LiveProcess->bNoPreView)
+						if (!Process->bNoPreView && LiveProcess && LiveProcess->bLittlePre && LiveProcess->bNoPreView)
 						{
 							for (int k = 0; k < LiveProcess->m_VideoList.Num(); ++k)
 							{
@@ -3688,7 +3688,7 @@ int CSLiveManager::SLiveAdd2Intance(uint64_t iIntanceID_S, uint64_t iIntanceID_D
 							{
 								CInstanceProcess *OneProcess = m_InstanceList.GetAt(i);
 								bool bAdd = false;
-								if (OneProcess->bLittlePre && !OneProcess->bNoPreView)
+								if (OneProcess && OneProcess->bLittlePre && !OneProcess->bNoPreView)
 								{
 									for (int j = 0; j < OneProcess->m_AudioList.Num(); ++j)
 									{
@@ -3926,14 +3926,17 @@ bool CSLiveManager::GetNameList(Value &data)
 			{
 				VideoStruct &OneVideo = Process->m_VideoList[j];
 
-				ArryList[iCount]["Name"] = (*OneVideo.Config)["Name"].asString().c_str();
-				ArryList[iCount]["SourceID"] = (*OneVideo.Config)["SourceID"].asString().c_str();
-				if (!(*OneVideo.Config)["DeviceSourceID"].isNull())
+				if (0 != strcmp(OneVideo.VideoStream->GainClassName(),"DSource") )
 				{
-					ArryList[iCount]["DeviceSourceID"] = (*OneVideo.Config)["DeviceSourceID"].asString().c_str();
-				}
+					ArryList[iCount]["Name"] = (*OneVideo.Config)["Name"].asString().c_str();
+					ArryList[iCount]["SourceID"] = (*OneVideo.Config)["SourceID"].asString().c_str();
+					if (!(*OneVideo.Config)["DeviceSourceID"].isNull())
+					{
+						ArryList[iCount]["DeviceSourceID"] = (*OneVideo.Config)["DeviceSourceID"].asString().c_str();
+					}
 
-				++iCount;
+					++iCount;
+				}
 			}
 		}
 
@@ -5449,7 +5452,7 @@ int CSLiveManager::SLiveHasIntancesCanRecord(bool *bRecord)
 		{
 			CInstanceProcess *OneProcess = m_InstanceList.GetAt(i);
 
-			if (OneProcess->bLittlePre && !OneProcess->bNoPreView)
+			if (OneProcess && OneProcess->bLittlePre && !OneProcess->bNoPreView)
 			{
 				if (OneProcess->bCanRecord)
 				{

@@ -1857,9 +1857,9 @@ void CInstanceProcess::StartLive(bool bRecordOnly)
 void CInstanceProcess::StopLive(bool bUI)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
-	if (bUI)
+	//if (bUI)
 	{
-		if (!bStartLive)
+		if (!bStartLive && bUI)//加了bUI,因为停止录制也会调这里
 		{
 			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!,已经为停止状态 ", __FUNCTION__);
 			return;
@@ -1867,8 +1867,8 @@ void CInstanceProcess::StopLive(bool bUI)
 
 		bStartLive = false;
 		bLiveInstanceRecordOnly = false;
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
-		return;
+		//Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
+		//return;
 	}
 
 	ListPublisher.clear();
@@ -2538,9 +2538,10 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 		//开启录制
 		if (!Data->bAudio)
 		{
-			bool bAudioDevice = strcmp((*Data->UserData)["audioDeviceName"].asString().c_str(), "禁用") != 0;
+			string &DeviceName = (*Data->UserData)["audioDeviceName"].asString();
+			bool bAudioDevice = strcmp(DeviceName.c_str(), "禁用") != 0;
 
-			if (!bRecord || RecordWidth != Data->cx || RecordHeight != Data->cy || bAudioDevice != bHasAudio)
+			if (!bRecord || RecordWidth != Data->cx || RecordHeight != Data->cy || bAudioDevice != bHasAudio || DeviceName.compare(m_DeviceName.c_str()))
 			{
 				RecordWidth = Data->cx;
 				RecordHeight = Data->cy;
@@ -2548,6 +2549,7 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 				StopRecord();
 
 				bHasAudio = bAudioDevice;
+				m_DeviceName = DeviceName;
 
 				RecordBitRate = (*Data->UserData)["RecorderBitRate"].asUInt();
 				RecordPath = Asic2WChar((*Data->UserData)["RecordPath"].asString().c_str()).c_str();
@@ -2592,7 +2594,7 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 				}
 				LeaveCriticalSection(&VideoSection);
 
-				String Path = GetOutputRecordFilename(RecordPath, RecordName, Data->cx, Data->cy);
+				String &Path = GetOutputRecordFilename(RecordPath, RecordName, Data->cx, Data->cy);
 
 				if (videoEncoder)
 				{
@@ -2716,7 +2718,7 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 
 							RecordPath = Asic2WChar((*Data->UserData)["RecordPath"].asString().c_str()).c_str();
 
-							String Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(), RecordWidth, RecordHeight);
+							String &Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(), RecordWidth, RecordHeight);
 
 							fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, true, false, this));
 
@@ -2729,7 +2731,7 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 					{
 						RecordPath = Asic2WChar((*Data->UserData)["RecordPath"].asString().c_str()).c_str();
 
-						String Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(), RecordWidth, RecordHeight);
+						String &Path = GetOutputRecordFilename(RecordPath, Asic2WChar((*Data->UserData)["Name"].asString().c_str()).c_str(), RecordWidth, RecordHeight);
 
 						fileStream = unique_ptr<VideoFileStream>(CreateFLVFileStreamNew(Path, true, false, this));
 
@@ -2809,7 +2811,7 @@ void CInstanceProcess::VideoEncoderLoop()
 	// 输出文件创建
 	FILE *fyuv = fopen("D://Test.yuv", "wb");
 #endif
-	while (bRecord)
+	while (bRecord || m_listVRawData.size())
 	{
 		if (!RecordFPS)
 			RecordFPS = 25;
@@ -2960,20 +2962,31 @@ void CInstanceProcess::VideoEncoderLoop()
 		Sleep2NS(streamTimeStart += frameTimeNS);
 	}
 
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "11111templistVideo.size %d", templistVideo.size());
+
+	int iCount = 0;
 	for(auto Vdata : m_listVRawData)
 	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "11111m_listVRawData %d",++iCount);
 		Vdata->Release();
 	}
 	m_listVRawData.clear();
+
+	iCount = 0;
 	for (auto Adata : m_listARawData)
 	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "11111m_listARawData %d", ++iCount);
 		Adata->Release();
 	}
 	m_listARawData.clear();
+
+	iCount = 0;
 	for (UINT i = 0; i < bufferedVideo.Num(); ++i)
 	{
 		VideoSegment &Segment = bufferedVideo[i];
 		Segment.Clear();
+		Log::writeMessage(LOG_RTSPSERV, 1, "11111bufferedVideo %d", ++iCount);
 	}
 	bufferedVideo.Clear();
 
@@ -2998,13 +3011,7 @@ void CInstanceProcess::StopRecord()
 	if (bRecord)
 	{
 		bRecord = false;
-		EnterCriticalSection(&NetWorkSection);
-		lastAudioTimestamp = 0;
-		m_firstFrameTimestamp = -1;
 
-		if (fileStream)
-			fileStream.reset();
-		
 		if (m_hEncodeThread)
 		{
 			if (WAIT_TIMEOUT == WaitForSingleObject(m_hEncodeThread, 5000))
@@ -3016,22 +3023,13 @@ void CInstanceProcess::StopRecord()
 			m_hEncodeThread = NULL;
 		}
 
-		if (audioEncoder)
-			delete audioEncoder;
-		audioEncoder = NULL;
-
-		if (videoEncoder)
-		{
-			delete videoEncoder;
-		}
-
-		videoEncoder = NULL;
-
-		if (network)
-			delete network;
-		network = NULL;
+		EnterCriticalSection(&NetWorkSection);
+		lastAudioTimestamp = 0;
+		m_firstFrameTimestamp = -1;
 
 		LeaveCriticalSection(&NetWorkSection);
+
+		StopLive(false);
 	}
 }
 
@@ -3144,11 +3142,6 @@ Filter CInstanceProcess::AddFilter(uint64_t iStreamID, const char *FilterName, u
 			}
 
 			LeaveCriticalSection(&VideoSection);
-
-			if (bFindFilter)
-			{
-				BUTEL_THORWERROR("已经有FilterName为 %s 的滤镜,不允许重复增加", FilterName);
-			}
 
 			*iFilterID = (uint64_t)BaseFilter;
 		}

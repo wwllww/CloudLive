@@ -812,7 +812,15 @@ void CSLiveManager::MainVideoLoop()
 					{
 						if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock || bTransDownUp || bTransLeftRight || bTransRightLeft)
 						{
-							m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
+							if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft || bRadius || bClock)
+							{
+								m_D3DRender->DrawSpriteEx(transitionAddress.get(), 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
+							}
+							else
+							{
+								m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
+							}
+							
 						}
 						else
 							m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -837,7 +845,14 @@ void CSLiveManager::MainVideoLoop()
 						{
 							if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius || bClock || bTransDownUp || bTransLeftRight || bTransRightLeft)
 							{
-								m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX_back, outputCY_back, 0.0f, 0.0f, 1.0f, 1.0f);
+								if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft || bRadius || bClock)
+								{
+									m_D3DRender->DrawSpriteEx(transitionAddress.get(), 0xFFFFFFFF, 0.0f, 0.0f, outputCX_back, outputCY_back, 0.0f, 0.0f, 1.0f, 1.0f);
+								}
+								else
+								{
+									m_D3DRender->DrawSpriteEx(transitionTexture, 0xFFFFFFFF, 0.0f, 0.0f, outputCX_back, outputCY_back, 0.0f, 0.0f, 1.0f, 1.0f);
+								}
 							}
 							else
 								m_D3DRender->DrawSpriteEx(mainRenderTextures[swapIndex], 0xFFFFFFFF, 0.0f, 0.0f, outputCX_back, outputCY_back, 0.0f, 0.0f, 1.0f, 1.0f);
@@ -1575,7 +1590,7 @@ void CSLiveManager::VideoEncoderLoop()
 		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
 
 		//profileIn("VideoEncoderLoop")
-		if ((bStartLive && Outpic) || bufferedFrames)
+		if ((bStartLive && Outpic)/* || bufferedFrames*/)
 		{
 			bFirst = false;
 			if (LiveInstance->bfirstTimeStamp)
@@ -1636,27 +1651,29 @@ void CSLiveManager::VideoEncoderLoop()
 
 		}
 
-		if (!bStartLive && LiveInstance)
-		{
-			bufferedFrames = LiveInstance->videoEncoder ? LiveInstance->videoEncoder->HasBufferedFrames() : false;
-			if (bUseBack){
-				bufferedFrames = bufferedFrames || LiveInstance->videoEncoder_back ? LiveInstance->videoEncoder_back->HasBufferedFrames() : false;
-			}
-
-			if (!bufferedFrames && !bFirst)
-			{
-				if (LiveInstance->videoEncoder)
-					delete LiveInstance->videoEncoder;
-				LiveInstance->videoEncoder = NULL;
-
-				if (LiveInstance->videoEncoder_back)
-					delete LiveInstance->videoEncoder_back;
-				LiveInstance->videoEncoder_back = NULL;
-				bFirst = true;
-
-				LiveInstance->StopLive(false);
-			}
-		}
+		//这里不会进入
+// 		if (!bStartLive && LiveInstance)
+// 		{
+// 			//快速开始直播崩溃
+// 			bufferedFrames = false;//LiveInstance->videoEncoder ? LiveInstance->videoEncoder->HasBufferedFrames() : false;
+// 			if (bUseBack){
+// 				bufferedFrames = false;//bufferedFrames || LiveInstance->videoEncoder_back ? LiveInstance->videoEncoder_back->HasBufferedFrames() : false;
+// 			}
+// 
+// 			if (!bufferedFrames && !bFirst)
+// 			{
+// 				if (LiveInstance->videoEncoder)
+// 					delete LiveInstance->videoEncoder;
+// 				LiveInstance->videoEncoder = NULL;
+// 
+// 				if (LiveInstance->videoEncoder_back)
+// 					delete LiveInstance->videoEncoder_back;
+// 				LiveInstance->videoEncoder_back = NULL;
+// 				bFirst = true;
+// 
+// 				LiveInstance->StopLive(false);
+// 			}
+// 		}
 
 		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
 

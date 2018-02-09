@@ -686,7 +686,7 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 		if (audioOut->fVolume != 1.0f)
 		{
 			short *Tem = (short*)sample->lpData;
-			for (int i = 0; i < sample->AInfo->Datalen; i += 2)
+			for (int i = 0; i < sample->AInfo.Datalen; i += 2)
 			{
 				long sVolume = Tem[i / 2];
 
@@ -714,10 +714,10 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 			CSampleData  VideoSample;;
 
 			VideoSample.bAudio = false;
-			VideoSample.dataLength = sample->VInfo->Datalen;
+			VideoSample.dataLength = sample->VInfo.Datalen;
 			VideoSample.lpData = sample->lpData;// (LPBYTE)Allocate_Bak(VideoSample->dataLength);
-			VideoSample.cx = sample->VInfo->Width;
-			VideoSample.cy = sample->VInfo->Height;
+			VideoSample.cx = sample->VInfo.Width;
+			VideoSample.cy = sample->VInfo.Height;
 			VideoSample.colorType = colorType;
 			VideoSample.bFieldSignal = bInterlaceSignal;
 
@@ -732,9 +732,9 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 		{
 			CSampleData  audioSample;
 			audioSample.bAudio = true;
-			audioSample.dataLength = sample->AInfo->Datalen;
+			audioSample.dataLength = sample->AInfo.Datalen;
 			audioSample.lpData = sample->lpData;// (LPBYTE)Allocate_Bak(audioSample->dataLength);
-			audioSample.timestamp = sample->AInfo->Timestamp;
+			audioSample.timestamp = sample->AInfo.Timestamp;
 			audioSample.pAudioFormat = (void*)&audioFormat;
 
 			for (int i = 0; i < m_ListCallBack.Num(); ++i)
@@ -761,8 +761,8 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 
 			ListParam Param;
 			Param.pData = sample;
-			Param.len = sample->AInfo->Datalen;
-			Param.TimeStamp = sample->AInfo->Timestamp;
+			Param.len = sample->AInfo.Datalen;
+			Param.TimeStamp = sample->AInfo.Timestamp;
 			ListAudioSample.push_back(Param);
 			OSLeaveMutex(hAudioMutex);
 
@@ -776,8 +776,8 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 			//latestVideoSample = sample;
 			ListParam Param;
 			Param.pData = sample;
-			Param.len = sample->VInfo->Datalen;
-			Param.TimeStamp = sample->VInfo->Timestamp;
+			Param.len = sample->VInfo.Datalen;
+			Param.TimeStamp = sample->VInfo.Timestamp;
 			ListSample.push_back(Param);
 
 // 			static int iCount = 0;
@@ -826,12 +826,14 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 	}
 	else
 	{
+		FlushSamples();
+
 		if (bAudio && audioOut)
 		{
-			audioOut->ReceiveAudio(sample->lpData, sample->VInfo->Datalen, sample->VInfo->Timestamp, false);
+			audioOut->ReceiveAudio(sample->lpData, sample->AInfo.Datalen, sample->AInfo.Timestamp, false);
 		}
 		sample->Release();
-		FlushSamples();
+		
 	}
 }
 
@@ -882,8 +884,8 @@ void PipeVideo::Preprocess()
 
     if(lastSample)
     { 
-		newCX = lastSample->VInfo->Width;
-		newCY = lastSample->VInfo->Height;
+		newCX = lastSample->VInfo.Width;
+		newCY = lastSample->VInfo.Height;
 
         if(colorType == DeviceOutputType_RGB)
         {
@@ -2682,15 +2684,14 @@ bool CPipeServer::AnalyzeHostModeCommand(AIOID id, char *pcommand, int msglen,
 		memcpy(&pAudioRawData, pcommand + sizeof(MSGHeader), sizeof(AudioRawData));
 		ISampleData *pISampleData = new ISampleData;
 		pISampleData->bAudio = true;
-		pISampleData->AInfo = new AudioDataInfo;
-		pISampleData->AInfo->channels = pAudioRawData.nChannels;
-		pISampleData->AInfo->samplerate = pAudioRawData.nSamplesPerSec;
-		pISampleData->AInfo->Timestamp = pAudioRawData.timeStamp;
+		pISampleData->AInfo.channels = pAudioRawData.nChannels;
+		pISampleData->AInfo.samplerate = pAudioRawData.nSamplesPerSec;
+		pISampleData->AInfo.Timestamp = pAudioRawData.timeStamp;
 		//Log(TEXT("LINE:%d,FUNC:%s pAudioRawData.timeStamp ： %llu."), __LINE__, String(__FUNCTION__).Array(), pAudioRawData.timeStamp);
-		pISampleData->AInfo->ampleperbits = pAudioRawData.wBitsPerSample;
-		pISampleData->AInfo->Datalen = pAudioRawData.len;
-		pISampleData->lpData = new unsigned char[pISampleData->AInfo->Datalen];
-		memcpy(pISampleData->lpData, pcommand + sizeof(MSGHeader)+sizeof(AudioRawData), pISampleData->AInfo->Datalen);
+		pISampleData->AInfo.ampleperbits = pAudioRawData.wBitsPerSample;
+		pISampleData->AInfo.Datalen = pAudioRawData.len;
+		pISampleData->lpData = new unsigned char[pISampleData->AInfo.Datalen];
+		memcpy(pISampleData->lpData, pcommand + sizeof(MSGHeader)+sizeof(AudioRawData), pISampleData->AInfo.Datalen);
 
 		OSEnterMutex(hPipeVideoMutex);
 		if (RenderMap.find(id) != RenderMap.end())
@@ -2699,17 +2700,16 @@ bool CPipeServer::AnalyzeHostModeCommand(AIOID id, char *pcommand, int msglen,
 			{
 				pModerDataTransMode->bFirstSetAudioParam = false;
 				AudioParam oAudioParam;
-				oAudioParam.bitsPerSample = pISampleData->AInfo->ampleperbits;
-				oAudioParam.channels = pISampleData->AInfo->channels;
-				oAudioParam.samplesPerSec = pISampleData->AInfo->samplerate;
+				oAudioParam.bitsPerSample = pISampleData->AInfo.ampleperbits;
+				oAudioParam.channels = pISampleData->AInfo.channels;
+				oAudioParam.samplesPerSec = pISampleData->AInfo.samplerate;
 				RenderMap[id]->ResetAudioParam(oAudioParam);
 				Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func : %s, --PipeServer HostMode ResetAudioParam bitsPerSample = %d, channels = %d, samplesPerSec = %d, AIOID = %d",
-					__LINE__, __FUNCTION__, pISampleData->AInfo->ampleperbits, 
-					pISampleData->AInfo->channels, pISampleData->AInfo->samplerate,id);
+					__LINE__, __FUNCTION__, pISampleData->AInfo.ampleperbits, 
+					pISampleData->AInfo.channels, pISampleData->AInfo.samplerate,id);
 			}
-
 			RenderMap[id]->ReceiveMediaSample(pISampleData, true);
-			pModerDataTransMode->AddRef();
+			pModerDataTransMode->AddRef(); 
 			m_pPipeControl->asyn_read_pipe(id, pModerDataTransMode->receive_buffer, pModerDataTransMode->recive_len,
 				(ULL64)pModerDataTransMode, 0);
 		}
@@ -2731,15 +2731,14 @@ bool CPipeServer::AnalyzeHostModeCommand(AIOID id, char *pcommand, int msglen,
 		memcpy(&pVideoRawData, pcommand + sizeof(MSGHeader), sizeof(VideoRawData));
 		ISampleData *pISampleData = new ISampleData;
 		pISampleData->bAudio = false;
-		pISampleData->VInfo = new VideoDataInfo;
-		pISampleData->VInfo->Width = pVideoRawData.width;
-		pISampleData->VInfo->Height = pVideoRawData.height;
-		pISampleData->VInfo->Timestamp = pVideoRawData.timeStamp;
-		pISampleData->VInfo->Datalen = pVideoRawData.len;
-		pISampleData->VInfo->FrameRate = pVideoRawData.nFramePerSec;
-		pISampleData->lpData = new unsigned char[pISampleData->VInfo->Datalen];      // (LPBYTE)Allocate_Bak(pISampleData->VInfo->Datalen);
+		pISampleData->VInfo.Width = pVideoRawData.width;
+		pISampleData->VInfo.Height = pVideoRawData.height;
+		pISampleData->VInfo.Timestamp = pVideoRawData.timeStamp;
+		pISampleData->VInfo.Datalen = pVideoRawData.len;
+		pISampleData->VInfo.FrameRate = pVideoRawData.nFramePerSec;
+		pISampleData->lpData = new unsigned char[pISampleData->VInfo.Datalen];      // (LPBYTE)Allocate_Bak(pISampleData->VInfo->Datalen);
 
-		memcpy(pISampleData->lpData, pcommand + sizeof(MSGHeader)+sizeof(VideoRawData), pISampleData->VInfo->Datalen);
+		memcpy(pISampleData->lpData, pcommand + sizeof(MSGHeader)+sizeof(VideoRawData), pISampleData->VInfo.Datalen);
 
 		OSEnterMutex(hPipeVideoMutex);
 		if (RenderMap.find(id) != RenderMap.end())

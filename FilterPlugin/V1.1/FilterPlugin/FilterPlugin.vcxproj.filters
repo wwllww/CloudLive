@@ -36,6 +36,9 @@
     <ClInclude Include="..\ColorCorrection.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\ColorKey.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -54,6 +57,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\ColorCorrection.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ColorKey.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

@@ -611,6 +611,7 @@ private:
 	HANDLE              m_hMutexRawA;
 	HANDLE              m_hMutexRawV;
 	bool                bHasAudio;
+	std::string         m_DeviceName;
 	D3DAPI              *D3DRender;
 	std::vector<shared_ptr<IBaseVideo>> vEffectAgentList;
 };

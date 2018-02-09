@@ -155,6 +155,7 @@
   <ItemGroup>
     <ClInclude Include="..\Bilateral_Filter.h" />
     <ClInclude Include="..\ColorCorrection.h" />
+    <ClInclude Include="..\ColorKey.h" />
     <ClInclude Include="..\CorpFilter.h" />
     <ClInclude Include="..\FilterPlugin.h" />
     <ClInclude Include="stdafx.h" />
@@ -163,6 +164,7 @@
   <ItemGroup>
     <ClCompile Include="..\Bilateral_Filter.cpp" />
     <ClCompile Include="..\ColorCorrection.cpp" />
+    <ClCompile Include="..\ColorKey.cpp" />
     <ClCompile Include="..\CorpFilter.cpp" />
     <ClCompile Include="..\FilterPlugin.cpp" />
     <ClCompile Include="dllmain.cpp">

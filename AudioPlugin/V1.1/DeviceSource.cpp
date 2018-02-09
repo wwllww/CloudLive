@@ -36,6 +36,7 @@ DSource::DSource()
 	audioDeviceFilter = NULL;
 	audioFilter = NULL;
 	audioOut = NULL;
+	memset(&audioFormat, 0, sizeof WAVEFORMATEX);
 
 }
 
@@ -46,7 +47,7 @@ bool DSource::Init(Value &data)
     hSampleMutex = OSCreateMutex();
     if(!hSampleMutex)
     {
-        AppWarning(TEXT("AuidoPlugin: could not create sample mutex"));
+		Log::writeError(LOG_RTSPSERV, 1, "AuidoPlugin: could not create sample mutex");
         return false;
     }
 
@@ -59,14 +60,14 @@ bool DSource::Init(Value &data)
 	err = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, (REFIID)IID_IFilterGraph, (void**)&graph);
 	if (FAILED(err))
 	{
-		AppWarning(TEXT("DShowPlugin: Failed to build IGraphBuilder, result = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to build IGraphBuilder, result = %08lX", err);
 		return false;
 	}
 
 	err = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, (REFIID)IID_ICaptureGraphBuilder2, (void**)&capture);
 	if (FAILED(err))
 	{
-		AppWarning(TEXT("DShowPlugin: Failed to build ICaptureGraphB888uilder2, result = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to build ICaptureGraphB888uilder2, result = %08lX", err);
 		return false;
 	}
 
@@ -76,7 +77,7 @@ bool DSource::Init(Value &data)
 	err = graph->QueryInterface(IID_IMediaEventEx, (void**)&m_pEvent);
 	if (FAILED(err))
 	{
-		AppWarning(TEXT("DShowPlugin: QueryInterface(IID_IMediaEventEx, (void**)&pEvent) = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: QueryInterface(IID_IMediaEventEx, (void**)&pEvent) = %08lX", err);
 		return false;
 	}
 
@@ -85,7 +86,7 @@ bool DSource::Init(Value &data)
 	//if (!data["volume"].isNull())
 	//	fNewVol = data["volume"].asDouble();
 	UpdateSettings(data);
-    Log(TEXT("Using directshow input"));
+	Log::writeMessage(LOG_RTSPSERV, 1, "Using directAudio input");
 
     return true;
 }
@@ -125,12 +126,12 @@ void DSource::SetAudioInfo(AM_MEDIA_TYPE *audioMediaType, GUID &expectedAudioTyp
 		WAVEFORMATEX *pFormat = reinterpret_cast<WAVEFORMATEX*>(audioMediaType->pbFormat);
 		mcpy(&audioFormat, pFormat, sizeof(audioFormat));
 
-		Log(TEXT("    device audio info - bits per sample: %u, channels: %u, samples per sec: %u, block size: %u"),
+		Log::writeMessage(LOG_RTSPSERV,1,"    device audio info - bits per sample: %u, channels: %u, samples per sec: %u, block size: %u",
 			audioFormat.wBitsPerSample, audioFormat.nChannels, audioFormat.nSamplesPerSec, audioFormat.nBlockAlign);
 	}
 	else
 	{
-		AppWarning(TEXT("DShowPlugin: Audio format was not a normal wave format"));
+		Log::writeMessage(LOG_RTSPSERV,1,"---DShowPlugin: Audio format was not a normal wave format");
 		soundOutputType = 0;
 	}
 
@@ -152,7 +153,7 @@ bool DSource::LoadAudioInputDevice()
 		err = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER, (REFIID)IID_IFilterGraph, (void**)&graph);
 		if (FAILED(err))
 		{
-			AppWarning(TEXT("DShowPlugin: Failed to build IGraphBuilder, result = %08lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to build IGraphBuilder, result = %08lX", err);
 			goto cleanFinish;
 		}
 	}
@@ -161,7 +162,7 @@ bool DSource::LoadAudioInputDevice()
 		err = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, (REFIID)IID_ICaptureGraphBuilder2, (void**)&capture);
 		if (FAILED(err))
 		{
-			AppWarning(TEXT("DShowPlugin: Failed to build ICaptureGraphBuilder2, result = %08lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to build ICaptureGraphBuilder2, result = %08lX", err);
 			goto cleanFinish;
 		}
 
@@ -171,7 +172,7 @@ bool DSource::LoadAudioInputDevice()
 	err = graph->QueryInterface(IID_IMediaEventEx, (void**)&m_pEvent);
 	if (FAILED(err))
 	{
-		AppWarning(TEXT("DShowPlugin: QueryInterface(IID_IMediaEventEx, (void**)&pEvent) = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: QueryInterface(IID_IMediaEventEx, (void**)&pEvent) = %08lX", err);
 		return false;
 	}
 
@@ -209,7 +210,7 @@ bool DSource::LoadAudioInputDevice()
 			{
 				audioDeviceFilter = GetDeviceByValue(CLSID_AudioInputDeviceCategory, L"FriendlyName", strAudioName, L"DevicePath", strAudioID);
 				if (!audioDeviceFilter)
-					AppWarning(TEXT("DShowPlugin: Invalid audio device: name '%s', path '%s'"), strAudioName.Array(), strAudioID.Array());
+					Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Invalid audio device: name '%s'", WcharToAnsi(strAudioName.Array()).c_str());
 			}
 
 			if (audioDeviceFilter)
@@ -220,7 +221,7 @@ bool DSource::LoadAudioInputDevice()
 
 		if (FAILED(err) || !audioPin)
 		{
-			Log(TEXT("DShowPlugin: No audio pin, result = %lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: No audio pin, result = %lX", err);
 			soundOutputType = 0;
 		}
 	}
@@ -243,7 +244,7 @@ bool DSource::LoadAudioInputDevice()
 			}
 			else
 			{
-				AppWarning(TEXT("DShowPlugin: Could not get audio format, result = %08lX"), err);
+				Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Could not get audio format, result = %08lX", err);
 				soundOutputType = 0;
 			}
 
@@ -263,7 +264,7 @@ bool DSource::LoadAudioInputDevice()
 		audioFilter = new CaptureFilter(this, MEDIATYPE_Audio, expectedAudioType);
 		if (!audioFilter)
 		{
-			AppWarning(TEXT("Failed to create audio capture filter"));
+			Log::writeError(LOG_RTSPSERV, 1, "Failed to create audio capture filter");
 			soundOutputType = 0;
 		}
 	}
@@ -271,7 +272,7 @@ bool DSource::LoadAudioInputDevice()
 	if (soundOutputType != 0)
 	{
 		if (FAILED(err = graph->AddFilter(audioFilter, NULL)))
-			AppWarning(TEXT("DShowPlugin: Failed to add audio capture filter to graph, result = %08lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to add audio capture filter to graph, result = %08lX", err);
 
 		bAddedAudioCapture = true;
 	}
@@ -282,7 +283,7 @@ bool DSource::LoadAudioInputDevice()
 	if (soundOutputType != 0 && !bDeviceHasAudio)
 	{
 		if (FAILED(err = graph->AddFilter(audioDeviceFilter, NULL)))
-			AppWarning(TEXT("DShowPlugin: Failed to add audio device filter to graph, result = %08lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to add audio device filter to graph, result = %08lX", err);
 	}
 
 	bAddedDevice = true;
@@ -311,7 +312,7 @@ bool DSource::LoadAudioInputDevice()
 
 				HRESULT hr = pNeg->SuggestAllocatorProperties(&prop);
 				pNeg->Release();
-				Log(L"设置音频参数%d", prop.cbAlign);
+				Log::writeError(LOG_RTSPSERV, 1, "设置音频参数%d", prop.cbAlign);
 			}
 
 			if (!bDeviceHasAudio)
@@ -320,7 +321,7 @@ bool DSource::LoadAudioInputDevice()
 
 		if (!bConnected)
 		{
-			AppWarning(TEXT("DShowPlugin: Failed to connect the audio device pin to the audio capture pin, result = %08lX"), err);
+			Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: Failed to connect the audio device pin to the audio capture pin, result = %08lX", err);
 			soundOutputType = 0;
 		}
 	}
@@ -329,7 +330,7 @@ bool DSource::LoadAudioInputDevice()
 
 	if (FAILED(err = graph->QueryInterface(IID_IMediaControl, (void**)&control)))
 	{
-		AppWarning(TEXT("DShowPlugin: Failed to get IMediaControl, result = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV,1,"DShowPlugin: Failed to get IMediaControl, result = %08lX", err);
 		goto cleanFinish;
 	}
 
@@ -345,7 +346,7 @@ bool DSource::LoadAudioInputDevice()
 				audioOut->Initialize(this);
 
 			audioOut->SetAudioOffset(soundTimeOffset);
-			audioOut->SetVolume(volume);
+			//audioOut->SetVolume(volume);
 			audioOut->SetDenoise(nDenoise, bUseDenoise);
 		}
 	}
@@ -355,7 +356,7 @@ bool DSource::LoadAudioInputDevice()
 			audioOut->Initialize(this);
 
 		audioOut->SetAudioOffset(soundTimeOffset);
-		audioOut->SetVolume(volume);
+		//audioOut->SetVolume(volume);
 		audioOut->SetDenoise(nDenoise, bUseDenoise);
 	}
 	bSucceeded = true;
@@ -429,7 +430,7 @@ void DSource::Start()
 	HRESULT err;
 	if (FAILED(err = control->Run()))
 	{
-		AppWarning(TEXT("DShowPlugin: control->Run failed, result = %08lX"), err);
+		Log::writeError(LOG_RTSPSERV, 1, "DShowPlugin: control->Run failed, result = %08lX", err);
 		return;
 	}
 }
@@ -480,7 +481,9 @@ void DSource::GlobalSourceEnterScene()
 	bool bUseDenoise = data["audioDenoiseCheck"].asInt();
 	OSEnterMutex(hSampleMutex);
 	if (audioOut) {
-		audioOut->Initialize(this);
+		if(audioFormat.wBitsPerSample > 0)
+			audioOut->Initialize(this);
+
         audioOut->SetVolume(1.0f);
 		audioOut->SetDenoise(nDenoise, bUseDenoise);
     }
@@ -581,11 +584,11 @@ DWORD DSource::CheckDevice()
 				// 处理丢失时间
 				if (EC_CLOCK_CHANGED == evCode)
 				{
-					Log(L"DESHOW底层准备完毕");
+					Log::writeMessage(LOG_RTSPSERV, 1, "DESHOW底层准备完毕");
 				}
 				else
 				{
-					Log(L"DESHOW底层通知事件，时间代码:%#04x\n   Params:%d,%d\n", evCode, param1, param2);
+					Log::writeError(LOG_RTSPSERV, 1, "DESHOW底层通知事件，时间代码:%#04x\n   Params:%d,%d\n", evCode, param1, param2);
 				}
 			}
 		}

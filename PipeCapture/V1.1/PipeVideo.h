@@ -44,32 +44,15 @@ struct ISampleData {
 
 	union
 	{
-		AudioDataInfo* AInfo;
-		VideoDataInfo* VInfo;
+		AudioDataInfo AInfo;
+		VideoDataInfo VInfo;
 	};
 
 	volatile long refs;
 
-	inline ISampleData() :lpData(NULL), bAudio(false), AInfo(NULL), VInfo(NULL) { refs = 1; }
+	inline ISampleData() :lpData(NULL), bAudio(false){ refs = 1; }
 	inline ~ISampleData()
 	{
-		if (bAudio)
-		{
-			if (AInfo)
-			{
-				delete AInfo;
-				AInfo = NULL;
-			}
-		}
-		else
-		{
-			if (VInfo)
-			{
-				delete VInfo;
-				VInfo = NULL;
-			}
-		}
-
 		if (lpData)
 		{
 			delete[] lpData;

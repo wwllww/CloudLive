@@ -2013,6 +2013,7 @@ void VideoSource::YUV420_2_RGB32()
 	QWORD streamTimeStart = GetQPCNS(); // current nano second
 	Log(TEXT("LINE:%d,FUNC:%s,YUV420_2_RGB32 Thread is start! Thread ID = %d,This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
 	int iLastVframerate = m_pMPMediaInfo.v_frame_rate;
+	m_interval = 1000 / m_pMPMediaInfo.v_frame_rate;
 	QWORD frameTimeNS = 1000000000 / m_pMPMediaInfo.v_frame_rate;	// one frame nano second
 	QWORD sleepTargetTime = streamTimeStart + frameTimeNS;
 	UINT no_sleep_counter = 0;

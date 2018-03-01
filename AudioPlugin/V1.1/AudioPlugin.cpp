@@ -1284,16 +1284,16 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 							  HDC hdc = GetDC(hwnd);
 							  RECT Rect;
 							  GetClientRect(hwnd, &Rect);
-							  RECT *rc = new RECT[configData->audioNameList.Num() + 1];
+							  RECT *rc = new RECT[configData->audioNameList.Num()];
 							  int index = -1;
-							  for (int i = 0; i < configData->audioNameList.Num() + 1; i++)
+							  for (int i = 0; i < configData->audioNameList.Num(); i++)
 							  {
 								  rc[i].left = Rect.left;
 								  rc[i].right = Rect.right;
 								  rc[i].top = Rect.top + i * 36;
 								  rc[i].bottom = rc[i].top + 36;
 							  }
-							  for (int i = 0; i < configData->audioNameList.Num() + 1; i++)
+							  for (int i = 0; i < configData->audioNameList.Num(); i++)
 							  {
 								  if (PtInRect(&rc[i], Pt))
 								  {
@@ -1314,15 +1314,7 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 
 								  rc[index].left += 10;
 								  String strAudioDevice;
-								  if (index == 0)
-								  {
-									  strAudioDevice = L"禁用";
-								  }
-								  else
-								  {
-									  strAudioDevice = configData->audioNameList[index - 1];
-								  }
-
+								  strAudioDevice = configData->audioNameList[index];
 								  DrawText(hdc, strAudioDevice.Array(), strAudioDevice.Length(), &rc[index], DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
 								  SelectObject(hdc, hfontOld);
@@ -1345,16 +1337,16 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 						  HDC hdc = GetDC(hwnd);
 						  RECT Rect;
 						  GetClientRect(hwnd, &Rect);
-						  RECT *rc = new RECT[configData->audioNameList.Num() + 1];
+						  RECT *rc = new RECT[configData->audioNameList.Num()];
 						  int index = -1;
-						  for (int i = 0; i < configData->audioNameList.Num() + 1; i++)
+						  for (int i = 0; i < configData->audioNameList.Num(); i++)
 						  {
 							  rc[i].left = Rect.left;
 							  rc[i].right = Rect.right;
 							  rc[i].top = Rect.top + i * 36;
 							  rc[i].bottom = rc[i].top + 36;
 						  }
-						  for (int i = 0; i < configData->audioNameList.Num() + 1; i++)
+						  for (int i = 0; i < configData->audioNameList.Num(); i++)
 						  {
 							  if (PtInRect(&rc[i], Pt))
 							  {
@@ -1375,16 +1367,8 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 							  HFONT hfontOld = (HFONT)SelectObject(hdc, hFont);
 
 							  rc[index].left += 10;
-							  String strAudioDevice;
-							  if (index == 0)
-							  {
-								  strAudioDevice = L"禁用";
-							  }
-							  else
-							  {
-								  strAudioDevice = configData->audioNameList[index - 1];
-							  }
-
+							  String strAudioDevice;		 
+							  strAudioDevice = configData->audioNameList[index];
 							  DrawText(hdc, strAudioDevice.Array(), strAudioDevice.Length(), &rc[index], DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
 							  SelectObject(hdc, hfontOld);
@@ -1412,22 +1396,15 @@ INT_PTR CALLBACK ChannelComboProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 	case WM_PAINT:
 	{
 					 ConfigDialogData *configData = (ConfigDialogData *)GetWindowLongPtr(GetParent(hwnd), DWLP_USER);
-					 String strAudioDevice = L"禁用";
+					 String strAudioDevice = L"";
 					 if (!configData->data["audioDeviceName"].isNull())
 					 {
 						 strAudioDevice = Asic2WChar(configData->data["audioDeviceName"].asString().c_str()).c_str();
 					 }
-					 if (strAudioDevice.Length() < 1)
+					
+					 if (configData->audioNameList.Num() > 0)
 					 {
-						 strAudioDevice = L"禁用";
-					 }
-					 if (configData->nCurrentSelect > 0)
-					 {
-						 strAudioDevice = configData->audioNameList[configData->nCurrentSelect - 1];
-					 }
-					 else
-					 {
-						 strAudioDevice = L"禁用";
+						 strAudioDevice = configData->audioNameList[configData->nCurrentSelect];
 					 }
 					 PAINTSTRUCT ps;
 					 HDC hdc = BeginPaint(hwnd, &ps);
@@ -1483,7 +1460,6 @@ INT_PTR CALLBACK ChannelComboProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 						HDC  hDC = (HDC)pdis->hDC;
 						RECT rect = (RECT)pdis->rcItem;
 						UINT itemID = (UINT)pdis->itemID;
-						Log(TEXT("WM_DRAWITEM 消息响应:itemID = %d.rect.top = %d.rect.bottom : %d."), itemID, rect.top, rect.bottom);
 						HBRUSH HBrush = CreateSolidBrush(RGB(31, 31, 32));
 						FillRect(hDC, &rect, HBrush);
 						DeleteObject(HBrush);
@@ -1496,10 +1472,10 @@ INT_PTR CALLBACK ChannelComboProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 						HFONT hFont = CreateFont(22, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
 							OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
 						HFONT hfontOld = (HFONT)SelectObject(hDC, hFont);
-						String strAudioDevice = L"禁用";
-						if (itemID > 0)
+						String strAudioDevice = L"";
+						if (itemID < 100)
 						{
-							strAudioDevice = configData->audioNameList[itemID - 1];
+							strAudioDevice = configData->audioNameList[itemID];
 						}
 						
 						DrawText(hDC, strAudioDevice.Array(), strAudioDevice.Length(), &rect, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
@@ -1791,7 +1767,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 
 								UINT deviceID = 0;
 								CTSTR pDisabled = L"禁用";
-								SendMessage(hwndAudioList, CB_INSERTSTRING, 0, (LPARAM)pDisabled);
+								//SendMessage(hwndAudioList, CB_INSERTSTRING, 0, (LPARAM)pDisabled);
 
 								String strAudioDevice = L"";
 								if (!configData->data["audioDeviceName"].isNull())
@@ -1805,7 +1781,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 								{
 								if (configData->audioNameList[i] == strAudioDevice)
 								{
-								deviceID = i + 1;
+								deviceID = i;
 								break;
 								}
 								}
@@ -1816,7 +1792,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 									SendMessage(hwndAudioList, CB_SETITEMHEIGHT, i, 36);
 								channelComboProc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_AUDIOLIST), GWLP_WNDPROC, (LONG_PTR)ChannelComboProc);
 								
-				bool enable = deviceID != 0;
+				bool enable =  1;
 				EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET), enable);
 				EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT), enable);
 				EnableWindow(GetDlgItem(hwnd, IDC_VOLUME), enable);
@@ -1920,7 +1896,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                         UINT id = (UINT)SendMessage(hwndDevices, CB_GETCURSEL, 0, 0);
 
                         if (id == CB_ERR || id == 0) {
-							bool enable = FALSE;
+							bool enable = 1;
 							EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET), enable);
 							EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT), enable);
 							EnableWindow(GetDlgItem(hwnd, IDC_VOLUME), enable);
@@ -1957,9 +1933,9 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 
 							 UINT audioDeviceID = (UINT)SendMessage(GetDlgItem(hwnd, IDC_AUDIOLIST), CB_GETCURSEL, 0, 0);
 
-							 if (audioDeviceID) {
-								 String strAudioDevice = configData->audioNameList[audioDeviceID - 1];
-								 String strAudioID = configData->audioIDList[audioDeviceID - 1];
+							 if (audioDeviceID < 10000) {
+								 String strAudioDevice = configData->audioNameList[audioDeviceID];
+								 String strAudioID = configData->audioIDList[audioDeviceID];
 								 configData->data["audioDeviceName"] =  WcharToAnsi(strAudioDevice.Array()).c_str();
 								 if (!strAudioID.IsEmpty())
 									configData->data["audioDeviceId"] =  WcharToAnsi(strAudioID.Array()).c_str();

@@ -27,11 +27,35 @@ struct ModeMapping
 	_BMDDisplayMode    mode;
 };
 
+// static ModeMapping kDisplayModeMappings[] =
+// {
+// 	{ NTSC, bmdModeNTSC },
+// 	{ PAL, bmdModePAL },
+// 
+// 	{ HD1080p2398, bmdModeHD1080p2398 },
+// 	{ HD1080p24, bmdModeHD1080p24 },
+// 	{ HD1080p25, bmdModeHD1080p25 },
+// 	{ HD1080p2997, bmdModeHD1080p2997 },
+// 	{ HD1080p30, bmdModeHD1080p30 },
+// 	{ HD1080i50, bmdModeHD1080i50 },
+// 	{ HD1080i5994, bmdModeHD1080i5994 },
+// 	{ HD1080i6000, bmdModeHD1080i6000 },
+// 	{ HD1080p50, bmdModeHD1080p50 },
+// 	{ HD1080p5994, bmdModeHD1080p5994 },
+// 	{ HD1080p60, bmdModeHD1080p6000 },
+// 
+// 	{ HD720p50, bmdModeHD720p50 },
+// 	{ HD720p5994, bmdModeHD720p5994 },
+// 	{ HD720p60, bmdModeHD720p60 }
+// };
+
 static ModeMapping kDisplayModeMappings[] =
 {
 	{ NTSC, bmdModeNTSC },
+	{ NTSC2398, bmdModeNTSC2398 },
 	{ PAL, bmdModePAL },
-
+	{ NTSCp, bmdModeNTSCp },
+	{ PALp, bmdModePALp},
 	{ HD1080p2398, bmdModeHD1080p2398 },
 	{ HD1080p24, bmdModeHD1080p24 },
 	{ HD1080p25, bmdModeHD1080p25 },
@@ -40,10 +64,6 @@ static ModeMapping kDisplayModeMappings[] =
 	{ HD1080i50, bmdModeHD1080i50 },
 	{ HD1080i5994, bmdModeHD1080i5994 },
 	{ HD1080i6000, bmdModeHD1080i6000 },
-	{ HD1080p50, bmdModeHD1080p50 },
-	{ HD1080p5994, bmdModeHD1080p5994 },
-	{ HD1080p60, bmdModeHD1080p6000 },
-
 	{ HD720p50, bmdModeHD720p50 },
 	{ HD720p5994, bmdModeHD720p5994 },
 	{ HD720p60, bmdModeHD720p60 }
@@ -170,7 +190,7 @@ public:
 	int SDI_ReleaseDisplayModeList();
 	int SDI_SetDeviceProperty(int deviceID, bool bInput);
 	int SDI_SetOutDevicePara(int deviceID, SDIOUT_DISPLAYMODE mode);
-	int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount);
+	int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount = 10);
 	int SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHeight, SDIOUT_COLORFORMAT colorFormat, bool bAudio, void* pAudioFormat, int nAudioLength, bool bPGM);
 	int SDI_StopOut(int nDeviceID);
 	mapProperty&  SDI_GetPropertyMap();

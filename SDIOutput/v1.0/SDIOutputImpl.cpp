@@ -719,9 +719,17 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 		channelInfo->displayMode = mode;
 
 		float fScale = (float)channelInfo->uiFPS / 25.0f;
-		channelInfo->nInnerBufFrameCount = nInnerBufferCount * fScale;
+		if (nInnerBufferCount > 0)
+		{
+			channelInfo->nInnerBufFrameCount = nInnerBufferCount * fScale;
+			channelInfo->uiTotalFrames = nInnerBufferCount * fScale;
+		}
+		else
+		{
+			channelInfo->nInnerBufFrameCount = FRAMECOUNT * fScale;
+			channelInfo->uiTotalFrames = FRAMECOUNT * fScale;
+		}
 		channelInfo->nOutBufFrameCount = nOutBufferCount * fScale;
-		channelInfo->uiTotalFrames = nInnerBufferCount * fScale;
 
 		Log::writeMessage(LOG_SDI, 1, "SDI_StartOut 输出帧率=%d, SDI内部缓冲大小=%d， SDI外部缓冲大小=%d!", channelInfo->uiFPS, channelInfo->nInnerBufFrameCount, channelInfo->nOutBufFrameCount);
 

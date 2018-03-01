@@ -8,11 +8,34 @@
 #define LOG_SDI ((long long)1<<49)
 #endif // !LOG_RTSPSERV
 
+// 四口卡
+// enum SDIOUT_DISPLAYMODE
+// {
+// 	NTSC = 0,
+// 	PAL,
+// 	HD1080p2398,
+// 	HD1080p24,
+// 	HD1080p25,
+// 	HD1080p2997,
+// 	HD1080p30,
+// 	HD1080i50,
+// 	HD1080i5994,
+// 	HD1080i6000,
+// 	HD1080p50,
+// 	HD1080p5994,
+// 	HD1080p60,
+// 	HD720p50,
+// 	HD720p5994,
+// 	HD720p60
+// };
 
 enum SDIOUT_DISPLAYMODE
 {
 	NTSC = 0,
+	NTSC2398,
 	PAL,
+	NTSCp,
+	PALp,
 	HD1080p2398,
 	HD1080p24,
 	HD1080p25,
@@ -21,9 +44,6 @@ enum SDIOUT_DISPLAYMODE
 	HD1080i50,
 	HD1080i5994,
 	HD1080i6000,
-	HD1080p50,
-	HD1080p5994,
-	HD1080p60,
 	HD720p50,
 	HD720p5994,
 	HD720p60
@@ -107,7 +127,7 @@ EXTERN_DLLEXPORT int SDI_Init();
 /* 输出参数：    无
 /* 返 回 值：    错误码
 /************************************************************************/
-EXTERN_DLLEXPORT int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE nMode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount, int nOutBufferCount = 10);
+EXTERN_DLLEXPORT int SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE nMode, SDIOUT_COLORFORMAT nColorFormat, int nInnerBufferCount);
 
 /************************************************************************/
 /* 函数名称：    SDI_StopOut

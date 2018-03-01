@@ -306,24 +306,24 @@ void TextOutputSource::Render(const Vect2 &pos, const Vect2 &size, Texture* tex,
 
 			RenderSize = extentVal;
 				
-			if (showExtentTime > 0.0f)
-			{
-				Shader *pShader = D3DRender->GetCurrentPixelShader();
-				Shader *vShader = D3DRender->GetCurrentVertexShader();
-
-				Color4 rectangleColor = Color4(0.0f, 1.0f, 0.0f, 1.0f);
-				if (showExtentTime < 1.0f)
-					rectangleColor.w = showExtentTime;
-
-				solidPixelShader->SetColor(solidPixelShader->GetParameter(0), rectangleColor);
-
-				D3DRender->LoadVertexShader(solidVertexShader);
-				D3DRender->LoadPixelShader(solidPixelShader);
-				D3DRender->DrawBox(pos, extentVal);
-
-				D3DRender->LoadVertexShader(vShader);
-				D3DRender->LoadPixelShader(pShader);
-			}
+// 			if (showExtentTime > 0.0f)
+// 			{
+// 				Shader *pShader = D3DRender->GetCurrentPixelShader();
+// 				Shader *vShader = D3DRender->GetCurrentVertexShader();
+// 
+// 				Color4 rectangleColor = Color4(0.0f, 1.0f, 0.0f, 1.0f);
+// 				if (showExtentTime < 1.0f)
+// 					rectangleColor.w = showExtentTime;
+// 
+// 				solidPixelShader->SetColor(solidPixelShader->GetParameter(0), rectangleColor);
+// 
+// 				D3DRender->LoadVertexShader(solidVertexShader);
+// 				D3DRender->LoadPixelShader(solidPixelShader);
+// 				D3DRender->DrawBox(pos, extentVal);
+// 
+// 				D3DRender->LoadVertexShader(vShader);
+// 				D3DRender->LoadPixelShader(pShader);
+// 			}
 
 			if (!bWrap)
 			{

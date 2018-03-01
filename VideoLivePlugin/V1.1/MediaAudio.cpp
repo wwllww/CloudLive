@@ -470,11 +470,11 @@ void CDemandMediaAudio::PushAudio(const void *lpData, unsigned int size, int64_t
 			{
 				m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
 
-				if (!bSameDevice && bProjector && m_pSecWaveOut)
+				if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
 					m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
 
 			}
-			else if (bProjector)
+			else if (bProjector && bLiveInstance)
 			{
 				if (bSameDevice && m_pAudioWaveOut)
 				{
@@ -524,11 +524,11 @@ void CDemandMediaAudio::PushAudio(const void *lpData, unsigned int size, int64_t
 		{
 			m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
-			if (!bSameDevice && bProjector && m_pSecWaveOut)
+			if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
 				m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
 		}
-		else if (bProjector)
+		else if (bProjector && bLiveInstance)
 		{
 			if (bSameDevice && m_pAudioWaveOut)
 			{

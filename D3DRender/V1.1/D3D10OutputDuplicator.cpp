@@ -55,6 +55,9 @@ bool D3D10OutputDuplicator::Init(UINT output)
 D3D10OutputDuplicator::D3D10OutputDuplicator(D3D10System *System)
 {
 	this->System = System;
+	duplicator = NULL;
+	copyTex = NULL;
+	cursorTex = NULL;
 }
 
 D3D10OutputDuplicator::~D3D10OutputDuplicator()

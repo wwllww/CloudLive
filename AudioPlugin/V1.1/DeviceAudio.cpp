@@ -270,11 +270,11 @@ void DAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, bool bCanPlay)
 			{
 				m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
-				if (!bSameDevice && bProjector && m_pSecWaveOut)
+				if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
 					m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
 			}
-			else if (bProjector)
+			else if (bProjector && bLiveInstance)
 			{
 				if (bSameDevice && m_pAudioWaveOut)
 				{

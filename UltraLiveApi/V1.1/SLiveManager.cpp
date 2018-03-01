@@ -2990,7 +2990,16 @@ int CSLiveManager::SLiveSwitchInstance(uint64_t iIntanceID_S, uint64_t iIntanceI
 		CInstanceProcess *Process_D = m_InstanceList[iIntanceID_D];
 		LeaveCriticalSection(&MapInstanceSec);
 		
-		if (!bTransDisSolving && !bTransUpDown && !bTransDiffuse && !bRadius && !bTransDownUp && !bTransLeftRight && !bTransRightLeft && !bClock)
+		bTransDisSolving = false;
+		bTransUpDown = false; 
+		bTransDiffuse = false; 
+		bRadius = false;
+		bTransDownUp = false;
+		bTransLeftRight = false;
+		bTransRightLeft = false;
+		bClock = false;
+
+		//if (!bTransDisSolving && !bTransUpDown && !bTransDiffuse && !bRadius && !bTransDownUp && !bTransLeftRight && !bTransRightLeft && !bClock)
 		{
 			if (TransTime < 100)
 				TransTime = 100;
@@ -3006,18 +3015,18 @@ int CSLiveManager::SLiveSwitchInstance(uint64_t iIntanceID_S, uint64_t iIntanceI
 				SwitchInstanceUpDownOrDiffuse(Process_S, Process_D, Type,TransTime);
 			}
 		}
-		else
-		{
-			Log::writeMessage(LOG_RTSPSERV, 1, "正在进行切换直播操作bTransDisSolving = %s,bTransUpDown = %s,bTransDiffuse = %s,bRadius = %s,bTransDownUp = %s,bTransLeftRight = %s,bTransRightLeft = %s,bClock = %s",
-				bTransDisSolving ? "true":"false",
-				bTransUpDown ? "true" : "false",
-				bTransDiffuse ? "true" : "false",
-				bRadius ? "true" : "false",
-				bTransDownUp ? "true" : "false",
-				bTransLeftRight ? "true" : "false",
-				bTransRightLeft ? "true" : "false",
-				bClock ? "ture" : "false");
-		}
+// 		else
+// 		{
+// 			Log::writeMessage(LOG_RTSPSERV, 1, "正在进行切换直播操作bTransDisSolving = %s,bTransUpDown = %s,bTransDiffuse = %s,bRadius = %s,bTransDownUp = %s,bTransLeftRight = %s,bTransRightLeft = %s,bClock = %s",
+// 				bTransDisSolving ? "true":"false",
+// 				bTransUpDown ? "true" : "false",
+// 				bTransDiffuse ? "true" : "false",
+// 				bRadius ? "true" : "false",
+// 				bTransDownUp ? "true" : "false",
+// 				bTransLeftRight ? "true" : "false",
+// 				bTransRightLeft ? "true" : "false",
+// 				bClock ? "ture" : "false");
+// 		}
 
 	}
 	catch (CErrorBase& e)
@@ -3881,6 +3890,7 @@ int CSLiveManager::SLiveClearIntances(uint64_t iIntanceID)
 
 		if (Process)
 		{
+			Process->ClearVideoTransForm();
 			Process->ClearAudio();
 			Process->ClearVideo();
 

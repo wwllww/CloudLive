@@ -569,14 +569,14 @@ BOOL Config_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 	ListView_SetTextBkColor(_this->hwndPlaylist, RGB(35, 35, 37));
 	ListView_SetTextColor(_this->hwndPlaylist, RGB(255, 255, 255));
 
-	SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 353, 337, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDOK), NULL, 200, 337, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 478, 347, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDOK), NULL, 358, 347, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
-	SetWindowPos(GetDlgItem(hwnd, IDC_ADD_MEDIA), NULL, 40, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDC_REMOVE_MEDIA), NULL, 150, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDC_REMOVEALLVIDEO), NULL, 260, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDC_UPITEM), NULL, 370, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDC_DOWNITEM), NULL, 480, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_ADD_MEDIA), NULL, 20, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_REMOVE_MEDIA), NULL, 134, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_REMOVEALLVIDEO), NULL, 249, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_UPITEM), NULL, 363, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDC_DOWNITEM), NULL, 477, 17, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
 	/*buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_ADD_MEDIA), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
 	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_REMOVE_MEDIA), GWLP_WNDPROC, (LONG_PTR)ButtonProc);
@@ -1357,10 +1357,10 @@ void Config_OnPaint(HWND hwnd) {
 	MoveToEx(hDC, 160 + 215, 287, NULL);
 	LineTo(hDC, 175 + 215, 287);
 	MoveToEx(hDC, 160 + 215, 330, NULL);
-	LineTo(hDC, 360 + 215, 330);
-	MoveToEx(hDC, 360 + 215, 330, NULL);
-	LineTo(hDC, 360 + 215, 287);
-	MoveToEx(hDC, 360 + 215, 287, NULL);
+	LineTo(hDC, 361 + 215, 330);
+	MoveToEx(hDC, 361 + 215, 330, NULL);
+	LineTo(hDC, 361 + 215, 287);
+	MoveToEx(hDC, 361 + 215, 287, NULL);
 	LineTo(hDC, 200 + 215, 287);
 
 	SelectObject(hDC, hPenOld);

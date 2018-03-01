@@ -444,7 +444,7 @@ bool DeviceSource::LoadFilters()
 		volume = data["volume"].asDouble();
 	}
 
-    bUseBuffering = data["useBuffering"].asInt() != 0;
+	bUseBuffering = false;//data["useBuffering"].asInt() != 0;
     bufferTime = data["bufferTime"].asInt()*10000;
 
     //------------------------------------------------

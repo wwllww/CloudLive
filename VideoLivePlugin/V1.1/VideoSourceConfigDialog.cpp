@@ -399,8 +399,8 @@ BOOL Config_OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 	ListView_SetTextBkColor(_this->hwndPlaylist, RGB(102, 102, 102));
 	ListView_SetTextColor(_this->hwndPlaylist, RGB(255, 255, 255));
 
-	SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 300, 220, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
-	SetWindowPos(GetDlgItem(hwnd, IDOK), NULL, 150, 220, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 430, 235, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+	SetWindowPos(GetDlgItem(hwnd, IDOK), NULL, 310, 235, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 	SetWindowPos(GetDlgItem(hwnd, IDC_ADD_MEDIA), NULL, 450, 82, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
 	buttonproc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_ADD_MEDIA), GWLP_WNDPROC, (LONG_PTR)ButtonProc);

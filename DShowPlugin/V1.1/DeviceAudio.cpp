@@ -266,11 +266,11 @@ void DeviceAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, float volum
 
 			m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
-			if (!bSameDevice && bProjector && m_pSecWaveOut)
+			if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
 				m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
 		}
-		else if (bProjector)
+		else if (bProjector && bLiveInstance)
 		{
 			char *OutBuffer;
 			CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer);

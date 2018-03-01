@@ -1552,7 +1552,19 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                 FillOutListOfDevices(hwndDeviceList, CLSID_VideoInputDeviceCategory, &configData->deviceNameList, &configData->deviceIDList);
 
 				bool bUseRecorder = configData->data["UseRecorder"].asInt() == 1;
-				bool bSupportRecord = IsSupportRecord(L"NVIDIA") || IsSupportRecord(L"Intel");
+				bool bSupportRecord = IsSupportRecord(L"NVIDIA");
+				if (!bSupportRecord)
+				{
+					bSupportRecord = IsSupportRecord(L"Intel");
+					if (bSupportRecord)
+					{
+						SetWindowText(GetDlgItem(hwnd, IDC_64BIT_WARNING2),L"注意：只能输出格式为I420的设备才能录制");
+					}
+				}
+				else
+				{
+					SetWindowText(GetDlgItem(hwnd, IDC_64BIT_WARNING2), L"注意：只能输出格式为I420和YV12的设备才能录制");
+				}
 
 				if (!bSupportRecord)
 				{
@@ -1969,20 +1981,44 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 						if (id != -1)
 							preferredType = (UINT)SendMessage(GetDlgItem(hwnd, IDC_PREFERREDOUTPUT), CB_GETITEMDATA, id, 0);
 
-						if (preferredType != VideoOutputType_I420 && preferredType != VideoOutputType_YV12)
+						if (IsSupportRecord(L"NVIDIA"))
 						{
-							if (bStartRecorde)
+							if (preferredType != VideoOutputType_I420 && preferredType != VideoOutputType_YV12)
 							{
-								SendMessage(GetDlgItem(hwnd, IDC_STARTRECORD), BM_SETCHECK, BST_UNCHECKED, 0);
+								if (bStartRecorde)
+								{
+									SendMessage(GetDlgItem(hwnd, IDC_STARTRECORD), BM_SETCHECK, BST_UNCHECKED, 0);
 
-								EnableWindow(GetDlgItem(hwnd, IDC_AUDIOLIST), false);
-								EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), false);
-								EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), false);
-								EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
-								EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
-								EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_AUDIOLIST), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
 
-								BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
+									//BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
+									BLiveMessageBox(hwnd, L"注意：只能输出格式为I420或YV12的设备才能录制", NULL, 0);
+								}
+							}
+						}
+						else 
+						{
+							if (preferredType != VideoOutputType_I420)
+							{
+								if (bStartRecorde)
+								{
+									SendMessage(GetDlgItem(hwnd, IDC_STARTRECORD), BM_SETCHECK, BST_UNCHECKED, 0);
+
+									EnableWindow(GetDlgItem(hwnd, IDC_AUDIOLIST), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDBITRATE), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
+									EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
+
+									//BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
+									BLiveMessageBox(hwnd, L"注意：只能输出格式为I420的设备才能录制", NULL, 0);
+								}
 							}
 						}
 
@@ -2747,11 +2783,21 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 
 									preferredID = id;
 
-									if (wcscmp(EnumToName[(UINT)types[i]], L"I420") && wcscmp(EnumToName[(UINT)types[i]], L"YV12"))
+									if (IsSupportRecord(L"NVIDIA"))
 									{
-										SendMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_STARTRECORD, 0), (LPARAM)GetDlgItem(hwnd, IDC_STARTRECORD));
+										if (wcscmp(EnumToName[(UINT)types[i]], L"I420") && wcscmp(EnumToName[(UINT)types[i]], L"YV12"))
+										{
+											SendMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_STARTRECORD, 0), (LPARAM)GetDlgItem(hwnd, IDC_STARTRECORD));
+										}
 									}
-                                }
+									else
+									{
+										if (wcscmp(EnumToName[(UINT)types[i]], L"I420"))
+										{
+											SendMessage(hwnd, WM_COMMAND, MAKEWPARAM(IDC_STARTRECORD, 0), (LPARAM)GetDlgItem(hwnd, IDC_STARTRECORD));
+										}
+									}
+								}
                             }
 
 							if (preferredID == -1)

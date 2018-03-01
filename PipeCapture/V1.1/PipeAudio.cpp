@@ -247,11 +247,11 @@ void PipeAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, long long pts
 			{
 				m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
-				if (!bSameDevice && bProjector && m_pSecWaveOut)
+				if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveIntance)
 					m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
 			}
-			else if (bProjector)
+			else if (bProjector && bLiveIntance)
 			{
 				if (bSameDevice && m_pAudioWaveOut)
 				{

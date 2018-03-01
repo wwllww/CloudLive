@@ -2190,6 +2190,7 @@ void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgen
 void CInstanceProcess::ClearVideoTransForm()
 {
 	std::vector<shared_ptr<IBaseVideo>> vAgentList;
+	EnterCriticalSection(&VideoSection);
 	for (UINT i = 0; i < m_VideoListTransForm.Num(); ++i)
 	{
 		VideoStruct &Video = m_VideoListTransForm[i];
@@ -2209,7 +2210,7 @@ void CInstanceProcess::ClearVideoTransForm()
 					if (BaseVideo)
 					{
 						BaseVideo->GlobalSourceLeaveScene();
-						if (Video.VideoDevice)
+						if (strcmp(BaseVideo->GainClassName(),"DeviceSource") == 0)
 						{
 							Video.VideoDevice->GlobalSourceLeaveScene();
 							Video.VideoDevice->SetCanEnterScene(true);
@@ -2232,6 +2233,7 @@ void CInstanceProcess::ClearVideoTransForm()
 	
 	}
 	m_VideoListTransForm.Clear();
+	LeaveCriticalSection(&VideoSection);
 
 	ClearFilterTransForm();
 

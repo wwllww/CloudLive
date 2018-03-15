@@ -133,6 +133,7 @@ struct CSampleData {
 	bool bDisableAudio;
 	bool bFieldSignal;
 	Json::Value *UserData;
+	uint64_t CheckNum;
 	inline CSampleData() { lpData = NULL; UserData = NULL; refs = 1; bDisableAudio = false; SampleData = NULL; bFieldSignal = false; }
 	inline CSampleData(IMediaSample *Sample) :SampleData(Sample)
 	{

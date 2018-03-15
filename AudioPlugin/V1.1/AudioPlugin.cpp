@@ -216,6 +216,20 @@ LRESULT CALLBACK DenoiseSliderProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 								 configData->nDB = -60;
 							 }
 						 }
+
+						 std::stringstream SourceId;
+						 uint64_t VideoId = 0;
+						 if (!configData->data["SourceID"].isNull())
+						 {
+							 SourceId << configData->data["SourceID"].asString().c_str();
+							 SourceId >> VideoId;
+						 }
+
+						 IBaseVideo *Video = (IBaseVideo*)VideoId;
+
+						 if (Video && configData->bDenoiseCheckFlag)
+							 Video->SetFloat(TEXT("Denoise"), configData->nDB);
+
 						 SendMessage(GetDlgItem(GetParent(hwnd), IDC_DENOISEEDIT), UPTATEEDIT, 0, 0);
 						 break;
 	}
@@ -1710,7 +1724,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 								  135, 133, 130, 40, hwnd, (HMENU)ID_DENOISESLIDER, hinstMain, NULL);
 
 							  CreateWindow(L"Button", NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-								  120, 102, 40, 40, hwnd, (HMENU)ID_CHECKDENOISE, hinstMain, NULL);
+								  123, 96, 40, 40, hwnd, (HMENU)ID_CHECKDENOISE, hinstMain, NULL);
 
 							  CreateWindow(L"Button", NULL, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 								  320, 140, 18, 14, hwnd, (HMENU)ID_UPPOSDENOISE, hinstMain, NULL);

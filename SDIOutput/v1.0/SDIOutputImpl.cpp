@@ -818,17 +818,18 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 	ChannelInfo* pChannelInfo = NULL;
 
 	unsigned int nSampleWritten = 0;
-	WAVEFORMATEX* pFormat;
-	double resampleRatio;
-	int nBytePerSample;
-	int nChannel;
-	int nSample;
-	UINT nSampleCount;
-	UINT totalSamples;
-	UINT nAdjustSampleCount;
-	UINT newFrameSize;
+	WAVEFORMATEX* pFormat = NULL;
+	double resampleRatio = 0.0f;
+	int nBytePerSample = 0;
+	int nChannel = 0;
+	int nSample = 0;
+	UINT nSampleCount = 0;
+	UINT totalSamples = 0;;
+	UINT nAdjustSampleCount = 0;
+	UINT newFrameSize = 0;
 	int errVal;
 	bool bParaChange = false;
+
 	if (bAudio)
 	{
 		pFormat = (WAVEFORMATEX*)(pAudioFormat);
@@ -855,6 +856,8 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 				bParaChange = Restart(bAudio, pChannelInfo, nChannel, nSample, nBytePerSample, nAudioLength, bParaChange, colorFormat, nWidth, nHeight);				
 				if (bParaChange)
 				{
+					if (bAudio && pFormat->nSamplesPerSec == 48000 && pFormat->nChannels == 2 && pFormat->wBitsPerSample == 16 && (!bPGM))
+						pChannelInfo->pDLOutput->ScheduleAudioSamples(pData, nSampleCount, 0, 0, &nSampleWritten);
 					LeaveCriticalSection(&(*pos)->pMutex);
 					break;
 				}
@@ -892,6 +895,17 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 							if (NULL == (*pos)->convertBufferShort)
 							{
 								(*pos)->convertBufferShort = new short[tempFrameSize];
+							}
+						}
+						else
+						{
+							if (4 == nBytePerSample)
+							{
+								int tempFrameSize = nSampleCount * nChannel;
+								if (NULL == (*pos)->convertBufferShort)
+								{
+									(*pos)->convertBufferShort = new short[tempFrameSize];
+								}
 							}
 						}
 						if (nChannel == 1 && NULL == (*pos)->doubleChannelBuffer)
@@ -1031,11 +1045,26 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 				}
 				else
 				{
+					if (4 == nBytePerSample)
+					{
+						int tempFrameSize = nSampleCount * nChannel;
+						short* tempConvert1 = pChannelInfo->convertBufferShort;
+						float* tempFloat1 = (float*)pData;
+						while (tempFrameSize--)
+						{
+							short tempShort = (*tempFloat1) * 32767.0f;
+							*tempConvert1 = tempShort;
+							tempFloat1++;
+							tempConvert1++;
+						}
+					}
 					if (nChannel == 1)
 					{
 						int tempAudioLength = nAudioLength;
 						short *tempConvert = pChannelInfo->doubleChannelBuffer;
 						short *tempShort = (short*)pData;
+						if (4 == nBytePerSample)
+							tempShort = pChannelInfo->convertBufferShort;
 						while (tempAudioLength)
 						{
 							*tempConvert = *tempShort;
@@ -1050,7 +1079,10 @@ int SDIOutput::SDI_RenderDevice(int nDeviceID, void* pData, int nWidth, int nHei
 					else
 					{
 // 						fwrite(pData, nSampleCount * nChannel * sizeof(short), 1, fp5);
-						pChannelInfo->pDLOutput->ScheduleAudioSamples(pData, nSampleCount, 0, 0, &nSampleWritten);
+						if (4 == nBytePerSample)
+							pChannelInfo->pDLOutput->ScheduleAudioSamples(pChannelInfo->convertBufferShort, nSampleCount, 0, 0, &nSampleWritten);
+						else
+							pChannelInfo->pDLOutput->ScheduleAudioSamples(pData, nSampleCount, 0, 0, &nSampleWritten);
 					}
 				}
 			}
@@ -1669,21 +1701,24 @@ int SDIOutput::SDI_Configuration()
 		result = pDL->QueryInterface(IID_IDeckLinkConfiguration, (void**)&deckLinkConfiguration);
 		Log::writeMessage(LOG_SDI, 1, "SDI_GetDeviceList QueryInterface IID_IDeckLinkConfiguration! result = %d", result);
 
-		if (id == 1 || id == 2)
-			result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigDuplexMode, bmdDuplexModeHalf);
+		if (result == S_OK && deckLinkConfiguration)
+		{
+			if (id == 1 || id == 2)
+				result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigDuplexMode, bmdDuplexModeHalf);
 
-		if (m_mapProperty[id])
-			result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoInputConnection, bmdVideoConnectionSDI);
-		else
-			result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoOutputConnection, bmdVideoConnectionSDI);
+			if (m_mapProperty[id])
+				result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoInputConnection, bmdVideoConnectionSDI);
+			else
+				result = deckLinkConfiguration->SetInt(bmdDeckLinkConfigVideoOutputConnection, bmdVideoConnectionSDI);
 
-		deckLinkConfiguration->SetFlag(bmdDeckLinkConfigBlackVideoOutputDuringCapture, TRUE);
-		deckLinkConfiguration->SetFlag(bmdDeckLinkConfigFieldFlickerRemoval, TRUE);
+			deckLinkConfiguration->SetFlag(bmdDeckLinkConfigBlackVideoOutputDuringCapture, TRUE);
+			deckLinkConfiguration->SetFlag(bmdDeckLinkConfigFieldFlickerRemoval, TRUE);
 
-		deckLinkConfiguration->WriteConfigurationToPreferences();
-		SAFE_RELEASE(deckLinkConfiguration);
+			deckLinkConfiguration->WriteConfigurationToPreferences();
+			SAFE_RELEASE(deckLinkConfiguration);
 
-		id++;
+			id++;
+		}
 		SAFE_RELEASE(pDL);
 	}
 	SAFE_RELEASE(pDLIterator);

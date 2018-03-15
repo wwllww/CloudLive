@@ -108,6 +108,7 @@ VideoLiveSource::VideoLiveSource(Value& data)
 	m_pDemandMediaAudio = new CDemandMediaAudio;
 	StartMonitor();
 	D3DRender = GetD3DRender();
+	videoSize = Vect2(640,360);
 }
 
 VideoLiveSource::VideoLiveSource()
@@ -142,6 +143,7 @@ VideoLiveSource::VideoLiveSource()
 	colorConvertShader = NULL;
 	colorFieldConvertShader = NULL;
 	D3DRender = GetD3DRender();
+	videoSize = Vect2(640, 360);
 	RGBFieldShader = D3DRender->CreatePixelShaderFromFile(L"shaders/Field_RGB.pShader");
 
 	latestVideoSample = NULL;

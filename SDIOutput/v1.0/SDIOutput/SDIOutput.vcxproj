@@ -133,6 +133,7 @@
       <SDLCheck>
       </SDLCheck>
       <AdditionalIncludeDirectories>Z:\tbb;Z:\libsamplerate;.\;Z:\Log_writer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

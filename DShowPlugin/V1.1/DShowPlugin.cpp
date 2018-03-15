@@ -38,7 +38,7 @@ const GUID PIN_CATEGORY_ROXIOCAPTURE = {0x6994AD05, 0x93EF, 0x11D0, {0xA3, 0xCC,
 
 HBRUSH HBrush;
 WNDPROC buttonproc = NULL;
-
+#define  WM_REFRESH 10002
 static INT_PTR CALLBACK ButtonProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
 	switch (message)
@@ -56,12 +56,25 @@ static INT_PTR CALLBACK ButtonProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 					 GetClientRect(hwnd, &rect);
 					 FillRect(hDC, &rect, hBK_102);
 					 SetTextColor(hDC, RGB(176, 176, 176));
-					 SetBkMode(hDC, TRANSPARENT);
+					
 					 HFONT  m_hOldFont = (HFONT)SelectObject(hDC, m_hFont);
-					 TCHAR WndTitle[256] = { 0 };
-					 GetWindowText(hwnd, WndTitle, sizeof WndTitle);
-					 String DB_Tianjia = WndTitle;
-					 TextOut(hDC, 23, 0, DB_Tianjia, DB_Tianjia.Length());
+	
+					 SetBkColor(hDC, RGB(102, 102, 102));
+					 SetBkMode(hDC, TRANSPARENT);
+
+					// SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+
+					 TCHAR Title[MAX_PATH] = { 0 };
+
+					 GetWindowText(hwnd, Title, sizeof Title);
+
+					 RECT rtClient;
+					 GetClientRect(hwnd, &rtClient);
+
+					 if (wcslen(Title) > 0)
+					 {
+						 DrawText(hDC, Title, wcslen(Title), &rtClient, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+					 }
 					 SelectObject(hDC, m_hOldFont);
 					 EndPaint(hwnd, &ps);
 					 DeleteObject(hBK_153);
@@ -71,7 +84,42 @@ static INT_PTR CALLBACK ButtonProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 					 DeleteObject(m_hOldFont);
 					 break;
 	}
+	case WM_REFRESH:
+	{
+					   HDC hDC = GetDC(hwnd);
+					   HBRUSH hBK_102 = CreateSolidBrush(RGB(102, 102, 102));
+					   HFONT  m_hFont = CreateFont(20, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
+						   OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
+					   RECT rect;
+					   GetClientRect(hwnd, &rect);
+					   FillRect(hDC, &rect, hBK_102);
 
+					   SetTextColor(hDC, RGB(176, 176, 176));
+
+					   HFONT  m_hOldFont = (HFONT)SelectObject(hDC, m_hFont);
+
+					   SetBkColor(hDC, RGB(102, 102, 102));
+					   SetBkMode(hDC, TRANSPARENT);
+
+					   // SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+
+					   TCHAR Title[MAX_PATH] = { 0 };
+
+					   GetWindowText(hwnd, Title, sizeof Title);
+
+					   RECT rtClient;
+					   GetClientRect(hwnd, &rtClient);
+
+					   if (wcslen(Title) > 0)
+					   {
+						   DrawText(hDC, Title, wcslen(Title), &rtClient, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+					   }
+					   SelectObject(hDC, m_hOldFont);
+					   DeleteObject(hBK_102);
+					   DeleteObject(m_hFont);
+					   DeleteObject(m_hOldFont);
+					   ReleaseDC(hwnd, hDC);
+	}
 	default:
 		return CallWindowProc(buttonproc, hwnd, message, wParam, lParam);
 		break;
@@ -798,7 +846,7 @@ struct ConfigDialogData
             if(!ResolutionListHasValue(resolutions, size))
                 resolutions << size;
 
-			Log(TEXT("minCX %d, maxCX %d, minCY %d, maxCY %d"), outputInfo.minCX, outputInfo.maxCX, outputInfo.minCY, outputInfo.maxCY);
+			Log::writeMessage(LOG_RTSPSERV,1,"minCX %d, maxCX %d, minCY %d, maxCY %d", outputInfo.minCX, outputInfo.maxCX, outputInfo.minCY, outputInfo.maxCY);
         }
 
         //sort
@@ -1975,7 +2023,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 						EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), bStartRecorde);
 						EnableWindow(GetDlgItem(hwnd, IDC_BROSE), bStartRecorde);
 						EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), bStartRecorde);
-
+						SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+						SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
 						UINT preferredType = -1;
 						int id = (int)SendMessage(GetDlgItem(hwnd, IDC_PREFERREDOUTPUT), CB_GETCURSEL, 0, 0);
 						if (id != -1)
@@ -1995,7 +2044,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 									EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
 									EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
 									EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
-
+									SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+									SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
 									//BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
 									BLiveMessageBox(hwnd, L"注意：只能输出格式为I420或YV12的设备才能录制", NULL, 0);
 								}
@@ -2015,7 +2065,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 									EnableWindow(GetDlgItem(hwnd, IDC_RECORDPATH), false);
 									EnableWindow(GetDlgItem(hwnd, IDC_BROSE), false);
 									EnableWindow(GetDlgItem(hwnd, IDC_RECORDTIME), false);
-
+									SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+									SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
 									//BLiveMessageBox(hwnd, PluginStr("DeviceSelection.RecordWarning"), NULL, 0);
 									BLiveMessageBox(hwnd, L"注意：只能输出格式为I420的设备才能录制", NULL, 0);
 								}
@@ -2372,7 +2423,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                         }
                         EnableWindow(hwndAudioDeviceList, bAudioDevicesPresent);
                         EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), bAudioDevicesPresent);
-
+						SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+						SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
                         break;
                     }
 
@@ -2551,7 +2603,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 
                             if (!bAudioDevicesPresent)
                                 EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), FALSE);
-
+							SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+							SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
                             bool bHasAudio = configData->bDeviceHasAudio;
 
                             EnableWindow(GetDlgItem(hwnd, IDC_PLAYDESKTOPSOUND), bHasAudio);
@@ -2590,6 +2643,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                             EnableWindow(GetDlgItem(hwnd, IDC_OUTPUTSOUND),      FALSE);
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET),       FALSE);
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET_EDIT),  FALSE);
+							SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+							SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
                         } else {
                             ConfigDialogData *configData = (ConfigDialogData*)GetWindowLongPtr(hwnd, DWLP_USER);
                             IBaseFilter *filter = GetDeviceByValue(CLSID_AudioInputDeviceCategory,
@@ -2602,7 +2657,8 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                             } else {
                                 EnableWindow(GetDlgItem(hwnd, IDC_CONFIGAUDIO), FALSE);
                             }
-
+							SendMessage(GetDlgItem(hwnd, IDC_CONFIGAUDIO), WM_REFRESH, 0, 0);
+							SendMessage(GetDlgItem(hwnd, IDC_BROSE), WM_REFRESH, 0, 0);
                             EnableWindow(GetDlgItem(hwnd, IDC_PLAYDESKTOPSOUND), TRUE);
                             EnableWindow(GetDlgItem(hwnd, IDC_OUTPUTSOUND),      TRUE);
                             EnableWindow(GetDlgItem(hwnd, IDC_TIMEOFFSET),       TRUE);
@@ -2643,7 +2699,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                         SIZE resolution;
                         FPSInfo fpsInfo;
 
-                        SendMessage(hwndFPS, CB_RESETCONTENT, 0, 0);
+                        //SendMessage(hwndFPS, CB_RESETCONTENT, 0, 0);
                         if(!GetResolution(hwndResolution, resolution, HIWORD(wParam) == CBN_SELCHANGE) || !configData->GetResolutionFPSInfo(resolution, fpsInfo))
                         {
                             SetWindowText(hwndFPS, TEXT("0"));
@@ -2653,7 +2709,14 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 						EnableWindow(hwndFPS, true);
                         //-------------------------------------------------------
 
-                        double bestFPS = 0.0f;
+						char TextFPS[16] = { 0 };
+						GetWindowTextA(hwndFPS,TextFPS,sizeof TextFPS);
+
+						double bestFPS = (double)atoi(TextFPS);
+
+						if (bestFPS < 25.0)
+							bestFPS = 25.0;
+
                         UINT64 bestInterval = 0;
                         for(UINT i = 0; i < fpsInfo.supportedIntervals.Num(); i++)
                         {
@@ -2680,7 +2743,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                                 bestFPS = minFPS;
                                 bestInterval = fpsInfo.supportedIntervals[i].maxFrameInterval;
                             }
-                            if(bestFPS < maxFPS)
+                            if(bestFPS > maxFPS)
                             {
                                 bestFPS = maxFPS;
                                 bestInterval = fpsInfo.supportedIntervals[i].minFrameInterval;

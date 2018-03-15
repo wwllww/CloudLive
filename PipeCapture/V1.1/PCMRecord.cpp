@@ -724,6 +724,8 @@ bool PCMRecord::LoadAudioInputDevice()
 					HRESULT hr = pNeg->SuggestAllocatorProperties(&prop);
 					pNeg->Release();
 					Log::writeMessage(LOG_RTSPSERV, 1, "PCMRecord …Ë÷√“Ù∆µ≤Œ ˝%d", prop.cbAlign);
+
+					SafeRelease(audioPin);
 				}
 
 				if (!bDeviceHasAudio)
@@ -773,8 +775,9 @@ bool PCMRecord::LoadAudioInputDevice()
 
 		bFiltersLoaded = bSucceeded;
 		//============================
-		return bSucceeded;
 	}
+
+	return bSucceeded;
 }
 
 std::wstring PCMRecord::GetAuidoName() const

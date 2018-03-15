@@ -516,7 +516,7 @@ bool DeviceSource::LoadFilters()
     }
 
     soundOutputType = data["soundOutputType"].asInt(); //0 is for backward-compatibility
-    if (strAudioID.CompareI(TEXT("Disabled")))
+	if (strAudioID.CompareI(TEXT("Disabled")) || data["UseRecorder"].asInt() == 0)
         soundOutputType = 0;
 
     if(soundOutputType != 0)
@@ -993,6 +993,8 @@ bool DeviceSource::LoadFilters()
 				HRESULT hr = pNeg->SuggestAllocatorProperties(&prop);
 				pNeg->Release();
 				Log::writeMessage(LOG_RTSPSERV, 1, "设置音频参数%d", prop.cbAlign);
+
+				audioPin->Release();
      		}
 			//m_strReanderName = BLiveGetRendAudioDevice(false, false);
 /*			if (NULL == m_pWaveOut)

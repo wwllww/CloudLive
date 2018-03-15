@@ -568,7 +568,7 @@ CSLiveManager::CSLiveManager()
 	leftdesktopVol = 1.0f;
 	rightdesktopVol = 1.0f;
 	m_quotietyVolume = 3.0f;
-	m_bPlayPcmLocal = true;
+	m_bPlayPcmLocal = false;
 	m_bPlayPcmLive = true;
 	m_bProject = false;
 
@@ -2495,6 +2495,7 @@ int CSLiveManager::SLiveGetVideoCaptureList(char** JsonVideoCaptureList)
 			*JsonVideoCaptureList = new char[str.length() + 1];
 			(*JsonVideoCaptureList)[str.length()] = 0;
 			memcpy(*JsonVideoCaptureList, str.data(), str.length());
+			Log::writeMessage(LOG_RTSPSERV, 1, "SLiveGetVideoCaptureList %s", str.data());
 		}
 		else
 		{
@@ -2526,6 +2527,7 @@ int CSLiveManager::SLiveGetAudioCaptureList(char** JsonAudioCaptureList)
 			*JsonAudioCaptureList = new char[str.length() + 1];
 			(*JsonAudioCaptureList)[str.length()] = 0;
 			memcpy(*JsonAudioCaptureList, str.data(), str.length());
+			Log::writeMessage(LOG_RTSPSERV, 1, "SLiveGetAudioCaptureList %s",str.data());
 		}
 		else
 		{
@@ -2558,6 +2560,7 @@ int CSLiveManager::SLiveGetAudioRenderList(char** JsonAudioRenderList)
 			*JsonAudioRenderList = new char[str.length() + 1];
 			(*JsonAudioRenderList)[str.length()] = 0;
 			memcpy(*JsonAudioRenderList, str.data(), str.length());
+			Log::writeMessage(LOG_RTSPSERV, 1, "SLiveGetAudioRenderList %s", str.data());
 		}
 		else
 		{
@@ -3236,20 +3239,23 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 						sprintf_s(Tem, "%llu", (uint64_t)InstanceD);
 						(*VSAgent.Config)["InstanceID"] = Tem;
 
+						EnterCriticalSection(&InstanceD->VideoSection);
 						InstanceD->m_VideoListTransForm.SetSize(InstanceD->m_VideoListTransForm.Num() + 1);
 						VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
 						VS = VSAgent;
 						VS.bSelect = false;
-
+						LeaveCriticalSection(&InstanceD->VideoSection);
 						VSAgent.VideoStream->GlobalSourceEnterScene();
 					}
 				}
 				else
 				{
+					EnterCriticalSection(&InstanceD->VideoSection);
 					InstanceD->m_VideoListTransForm.SetSize(InstanceD->m_VideoListTransForm.Num() + 1);
 					VideoStruct &VS = InstanceD->m_VideoListTransForm[InstanceD->m_VideoListTransForm.Num() - 1];
 					VS = VSTem;
 					VS.bSelect = false;
+					LeaveCriticalSection(&InstanceD->VideoSection);
 					
 				}
 				
@@ -3888,8 +3894,14 @@ int CSLiveManager::SLiveClearIntances(uint64_t iIntanceID)
 		LeaveCriticalSection(&MapInstanceSec);
 
 
+
 		if (Process)
 		{
+			if (Process != LiveInstance && Process != LocalInstance)
+			{
+				BUTEL_THORWERROR("不能清空非PGM和非PVW实例", iIntanceID);
+			}
+
 			Process->ClearVideoTransForm();
 			Process->ClearAudio();
 			Process->ClearVideo();
@@ -4730,7 +4742,7 @@ void CSLiveManager::RemoveLiveInstanceAudio(IBaseVideo *BaseVideo, bool bMustDel
 			}
 
 			IBaseVideo *Global = NULL;
-			if (OneVideo.bRender && (Global = OneVideo.VideoStream->GetGlobalSource()))
+			if (OneVideo.bRender && OneVideo.VideoStream && (Global = OneVideo.VideoStream->GetGlobalSource()))
 			{
 
 				//找到区域占位源
@@ -5430,7 +5442,19 @@ void CSLiveManager::ResetDevice(IBaseVideo *Video, shared_ptr<IBaseVideo>& Reset
 					OneVideo.VideoDevice = ResetVideo;
 				}
 
-				break;
+				//break;
+			}
+
+			if (strcmp(OneVideo.VideoStream->GainClassName(), "AgentSource") == 0)
+			{
+				IBaseVideo *Global = OneVideo.VideoStream->GetGlobalSource();
+				if (Global != NULL)
+				{
+					if (Global == Video || Global == ResetVideo.get() || Global == PreVideo)
+					{
+						OneVideo.VideoStream->UpdateSettings(*OneVideo.Config);
+					}
+				}
 			}
 
 		}
@@ -5574,7 +5598,12 @@ void CSLiveManager::RenderSDI(int Index)
 		if (bEnable)
 		{
 			D3D10Texture *d3dRGB = NULL;
-			if (bTransDisSolving || bTransUpDown || bTransDiffuse || bRadius)
+			
+			if (bTransUpDown || bTransDownUp || bTransLeftRight || bTransRightLeft || bRadius || bClock)
+			{
+				d3dRGB = dynamic_cast<D3D10Texture*>(transitionAddress.get());
+			}
+			else if (bTransDisSolving || bTransDiffuse)
 			{
 				d3dRGB = dynamic_cast<D3D10Texture*>(transitionTexture);
 			}

@@ -47,6 +47,9 @@
     <ClInclude Include="..\AudioPlugin.h">
       <Filter>Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\SpeexDenoise.h">
+      <Filter>Headers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="cursor1.cur">

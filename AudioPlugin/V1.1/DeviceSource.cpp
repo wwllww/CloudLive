@@ -297,7 +297,6 @@ bool DSource::LoadAudioInputDevice()
 			IBaseFilter *aFilter = audioDeviceFilter;
 
 			IPin *audioPin = GetOutputPin(aFilter, &MEDIATYPE_Audio);
-			DWORD code = GetLastError();
 			if (audioPin)
 			{
 				IAMBufferNegotiation *pNeg;
@@ -313,6 +312,8 @@ bool DSource::LoadAudioInputDevice()
 				HRESULT hr = pNeg->SuggestAllocatorProperties(&prop);
 				pNeg->Release();
 				Log::writeError(LOG_RTSPSERV, 1, "设置音频参数%d", prop.cbAlign);
+
+				audioPin->Release();
 			}
 
 			if (!bDeviceHasAudio)
@@ -688,6 +689,11 @@ void DSource::SetInt(CTSTR lpName, int iVal)
 
 void DSource::SetFloat(CTSTR lpName, float fValue)
 {
+	if(scmpi(lpName, TEXT("Denoise")) == 0)
+	{
+		audioOut->SetDenoise(fValue, true);
+	}
+	
     if(!bCapturing)
         return;
 

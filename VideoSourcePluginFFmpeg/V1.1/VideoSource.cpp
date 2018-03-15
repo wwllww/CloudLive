@@ -54,7 +54,7 @@ IMPLEMENT_DYNIC(VideoSource, "点播源", "1.0.0.1");
 
 VideoSource::VideoSource(Value& data)
 {
-    Log(TEXT("LINE:%d, FUNC:%s ,Using Demand Video Source, This = %x"),__LINE__,String(__FUNCTION__).Array(),this);
+    Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d, FUNC:%s ,Using Demand Video Source, This = %x"),__LINE__,__FUNCTION__,this);
 	
 	HMediaProcess = mp_create(0); //create synchronization Interface!
 
@@ -84,7 +84,7 @@ VideoSource::VideoSource(Value& data)
 
 VideoSource::VideoSource()
 {
-	Log(TEXT("LINE:%d, FUNC:%s ,Using Demand Video Source, This = %x"), __LINE__, String(__FUNCTION__).Array(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d, FUNC:%s ,Using Demand Video Source, This = %x"), __LINE__, __FUNCTION__, this);
 
 	HMediaProcess = mp_create(0); //create synchronization Interface!
 
@@ -94,7 +94,7 @@ VideoSource::VideoSource()
 	CallBackHight = 0;
 	m_mediaDuration = 0;
 	enteredSceneCount = 0;
-
+	videoSize = Vect2(640, 360);
 	texture = NULL;
 	audioSample = NULL;
 	latestVideoSample = NULL;
@@ -129,7 +129,7 @@ bool VideoSource::Init(Value &JsonParam)
 
 VideoSource::~VideoSource()
 { 
-	Log(TEXT("LINE : %d, FUNC : %s  VideoSource Demand Destructor,This = %x"), __LINE__, String(__FUNCTION__).Array(),this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s  VideoSource Demand Destructor,This = %x"), __LINE__, __FUNCTION__,this);
 	m_stop = true;
 	if (HMediaProcess)
 	{
@@ -141,7 +141,7 @@ VideoSource::~VideoSource()
 	{
 		WaitForSingleObject(m_hCloseSyncThreadEvent, INFINITE);
 		{
-			Log(TEXT("LINE : %d, FUNC : %s VideoSource Release SyncThread Success! This = %x"), __LINE__, String(__FUNCTION__).Array(),this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s VideoSource Release SyncThread Success! This = %x"), __LINE__, __FUNCTION__,this);
 		}
 	}
 
@@ -357,10 +357,31 @@ void VideoSource::Preprocess()
 					Deinterlacer->SetImage(texture, &DeinterConfig, CallBackWidth, CallBackHight, colorType);
 			}
 //		}
+		uint64_t uCurrentCheckNum = *(uint64_t *)(lastSample->lpData - 24);
+		if (uCurrentCheckNum == lastSample->CheckNum)
+		{
+			lastSample->Release();
+		}
+		else
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 释放lastSample之前，校验值不匹配: uCurrentCheckNum = 0x%x,lastSample->CheckNum =0x%x.lastSample->lpData :0x%x.lastSample :0x%x.ThreadID = %d,This = 0x%x"), 
+				__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, lastSample->lpData, lastSample,GetCurrentThreadId(), this);
 
-		lastSample->Release();
+			UINT64 nHigeCheckNum = lastSample->CheckNum & 0xFF00000000000000;
+			UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
 
-
+			if (nHigeCheckNum == nHigeCurrrntNum)//最高字节匹配
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 最高位校验值匹配释放: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
+					__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
+				lastSample->Release();
+			}
+			else
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 最高位校验值不匹配，不释放: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
+					__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
+			}
+		}
 	}
 	LeaveCriticalSection(&TextureDataLock);
 }
@@ -494,12 +515,12 @@ void VideoSource::FrameCallBackFunc(void* frame, int frame_type, const void* ctx
 
 		if (-1 == status)
 		{
-			Log(TEXT("LINE: %d, FUNC:%s, Decoder Retrun error ! ThreadID = %d,This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), This_);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, Decoder Retrun error ! ThreadID = %d,This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), This_);
 			//This_->m_bFileIsError = true;
 		}
 		else
 		{
-			Log(TEXT("LINE: %d, FUNC:%s, Current File Data is Over! ThreadID = %d, This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), This_);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, Current File Data is Over! ThreadID = %d, This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), This_);
 		}
 		mp_release_frame(&frame);
 		return;
@@ -628,6 +649,7 @@ void VideoSource::FrameCallBackFunc(void* frame, int frame_type, const void* ctx
 			}
 			This_->m_pMPMediaInfo.has_audio ? true : This_->m_pts = pMPFrameInfo->pts - This_->m_bFirstTsTimeStamp;
 			videoSample->timestamp = pMPFrameInfo->pts;
+			videoSample->CheckNum = *(uint64_t*)(videoSample->lpData - 24);
 			This_->m_VideoYuvBuffer.push_back(videoSample);
 			if (!This_->m_bFirstVideo)
 			{
@@ -719,7 +741,7 @@ void VideoSource::FrameCallBackFunc(void* frame, int frame_type, const void* ctx
 
 void VideoSource::UpdateSettings(Value &JsonParam)
 {
-	Log(TEXT("LINE : %d, FUNC : %s ,UpdateSettings Execute！ Open New File! This = %x"), __LINE__, String(__FUNCTION__).Array(),this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,UpdateSettings Execute！ Open New File! This = %x"), __LINE__, __FUNCTION__,this);
 	fileLoopPlayUseTsp = 0;
 	bool bisSame = false;
 	if (!JsonParam["DeskTopSetting"].isNull())
@@ -767,7 +789,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 		return;
 	}
 	m_iVolume = config->volume;
-	Log(TEXT("LINE:%d,FUNC:%s,Set Volume = %d! This =%x"), __LINE__, String(__FUNCTION__).Array(), m_iVolume,this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s,Set Volume = %d! This =%x"), __LINE__, __FUNCTION__, m_iVolume,this);
 	if (!config->isHaveSelect)
 	{
 		for (int iIndex = 0; iIndex < config->playlist.Num(); iIndex++)
@@ -878,7 +900,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 	m_mediaDuration = m_pMPMediaInfo.stream_duration;
 	if (!m_pMPMediaInfo.v_frame_rate)   //SDK maybe get v_frame_rate 0
 	{
-		Log(TEXT("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 		m_pMPMediaInfo.v_frame_rate = 25;
 	}
 	if (m_iFPS != m_pMPMediaInfo.v_frame_rate) {
@@ -923,12 +945,12 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 	ret = mp_start(HMediaProcess);
 	if (ret != 0)
 	{
-		Log(TEXT("LINE : %d, FUNC : %s ,Start File Failed！ Path: %s,This = %x"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(),this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Start File Failed！ Path: %s,This = %x"), __LINE__, __FUNCTION__, m_playPath, this);
 		LeaveCriticalSection(&DataLock);
 		return;
 	}
-	Log(TEXT("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"), 
-		__LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels,this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"), 
+		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels,this);
 	m_bPlay = true;
 	m_ChangePosPts = 0;
 	m_bFirstVideo = false;
@@ -1002,7 +1024,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 
 bool VideoSource::ChangePos()
 {
-		Log(TEXT("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, __FUNCTION__, m_playPath, this);
 		fileLoopPlayUseTsp = 0;
 		ColseFile();
 		char url[256] = { 0 };
@@ -1073,7 +1095,7 @@ bool VideoSource::ChangePos()
 
 bool VideoSource::ChangeStop()
 {
-	Log(TEXT("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, __FUNCTION__, m_playPath, this);
 	fileLoopPlayUseTsp = 0;
 	if (HMediaProcess)            //关闭文件
 	{
@@ -1118,7 +1140,7 @@ bool VideoSource::ChangeReset()
 	{
 		return false;
 	}
-	Log(TEXT("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, __FUNCTION__, m_playPath, this);
 	ColseFile();
 
 	char url[256] = { 0 };
@@ -1188,7 +1210,7 @@ bool VideoSource::ChangeReset()
 bool VideoSource::ChangeNext()
 {
 	fileLoopPlayUseTsp = 0;
-	Log(TEXT("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(),this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s, This = %x"), __LINE__, __FUNCTION__, m_playPath,this);
 	ColseFile();
 
 	//config->Reload();//去掉这个
@@ -1418,12 +1440,12 @@ Label:
 	}
 
 	mp_start(HMediaProcess);    //开始获取数据
-	Log(TEXT("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
-		__LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
+		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
 	m_mediaDuration = m_pMPMediaInfo.stream_duration;
 	if (!m_pMPMediaInfo.v_frame_rate)   //SDK maybe get v_frame_rate 0
 	{
-		Log(TEXT("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 		m_pMPMediaInfo.v_frame_rate = 25;
 	}
 	if (m_iFPS != m_pMPMediaInfo.v_frame_rate) {
@@ -1527,7 +1549,7 @@ bool VideoSource::ChangeNext_API()
 {
 	//不可能是最后一个
 	fileLoopPlayUseTsp = 0;
-	Log(TEXT("LINE = %d,FUNC = %s, FILE = %s"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array());
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s"), __LINE__, __FUNCTION__, m_playPath);
 	ColseFile();
 	//config->Reload();//去掉这个
 	
@@ -1591,12 +1613,12 @@ bool VideoSource::ChangeNext_API()
 	}
 
 	mp_start(HMediaProcess);    //开始获取数据
-	Log(TEXT("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
-		__LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
+		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
 	m_mediaDuration = m_pMPMediaInfo.stream_duration;
 	if (!m_pMPMediaInfo.v_frame_rate)   //SDK maybe get v_frame_rate 0
 	{
-		Log(TEXT("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 		m_pMPMediaInfo.v_frame_rate = 25;
 	}
 	if (m_iFPS != m_pMPMediaInfo.v_frame_rate) {
@@ -1711,7 +1733,7 @@ bool VideoSource::ChangeNext_API()
 void VideoSource::SetDirectPlay(const String DirectPlayFile)
 {
 	fileLoopPlayUseTsp = 0;
-	Log(TEXT("LINE = %d,FUNC = %s, FILE = %s"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array());
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s, FILE = %s"), __LINE__, __FUNCTION__, m_playPath);
 	//config->Reload();去掉这个
 	
 	if (DirectPlayFile.Compare(config->playlist[config->CurrentIndex]))
@@ -1790,12 +1812,12 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 	}
 
 	mp_start(HMediaProcess);    //开始获取数据
-	Log(TEXT("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
-		__LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
+		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
 	m_mediaDuration = m_pMPMediaInfo.stream_duration;
 	if (!m_pMPMediaInfo.v_frame_rate)   //SDK maybe get v_frame_rate 0
 	{
-		Log(TEXT("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 		m_pMPMediaInfo.v_frame_rate = 25;
 	}
 	if (m_iFPS != m_pMPMediaInfo.v_frame_rate) {
@@ -1993,7 +2015,7 @@ bool STDCALL SleepToNS(QWORD qwNSTime)
 		//trap suspicious sleeps that should never happen
 		if (milliseconds > 10000)
 		{
-			Log(TEXT("Tried to sleep for %u seconds, that can't be right! Triggering breakpoint."), milliseconds);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("Tried to sleep for %u seconds, that can't be right! Triggering breakpoint."), milliseconds);
 			DebugBreak();
 		}
 		OSSleep(milliseconds);
@@ -2011,7 +2033,7 @@ bool STDCALL SleepToNS(QWORD qwNSTime)
 void VideoSource::YUV420_2_RGB32()
 {
 	QWORD streamTimeStart = GetQPCNS(); // current nano second
-	Log(TEXT("LINE:%d,FUNC:%s,YUV420_2_RGB32 Thread is start! Thread ID = %d,This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s,YUV420_2_RGB32 Thread is start! Thread ID = %d,This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 	int iLastVframerate = m_pMPMediaInfo.v_frame_rate;
 	m_interval = 1000 / m_pMPMediaInfo.v_frame_rate;
 	QWORD frameTimeNS = 1000000000 / m_pMPMediaInfo.v_frame_rate;	// one frame nano second
@@ -2044,7 +2066,7 @@ void VideoSource::YUV420_2_RGB32()
 
 				frameTimeNS = 1000000000 / m_pMPMediaInfo.v_frame_rate;
 				m_interval = 1000 / m_pMPMediaInfo.v_frame_rate;
-				Log(TEXT("LINE:%d,FUNC:%s,Synchronization Thread Sleep Time %d ms Thread ID = %d,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), 1000 / m_pMPMediaInfo.v_frame_rate, GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s,Synchronization Thread Sleep Time %d ms Thread ID = %d,This = 0x%p"), __LINE__, __FUNCTION__, 1000 / m_pMPMediaInfo.v_frame_rate, GetCurrentThreadId(), this);
 			}
 		}
 
@@ -2065,8 +2087,35 @@ void VideoSource::YUV420_2_RGB32()
 						OneCallBack.CallBack(OneCallBack.Context, inf);
 				}
 				LeaveCriticalSection(&CallBackLock);
+				if (latestVideoSample)
+				{
+					uint64_t uCurrentCheckNum = *(uint64_t *)(latestVideoSample->lpData - 24);
+					if (uCurrentCheckNum == latestVideoSample->CheckNum)
+					{
+						SafeRelease(latestVideoSample);
+					}
+					else
+					{
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 释放latestVideoSample出错，校验值不匹配: uCurrentCheckNum =0x%p,lastSample->CheckNum =0x%p.ThreadID = %d,This = 0x%p"),
+							__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, GetCurrentThreadId(), this);
 
-				SafeRelease(latestVideoSample);
+						UINT64 nHigeCheckNum = latestVideoSample->CheckNum & 0xFF00000000000000;
+						UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
+
+						if (nHigeCheckNum == nHigeCurrrntNum)//最高字节匹配
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 最高位校验值匹配释放: uCurrentCheckNum = 0x%p,latestVideoSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.latestVideoSample->lpData :0x%p.latestVideoSample :0x%p.ThreadID = %d,This = 0x%p"),
+								__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
+							SafeRelease(latestVideoSample);
+						}
+						else
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, 最高位校验值不匹配，不释放: uCurrentCheckNum = 0x%p,latestVideoSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.latestVideoSample->lpData :0x%p.latestVideoSample :0x%p.ThreadID = %d,This = 0x%p"),
+								__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
+						}
+
+					}
+				}
 				latestVideoSample = inf;
 			}
 		}
@@ -2087,7 +2136,7 @@ void VideoSource::YUV420_2_RGB32()
 						if (audio_pts < video_pts - 200)
 						{
 
-							Log(TEXT("LINE:%d,FUNC:%s, 因为音频小于视频200ms，所以丢弃音频! Thread ID = %d,This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s, 因为音频小于视频200ms，所以丢弃音频! Thread ID = %d,This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 							for (CSampleData* inf : m_AudioAACBuffer)
 							{
 								inf->Release();
@@ -2147,7 +2196,7 @@ void VideoSource::YUV420_2_RGB32()
 		LeaveCriticalSection(&AudioDataLock);
 
 	}
-	Log(TEXT("LINE:%d,FUNC:%s, SyncThread Exit! Thread ID = %d,This = %x"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s, SyncThread Exit! Thread ID = %d,This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 	SetEvent(m_hCloseSyncThreadEvent);
 }
 
@@ -2331,7 +2380,7 @@ int64_t VideoSource::GetMediaDuration()
 bool VideoSource::ChangePrev()
 {
 	//不能是第一个文件，因为第一个文件禁止向前
-	Log(TEXT("LINE = %d,FUNC = %s,This = %x"), __LINE__, String(__FUNCTION__).Array(),this );
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE = %d,FUNC = %s,This = %x"), __LINE__, __FUNCTION__,this );
 	ColseFile();
 	//config->Reload();
 	
@@ -2358,8 +2407,8 @@ bool VideoSource::ChangePrev()
 	}
 
 	mp_start(HMediaProcess);    //开始获取数据
-	Log(TEXT("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
-		__LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
+		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
 	m_mediaDuration = m_pMPMediaInfo.stream_duration;
 	if (m_pMPMediaInfo.v_frame_rate != 0)
 	{

@@ -61,7 +61,15 @@ public:
 		outputFrameSize = lame_get_framesize(lgf); //1152 usually
 		dwMP3MaxSize = DWORD(1.25*double(outputFrameSize*audioBlockSize) + 7200.0);
 		MP3OutputBuffer.SetSize(dwMP3MaxSize + 1);
-		MP3OutputBuffer[0] = 0x2f;
+		if (curNumChannel == 1)
+		{
+			MP3OutputBuffer[0] = 0x2e;
+		}
+		else
+		{
+			MP3OutputBuffer[0] = 0x2f;
+		}
+		
 
 		bFirstPacket = true;
 		bFirstFrame = true;

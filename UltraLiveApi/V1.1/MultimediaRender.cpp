@@ -256,16 +256,11 @@ CMultimediaRender::CMultimediaRender() :CanAudio(false), Width(0), Height(0), Pi
 	SDID3DResize = new CD3DReszie(CSLiveManager::GetInstance()->BSParam.DeviceSetting.AdpterID);//CSLiveManager::GetInstance()->GetD3DLittleRender();
 	D3DRender = SDID3DResize->GetD3DRender();
 	String strShader = ChooseShader(DeviceOutputType_I420);
-	colorConvertShader = D3DRender->CreatePixelShaderFromFile(strShader);
-	if (colorConvertShader)
-	{
-		colorHandle = colorConvertShader->GetParameterByName(TEXT("gamma"));
-		colorConvertShader->SetFloat(colorHandle, 1.0f);
-	}
+	colorConvertShader = NULL;
 
 	bUseYV12 = false;
-	bUseI420 = true;
-	Pixformat = ColorType_I420;
+	bUseI420 = false;
+	Pixformat = ColorType_HDYC;
 	memset(&WaveFormat, 0, sizeof(WAVEFORMATEX));
 }
 
@@ -465,7 +460,10 @@ void CMultimediaRender::Render(CSampleData* data, bool bAudioDisabled)
 // 				}
 // 				else
 				{
-					blackMagic->SDI_RenderDevice(id, data->lpData, data->cx, data->cy, (SDIOUT_COLORFORMAT)data->colorType, data->bAudio, data->pAudioFormat, data->dataLength, false);
+					if (data->bAudio && !data->UserData || !data->bAudio) //视频捕捉设备的声音不投SDI,目前只有视频捕捉设备UserData有值
+					{
+						blackMagic->SDI_RenderDevice(id, data->lpData, data->cx, data->cy, (SDIOUT_COLORFORMAT)data->colorType, data->bAudio, data->pAudioFormat, data->dataLength, false);
+					}
 				}
 				
 			}
@@ -522,6 +520,7 @@ void CMultimediaRender::VideoRender(unsigned char* Buffer, int width, int height
 			delete texture;
 			texture = NULL;
 		}
+		Pixformat = pixformat;
 	}
 
 	float nByte = 0;
@@ -648,7 +647,6 @@ void CMultimediaRender::VideoRender(unsigned char* Buffer, int width, int height
 
 		ResizeUYVYToYUV420(Buffer, m_pDes, width, height, m_size.x, m_size.y);
 	}
-	Pixformat = pixformat;
 	m_previewlock.UnLock();
 }
 
@@ -746,6 +744,7 @@ void CMultimediaRender::ResetShaderYV12()
 
 		colorConvertShader->SetFloat(colorHandle, 1.0f);
 
+		D3DRender->LoadPixelShader(colorConvertShader);
 		bUseYV12 = true;
 		bUseI420 = false;
 	}
@@ -762,6 +761,8 @@ void CMultimediaRender::ResetShaderYV12()
 			colorHandle = colorConvertShader->GetParameterByName(TEXT("gamma"));
 
 		colorConvertShader->SetFloat(colorHandle, 1.0f);
+
+		D3DRender->LoadPixelShader(colorConvertShader);
 
 		bUseI420 = true;
 		bUseYV12 = false;
@@ -900,6 +901,7 @@ void CMultimediaRender::RenderTexture()
 	Texture *SDITexture = SDID3DResize->GetSDITexture();
 
 	m_previewlock.Lock(); //保护D3DRender因为在SDIOut中也用到D3DRender
+
 	D3DRender->SetRenderTarget(SwapRender);
 
 	if (texture)
@@ -914,11 +916,18 @@ void CMultimediaRender::RenderTexture()
 		{
 			ResetShaderYV12();
 
-			D3DRender->LoadPixelShader(colorConvertShader);
-			colorConvertShader->SetFloat(colorHandle, 1.0f);
+			if (colorConvertShader && colorHandle)
+			{
+				colorConvertShader->SetFloat(colorHandle, 1.0f);
+				D3DRender->LoadPixelShader(colorConvertShader);
+			}
 		}
 		else
+		{
+			bUseYV12 = false;
+			bUseI420 = false;
 			D3DRender->LoadPixelShader(MainPixShader);
+		}
 
 		UpLoad();
 		D3DRender->DrawSprite(texture, 0xFFFFFFFF, 0, 0, m_size.x, m_size.y);
@@ -933,9 +942,10 @@ void CMultimediaRender::RenderTexture()
 			D3DRender->DrawSprite(SDITexture, 0xFFFFFFFF, m_size.x - Width, 0, m_size.x, Height);
 			D3DRender->EnableBlending(FALSE);
 		}
-	}
 
+	}
 	D3DRender->Present(SwapRender);
 	D3DRender->Flush();
+
 	m_previewlock.UnLock();
 }

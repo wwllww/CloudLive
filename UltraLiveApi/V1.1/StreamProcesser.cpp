@@ -318,14 +318,14 @@ void CInstanceProcess::OperaterStream(uint64_t iStreamID, DBOperation OperType)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invode begin! StreamId = %llu", __FUNCTION__, iStreamID);
 	bool bFind = false;
-	EnterCriticalSection(&VideoSection);
+	//EnterCriticalSection(&VideoSection);//去掉这个是因为点重新播放的时候会掉帧
 	for (UINT i = 0; i < m_VideoList.Num(); ++i)
 	{
 		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID)
 		{
 			if (!m_VideoList[i].VideoStream->OperaterStream(OperType))
 			{
-				LeaveCriticalSection(&VideoSection);
+				//LeaveCriticalSection(&VideoSection);
 				Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invode end! Error occured!!", __FUNCTION__);
 				BUTEL_THORWERROR("操作视频 %llu 失败!", iStreamID);
 			}
@@ -333,7 +333,7 @@ void CInstanceProcess::OperaterStream(uint64_t iStreamID, DBOperation OperType)
 			break;
 		}
 	}
-	LeaveCriticalSection(&VideoSection);
+	//LeaveCriticalSection(&VideoSection);
 
 	if (!bFind)
 	{
@@ -886,7 +886,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 								if (strcmp(OneVideo.VideoStream->GetDeviceName(), (*Config)["deviceName"].asString().c_str()) == 0 && strcmp(OneVideo.VideoStream->GetDeviceID(), (*Config)["deviceID"].asString().c_str()) == 0)
 								{
 									bFind = true;
-									IBaseVideo *OldVideo = NULL;
+									shared_ptr<IBaseVideo> OldVideo;
 									//EnterCriticalSection(&VideoSection);
 									for (UINT i = 0; i < m_VideoList.Num(); ++i)
 									{
@@ -896,7 +896,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 											{
 												m_VideoList[i].VideoDevice->UnRegisterDataCallBack(this);
 											}
-											OldVideo = m_VideoList[i].VideoDevice.get();
+											OldVideo = m_VideoList[i].VideoDevice;
 											m_VideoList[i].VideoDevice = OneVideo.VideoStream;
 
 											m_VideoList[i].VideoDevice->UpdateSettings(*Config.get());
@@ -917,7 +917,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 										}
 									}
 									//LeaveCriticalSection(&VideoSection);
-									CSLiveManager::GetInstance()->ResetDevice(BaseVideo, OneVideo.VideoStream, false, OldVideo);
+									CSLiveManager::GetInstance()->ResetDevice(BaseVideo, OneVideo.VideoStream, false, OldVideo.get());
 									break;
 								}
 							}
@@ -926,7 +926,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 								if (strcmp(OneVideo.VideoStream->GetDeviceName(), (*Config)["deviceName"].asString().c_str()) == 0)
 								{
 									bFind = true;
-									IBaseVideo *OldVideo = NULL;
+									shared_ptr<IBaseVideo> OldVideo;
 									//EnterCriticalSection(&VideoSection);
 									for (UINT i = 0; i < m_VideoList.Num(); ++i)
 									{
@@ -936,7 +936,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 											{
 												m_VideoList[i].VideoDevice->UnRegisterDataCallBack(this);
 											}
-											OldVideo = m_VideoList[i].VideoDevice.get();
+											OldVideo = m_VideoList[i].VideoDevice;
 											m_VideoList[i].VideoDevice = OneVideo.VideoStream;
 
 											m_VideoList[i].VideoDevice->UpdateSettings(*Config.get());
@@ -952,7 +952,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 											(*m_VideoList[i].Config)["DeviceSourceID"] = Tem;
 											BaseVideo->UnRegisterDataCallBack(this);
 
-											CSLiveManager::GetInstance()->ResetDevice(BaseVideo, OneVideo.VideoStream, false, OldVideo);
+											CSLiveManager::GetInstance()->ResetDevice(BaseVideo, OneVideo.VideoStream, false, OldVideo.get());
 											break;
 										}
 									}
@@ -970,10 +970,10 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 							{
 								if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID)
 								{
-									IBaseVideo *OldVideo = NULL;
+									shared_ptr<IBaseVideo> OldVideo;
 									if (m_VideoList[i].VideoDevice)
 									{
-										OldVideo = m_VideoList[i].VideoDevice.get();
+										OldVideo = m_VideoList[i].VideoDevice;
 
 
 										if (m_VideoList[i].VideoDevice->GetDeviceID())
@@ -999,7 +999,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 												
 												//Config->removeMember("DeviceSourceID");
 												//查找所有包括BaseVideo的LocalInstance和LiveInstance把它们的VideoDevice reset;
-												CSLiveManager::GetInstance()->ResetDevice(BaseVideo, m_VideoList[i].VideoDevice, false, OldVideo);
+												CSLiveManager::GetInstance()->ResetDevice(BaseVideo, m_VideoList[i].VideoDevice, false, OldVideo.get());
 											}
 											else
 											{
@@ -1028,7 +1028,7 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 
 												//Config->removeMember("DeviceSourceID");
 												//查找所有包括BaseVideo的LocalInstance和LiveInstance把它们的VideoDevice reset;
-												CSLiveManager::GetInstance()->ResetDevice(BaseVideo, m_VideoList[i].VideoDevice, false, OldVideo);
+												CSLiveManager::GetInstance()->ResetDevice(BaseVideo, m_VideoList[i].VideoDevice, false, OldVideo.get());
 											}
 											else
 											{

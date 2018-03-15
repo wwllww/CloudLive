@@ -91,7 +91,7 @@ void log_callback(
     wchar_t *messageBuffer = static_cast<wchar_t *>(calloc(messageBufferLength + 1, sizeof(wchar_t)));
     utf8_to_wchar(message, messageLength, messageBuffer, messageBufferLength, 0);
 
-    Log(TEXT("VideoSourcePlugin::%s | %s"), levelString, messageBuffer);
+    Log::writeMessage(LOG_RTSPSERV, 1, ("VideoSourcePlugin::%s | %s"), levelString, messageBuffer);
 
     free(messageBuffer);
 }

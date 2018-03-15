@@ -1149,11 +1149,15 @@ void GetDisplayDevices(DeviceOutputs &deviceList)
 
 String GetDirectorMonitorDevices()
 {
+	if (CSLiveManager::GetInstance()->BSParam.DeviceSetting.MonitorDevice[0] == '\0')
+		return String(L"Í£ÓÃ");
 	return Asic2WChar(CSLiveManager::GetInstance()->BSParam.DeviceSetting.MonitorDevice).c_str();
 }
 
 String GetSecMonitorDevices()
 {
+	if (CSLiveManager::GetInstance()->BSParam.DeviceSetting.ScrProDevice[0] == '\0')
+		return String(L"Í£ÓÃ");
 	return Asic2WChar(CSLiveManager::GetInstance()->BSParam.DeviceSetting.ScrProDevice).c_str();
 }
 

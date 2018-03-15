@@ -1341,6 +1341,27 @@ void CSLiveManager::MainAudioLoop()
 				leftaudioData.SetSize(audioSampleSize);
 				rightaudioData.SetSize(audioSampleSize);
 				LiveInstance->bReBulidAudio = false;
+
+
+				if (LocalInstance)
+				{
+					EnterCriticalSection(&LocalInstance->AudioSection);
+					for (UINT i = 0; i < LocalInstance->m_AudioList.Num(); ++i) {
+
+						LocalInstance->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
+
+					}
+					LeaveCriticalSection(&LocalInstance->AudioSection);
+				}
+
+				EnterCriticalSection(&LiveInstance->AudioSection);
+				for (UINT i = 0; i < LiveInstance->m_AudioList.Num(); ++i) {
+
+					LiveInstance->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
+
+				}
+				LeaveCriticalSection(&LiveInstance->AudioSection);
+
 			}
 
 			if (LiveInstance->QueryNewAudio())

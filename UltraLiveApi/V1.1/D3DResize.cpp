@@ -82,7 +82,7 @@ bool CD3DReszie::Init()
 	UINT Width, Height;
 	SDILittleTexture = D3DRender->CreateTextureFromFile(L"./img/SDIOUT.png", FALSE, Width, Height);
 
-	if (SDILittleTexture)
+	if (!SDILittleTexture)
 		return false;
 
 	return true;

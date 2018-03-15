@@ -213,7 +213,7 @@ void DAudioSource::ReceiveAudio(LPBYTE lpData, UINT dataLength, bool bCanPlay)
 {
     if(lpData)
     {
-		if (m_bUseDenoise && m_pCSpeexDenoise)
+		if (m_bUseDenoise && m_pCSpeexDenoise&&m_nDenoiseValue!=0)
 		{
 			bool bRet = m_pCSpeexDenoise->ProcessSpeexDenoiseData((short *)lpData, dataLength);
 			if (!bRet)

@@ -487,7 +487,7 @@ void DesktopImageSource::Render(const Vect2 &pos, const Vect2 &size, Texture *te
 		return;
 	}
 
-	if (bWindows8MonitorCapture)
+	if (bWindows8MonitorCapture && !tex)
 	{
 		LONG monitorWidth = monitorData.rect.right - monitorData.rect.left;
 		LONG monitorHeight = monitorData.rect.bottom - monitorData.rect.top;
@@ -944,7 +944,7 @@ void DesktopImageSource::UpdateSettings(Value &data)
 
 // 		width = cx;
 // 		height = cy;
-
+		bWindows8MonitorCapture = false; //固定为false win10上加滤镜鼠标获取显示有个小黑框
 		if (bCompatibilityMode)
 		{
 			hdcCompatible = CreateCompatibleDC(NULL);

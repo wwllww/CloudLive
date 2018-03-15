@@ -304,7 +304,7 @@ void IBaseAudio::SetSampleRateHz(UINT sampleRateHz)
 {
 	OutputsampleRateHz = sampleRateHz;
 
-	//InitAudioData(bFloat, inputChannels, inputSamplesPerSec, inputBitsPerSample, inputBlockSize, inputChannelMask, true);
+	InitAudioData(bFloat, inputChannels, inputSamplesPerSec, inputBitsPerSample, inputBlockSize, inputChannelMask, true);
 }
 
 void IBaseAudio::SetPlayLocal(bool bPlay)

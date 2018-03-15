@@ -256,7 +256,7 @@ void D3D10System::LoadVertexBuffer(D3D10VertexBuffer* vb)
 
 void D3D10System::LoadTexture(Texture *texture, UINT idTexture)
 {
-    //if(curTextures[idTexture] != texture)
+    if(curTextures[idTexture] != texture)
     {
         D3D10Texture *d3dTex = static_cast<D3D10Texture*>(texture);
         if(d3dTex)

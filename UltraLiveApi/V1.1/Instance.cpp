@@ -523,6 +523,10 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 					MultiRender->SetIsInteraction(true);
 					
 				}
+
+				if (MultiRender)
+					MultiRender->InitD3DReSize();
+
 				MultiRender->SetVideoRender(RenderHwnd,Vect2(0, 0), Vect2(Rect.right, Rect.bottom));
 			}
 		
@@ -530,8 +534,7 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 
 			VideoStream->RegisterDataCallBack(this, StreamCallBack);
 			VideoStream->BeginScene();
-			if (MultiRender)
-				MultiRender->InitD3DReSize();
+			
 
 			if (strcmp(VideoStream->GainClassName(), "DeviceSource") == 0)
 			{

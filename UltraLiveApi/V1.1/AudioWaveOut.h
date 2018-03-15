@@ -4,7 +4,7 @@
 //#include <tchar.h>
 #include <MMSystem.h>
 #include <queue>
-#define MAX_WAVEOUT_QUEUE_LEN	20
+#define MAX_WAVEOUT_QUEUE_LEN	40
 #define MAX_SUPPORT_PCMPKG_LEN	90960
 #pragma warning(disable:4273)
 class BASE_EXPORT AudioWaveOut

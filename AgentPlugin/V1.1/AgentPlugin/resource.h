@@ -70,6 +70,18 @@
 #define IDC_TEXTSIZE                    164
 #define IDC_POINTFILTERING              165
 #define IDC_TEXTSIZE_EDIT               166
+#define IDC_ADD                         167
+#define IDC_REMOVE                      168
+#define IDC_MOVEUPWARD                  169
+#define IDC_MOVEDOWNWARD                170
+#define IDC_BITMAPS                     171
+#define IDC_TRANSITIONTIME              172
+#define IDC_REPLACE                     173
+#define IDC_FADEINONLY                  174
+#define IDC_DISABLEFADING               175
+#define IDC_RANDOMIZE                   176
+#define IDD_CONFIGURETRANSITIONSOURCE   177
+#define IDC_TRANSITIONTIME_EDIT         178
 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS

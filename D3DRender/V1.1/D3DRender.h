@@ -40,12 +40,17 @@
 #include "CodeTokenizer.h"
 
 #include "D3D10System.h"
+#include "LogDeliver.h"
 
 #ifdef D3DRENDER_EXPORTS
 #define EXTERN_DLLEXPORT  __declspec(dllexport)
 #else
 #define EXTERN_DLLEXPORT  __declspec(dllimport)
 #endif // BUTELAPI_EXPORTS
+
+#ifndef LOG_RTSPSERV
+#define LOG_RTSPSERV  ((long long)1<<49)
+#endif // !LOG_RTSPSERV
 
 class EXTERN_DLLEXPORT D3DAPI
 {

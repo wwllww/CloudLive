@@ -43,7 +43,7 @@ SamplerState* D3D10SamplerState::CreateSamplerState(SamplerInfo &info, D3D10Syst
 	HRESULT err = System->GetDeviceInline()->CreateSamplerState(&sampDesc, &state);
     if(FAILED(err))
     {
-        AppWarning(TEXT("D3D10SamplerState::CreateSamplerState: unable to create sampler state, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10SamplerState::CreateSamplerState: unable to create sampler state, result = %08lX", err);
         return NULL;
     }
 
@@ -67,7 +67,7 @@ Texture* D3D10Texture::CreateTexture(unsigned int width, unsigned int height, GS
 
     if(colorFormat >= GS_DXT1)
     {
-        AppWarning(TEXT("D3D10Texture::CreateTexture: tried to create a blank DXT texture.  Use CreateTextureFromFile instead."));
+        Log::writeMessage(LOG_RTSPSERV,1,"D3D10Texture::CreateTexture: tried to create a blank DXT texture.  Use CreateTextureFromFile instead.");
         return NULL;
     }
 
@@ -75,7 +75,7 @@ Texture* D3D10Texture::CreateTexture(unsigned int width, unsigned int height, GS
 
     if(bGenMipMaps && (!IsPow2(width) || !IsPow2(height)))
     {
-        AppWarning(TEXT("D3D10Texture::CreateTexture: Cannot generate mipmaps for a non-power-of-two sized texture.  Disabling mipmap generation."));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTexture: Cannot generate mipmaps for a non-power-of-two sized texture.  Disabling mipmap generation.");
         bGenMipMaps = FALSE;
     }
 
@@ -83,13 +83,13 @@ Texture* D3D10Texture::CreateTexture(unsigned int width, unsigned int height, GS
     zero(&td, sizeof(td));
     td.Width            = width;
     td.Height           = height;
-    td.MipLevels        = bGenMipMaps ? 0 : 1;
+	td.MipLevels        = bGenMipMaps ? 0 : 1;
     td.ArraySize        = 1;
 	td.SampleDesc.Count = 1;
     td.Format           = format;
     td.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
-    td.Usage            = bStatic ? D3D11_USAGE_DEFAULT : D3D11_USAGE_DYNAMIC;
-    td.CPUAccessFlags   = bStatic ? 0 : D3D11_CPU_ACCESS_WRITE;
+	td.Usage            = bStatic ? D3D11_USAGE_DEFAULT : D3D11_USAGE_DYNAMIC;
+	td.CPUAccessFlags   = bStatic ? 0 : D3D11_CPU_ACCESS_WRITE;
 
     D3D11_SUBRESOURCE_DATA srd;
     D3D11_SUBRESOURCE_DATA *lpSRD;
@@ -106,7 +106,7 @@ Texture* D3D10Texture::CreateTexture(unsigned int width, unsigned int height, GS
     ID3D11Texture2D *texVal;
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateTexture2D(&td, lpSRD, &texVal)))
     {
-        AppWarning(TEXT("D3D10Texture::CreateTexture: CreateTexture2D failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTexture: CreateTexture2D failed, result = 0x%08lX", err);
         return NULL;
     }
 
@@ -122,7 +122,7 @@ Texture* D3D10Texture::CreateTexture(unsigned int width, unsigned int height, GS
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateShaderResourceView(texVal, &resourceDesc, &resource)))
     {
         SafeRelease(texVal);
-        AppWarning(TEXT("D3D10Texture::CreateTexture: CreateShaderResourceView failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTexture: CreateShaderResourceView failed, result = 0x%08lX", err);
         return NULL;
     }
 
@@ -148,7 +148,7 @@ Texture* D3D10Texture::CreateTextureFromFile(CTSTR lpFile, BOOL bBuildMipMaps, U
     {
 		Width = 0;
 		Height = 0;
-        AppWarning(TEXT("D3D10Texture::CreateTextureFromFile: Could not get information about texture file '%s'"), lpFile);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTextureFromFile: Could not get information about texture file '%s'", Wchar2Ansi(lpFile).c_str());
         return NULL;
     }
 
@@ -182,7 +182,7 @@ Texture* D3D10Texture::CreateTextureFromFile(CTSTR lpFile, BOOL bBuildMipMaps, U
     ID3D11Resource *texResource;
 	if (FAILED(err = D3DX11CreateTextureFromFile(D3DSystem->GetDeviceInline(), lpFile, &ili, NULL, &texResource, NULL)))
     {
-        AppWarning(TEXT("D3D10Texture::CreateTextureFromFile: failed to load '%s'"), lpFile);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTextureFromFile: failed to load '%s'", Wchar2Ansi(lpFile).c_str());
         return NULL;
     }
 
@@ -198,7 +198,7 @@ Texture* D3D10Texture::CreateTextureFromFile(CTSTR lpFile, BOOL bBuildMipMaps, U
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateShaderResourceView(texResource, &resourceDesc, &resource)))
     {
         SafeRelease(texResource);
-        AppWarning(TEXT("D3D10Texture::CreateTextureFromFile: CreateShaderResourceView failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTextureFromFile: CreateShaderResourceView failed, result = 0x%08lX", err);
         return NULL;
     }
 
@@ -210,7 +210,7 @@ Texture* D3D10Texture::CreateTextureFromFile(CTSTR lpFile, BOOL bBuildMipMaps, U
     {
         SafeRelease(texResource);
         SafeRelease(resource);
-        AppWarning(TEXT("D3D10Texture::CreateTextureFromFile: could not query texture interface"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTextureFromFile: could not query texture interface");
         return NULL;
     }
 
@@ -317,7 +317,7 @@ Texture* D3D10Texture::CreateGDITexture(unsigned int width, unsigned int height,
     ID3D11Texture2D *texVal;
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateTexture2D(&td, NULL, &texVal)))
     {
-        AppWarning(TEXT("D3D10Texture::CreateGDITexture: CreateTexture2D failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateGDITexture: CreateTexture2D failed, result = 0x%08lX", err);
         return NULL;
     }
 
@@ -333,7 +333,7 @@ Texture* D3D10Texture::CreateGDITexture(unsigned int width, unsigned int height,
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateShaderResourceView(texVal, &resourceDesc, &resource)))
     {
         SafeRelease(texVal);
-        AppWarning(TEXT("D3D10Texture::CreateGDITexture: CreateShaderResourceView failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateGDITexture: CreateShaderResourceView failed, result = 0x%08lX", err);
         return NULL;
     }
 
@@ -368,7 +368,7 @@ Texture* D3D10Texture::CreateTextureRead(unsigned int width, unsigned int height
 	ID3D11Texture2D *texVal;
 	if (FAILED(err = D3DSystem->GetDeviceInline()->CreateTexture2D(&td, NULL, &texVal)))
 	{
-		AppWarning(TEXT("D3D10Texture::CreateTexture: CreateTexture2D failed, result = 0x%08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::CreateTexture: CreateTexture2D failed, result = 0x%08lX", err);
 		return NULL;
 	}
 
@@ -389,4 +389,3 @@ D3D10Texture::~D3D10Texture()
 	SafeRelease(SwapChain);
 	SafeRelease(surface);
 }
-

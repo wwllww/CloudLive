@@ -64,7 +64,7 @@ CInstanceProcess::~CInstanceProcess()
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s InstanceProcess 0x%p 开始析构",__FUNCTION__,this);
 	bStartLive = false;
 	bRunning = false;
-	bRecord = false;
+	
 
 	EnterCriticalSection(&VideoSection);
 	for (UINT i = 0; i < m_VideoList.Num();++i)
@@ -175,6 +175,9 @@ CInstanceProcess::~CInstanceProcess()
 	}
 
 	LeaveCriticalSection(&VideoSection);
+
+
+	bRecord = false; //移动到这里来，视频捕捉设备录制中删除视频捕捉源死锁
 
 	if (bForceKilled)
 	{
@@ -291,6 +294,12 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 	else
 	{
 		*JVData = Jvalue["data"];
+
+		if (!Jvalue["Name"].isNull())
+		{
+			(*JVData)["Name"] = Jvalue["Name"].asString().c_str();
+		}
+
 		char TemID[50] = { 0 };
 		sprintf_s(TemID, "%llu", (uint64_t)this);
 		(*JVData)["InstanceID"] = TemID;
@@ -464,6 +473,40 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 
 		JVData->removeMember("DeviceSourceID");
 
+
+		//在这里先注册回调再Init
+		if (bLittlePre)
+		{
+			if (!bNoPreView)
+			{
+				RECT Rect;
+				GetClientRect(RenderHwnd, &Rect);
+				MultiRender = new CMultimediaRender;
+				if (0 == strcmp(Jvalue["ClassName"].asString().c_str(), "PipeVideo"))
+				{
+					//互动连接源
+					MultiRender->SetIsInteraction(true);
+
+				}
+
+				if (MultiRender)
+					MultiRender->InitD3DReSize();
+
+				MultiRender->SetVideoRender(RenderHwnd, Vect2(0, 0), Vect2(Rect.right, Rect.bottom));
+			}
+
+
+			VideoStream->RegisterDataCallBack(this, StreamCallBack);
+
+			if (strcmp(VideoStream->GainClassName(), "DeviceSource") == 0)
+			{
+				//增加录制回调
+				VideoStream->RegisterDataCallBack(this, RecordCallBack);
+			}
+
+		}
+
+
 		VideoStream->Init(const_cast<Value&>(*JVData));//try去掉了
 
 		*StreamID1 = (uint64_t)VideoStream;
@@ -488,7 +531,6 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 
 			InVideoStruct.VideoStream = shared_ptr<IBaseVideo>(BaseStream);
 			InVideoStruct.VideoDevice = shared_ptr<IBaseVideo>(VideoStream);
-			InVideoStruct.VideoStream->RegisterDataCallBack(this, RecordCallBack);
 
 			if (bLittlePre)
 			{
@@ -512,36 +554,8 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 
 		if (bLittlePre)
 		{
-			if (!bNoPreView)
-			{
-				RECT Rect;
-				GetClientRect(RenderHwnd, &Rect);
-				MultiRender = new CMultimediaRender;
-				if (0 == strcmp(Jvalue["ClassName"].asString().c_str(), "PipeVideo"))
-				{
-					//互动连接源
-					MultiRender->SetIsInteraction(true);
-					
-				}
-
-				if (MultiRender)
-					MultiRender->InitD3DReSize();
-
-				MultiRender->SetVideoRender(RenderHwnd,Vect2(0, 0), Vect2(Rect.right, Rect.bottom));
-			}
-		
 			InVideoStruct.bGlobalStream = true;
-
-			VideoStream->RegisterDataCallBack(this, StreamCallBack);
 			VideoStream->BeginScene();
-			
-
-			if (strcmp(VideoStream->GainClassName(), "DeviceSource") == 0)
-			{
-				//增加录制回调
-				VideoStream->RegisterDataCallBack(this, RecordCallBack);
-			}
-			
 		}
 
 		if (VideoStream->GetAduioClassName())
@@ -1138,7 +1152,8 @@ void CInstanceProcess::BulidX264Encoder()
 		{
 			if (LiveParam.LiveSetting.bUseHardEncoder)
 			{
-				if (IsSupportRecord(L"NVIDIA"))
+				int HardType = CSLiveManager::GetInstance()->GetHardEncoderType();
+				if (HardType == 1 || HardType == 3)
 				{
 					videoEncoder = CreateNvidiaEncoder(LiveParam.LiveSetting.FPS, outputCX_back, outputCY_back, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 
@@ -1147,7 +1162,7 @@ void CInstanceProcess::BulidX264Encoder()
 						Log::writeError(LOG_RTSPSERV, 1, "%s Use NVIDIA 显卡硬编", __FUNCTION__);
 					}
 				}
-				else if (IsSupportRecord(L"Intel"))
+				else if (HardType == 2)
 				{
 					videoEncoder = CreateRDX264EncoderNew(LiveParam.LiveSetting.FPS, outputCX_back, outputCY_back, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 
@@ -1168,7 +1183,8 @@ void CInstanceProcess::BulidX264Encoder()
 		{
 			if (LiveParam.LiveSetting.bUseHardEncoder)
 			{
-				if (IsSupportRecord(L"NVIDIA"))
+				int HardType = CSLiveManager::GetInstance()->GetHardEncoderType();
+				if (HardType == 1 || HardType == 3)
 				{
 					videoEncoder = CreateNvidiaEncoder(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 
@@ -1177,7 +1193,7 @@ void CInstanceProcess::BulidX264Encoder()
 						Log::writeError(LOG_RTSPSERV, 1, "%s Use NVIDIA 显卡硬编", __FUNCTION__);
 					}
 				}
-				else if (IsSupportRecord(L"Intel"))
+				else if (HardType == 2)
 				{
 					videoEncoder = CreateRDX264EncoderNew(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 					if (videoEncoder)
@@ -1197,7 +1213,8 @@ void CInstanceProcess::BulidX264Encoder()
 	{
 		if (LiveParam.LiveSetting.bUseHardEncoder)
 		{
-			if (IsSupportRecord(L"NVIDIA"))
+			int HardType = CSLiveManager::GetInstance()->GetHardEncoderType();
+			if (HardType == 1 || HardType == 3)
 			{
 				videoEncoder = CreateNvidiaEncoder(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 
@@ -1206,7 +1223,7 @@ void CInstanceProcess::BulidX264Encoder()
 					Log::writeError(LOG_RTSPSERV, 1, "%s Use NVIDIA 显卡硬编", __FUNCTION__);
 				}
 			}
-			else if (IsSupportRecord(L"Intel"))
+			else if (HardType == 2)
 			{
 				videoEncoder = CreateRDX264EncoderNew(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.Quality, Asic2WChar(LiveParam.LiveSetting.X264Preset).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRate, LiveParam.LiveSetting.VideoBitRate, false, 1);
 
@@ -1240,7 +1257,8 @@ void CInstanceProcess::BulidX264Encoder()
 		{
 			if (LiveParam.LiveSetting.bUseHardEncoderSec)
 			{
-				if (IsSupportRecord(L"NVIDIA"))
+				int HardType = CSLiveManager::GetInstance()->GetHardEncoderType();
+				if (HardType == 1 || HardType == 3)
 				{
 					videoEncoder_back = CreateNvidiaEncoder(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.QualitySec, Asic2WChar(LiveParam.LiveSetting.X264PresetSec).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRateSec, LiveParam.LiveSetting.VideoBitRateSec, true, 1);
 
@@ -1249,7 +1267,7 @@ void CInstanceProcess::BulidX264Encoder()
 						Log::writeError(LOG_RTSPSERV, 1, "%s Use NVIDIA 显卡硬编", __FUNCTION__);
 					}
 				}
-				else if (IsSupportRecord(L"Intel"))
+				else if (HardType == 2)
 				{
 					videoEncoder_back = CreateRDX264EncoderNew(LiveParam.LiveSetting.FPS, outputCX, outputCY, LiveParam.LiveSetting.QualitySec, Asic2WChar(LiveParam.LiveSetting.X264PresetSec).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRateSec, LiveParam.LiveSetting.VideoBitRateSec, false, 1);
 
@@ -1269,7 +1287,8 @@ void CInstanceProcess::BulidX264Encoder()
 		{
 			if (LiveParam.LiveSetting.bUseHardEncoderSec)
 			{
-				if (IsSupportRecord(L"NVIDIA"))
+				int HardType = CSLiveManager::GetInstance()->GetHardEncoderType();
+				if (HardType == 1 || HardType == 3)
 				{
 					videoEncoder_back = CreateNvidiaEncoder(LiveParam.LiveSetting.FPS, outputCX_back, outputCY_back, LiveParam.LiveSetting.QualitySec, Asic2WChar(LiveParam.LiveSetting.X264PresetSec).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRateSec, LiveParam.LiveSetting.VideoBitRateSec, true, 1);
 
@@ -1278,7 +1297,7 @@ void CInstanceProcess::BulidX264Encoder()
 						Log::writeError(LOG_RTSPSERV, 1, "%s Use NVIDIA 显卡硬编", __FUNCTION__);
 					}
 				}
-				else if (IsSupportRecord(L"Intel"))
+				else if (HardType == 2)
 				{
 					videoEncoder_back = CreateRDX264EncoderNew(LiveParam.LiveSetting.FPS, outputCX_back, outputCY_back, LiveParam.LiveSetting.QualitySec, Asic2WChar(LiveParam.LiveSetting.X264PresetSec).c_str(), false, colorDesc, LiveParam.LiveSetting.VideoBitRateSec, LiveParam.LiveSetting.VideoBitRateSec, false, 1);
 
@@ -1771,7 +1790,7 @@ void CInstanceProcess::StartLive(bool bRecordOnly)
 		}
 		PushURL0 = URL.Left(iLoop + 1);
 
-		if (PushPath0.IsEmpty())
+		if (PushURL0.IsEmpty())
 		{
 			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Error occur", __FUNCTION__);
 			BUTEL_THORWERROR("PushURL为空");
@@ -1993,8 +2012,257 @@ void CInstanceProcess::SetParam(const SLiveParam *Param)
 		{
 			bReBulidAudio = true;
 		}
+		//判断推流地址是否更改
+
+		if (IsLiveInstance && bStartLive)
+		{
+			do 
+			{
+				if (0 != strcmp(LiveParam.LiveSetting.LivePushUrl, Param->LiveSetting.LivePushUrl))
+				{
+					//主推流地址改变
+
+					String URL = Asic2WChar(Param->LiveSetting.LivePushUrl).c_str();
+
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 推流过程中主直播的主推流地址改变为 %s 原来地址 %s", __FUNCTION__, Param->LiveSetting.LivePushUrl, LiveParam.LiveSetting.LivePushUrl);
+
+					if (URL.IsEmpty())
+					{
+						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Param->LiveSetting.LivePushUrl empty", __FUNCTION__);
+						break;
+					}
+
+
+					int Len = URL.Length();
+					TSTR StrUrl = URL.Array() + Len - 1;
+					int iLoop = Len - 1;
+					while (iLoop <= Len - 1 && iLoop >= 0 && *StrUrl != '\0')
+					{
+						if (*StrUrl == '/')
+						{
+							break;
+						}
+						--iLoop;
+						--StrUrl;
+					}
+
+					PushPath0 = URL.Right(Len - iLoop - 1);
+					if (PushPath0.IsEmpty())
+					{
+						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushPath0 empty", __FUNCTION__);
+						break;
+					}
+					PushURL0 = URL.Left(iLoop + 1);
+
+					if (PushURL0.IsEmpty())
+					{
+						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushURL0 empty", __FUNCTION__);
+						break;
+					}
+
+					EnterCriticalSection(&NetWorkSection);
+
+					if (network)
+						network->ReConnectPuhlisher(L"Publish0");
+
+					LeaveCriticalSection(&NetWorkSection);
+
+				}
+			} while (0);
+			
+
+			if (Param->LiveSetting.bUseBackPush)
+			{
+				do
+				{
+					if (0 != strcmp(LiveParam.LiveSetting.LivePushUrlSec, Param->LiveSetting.LivePushUrlSec))
+					{
+						//主推流次流地址改变
+
+						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 推流过程中主直播的次推流地址改变为 %s 原来地址 %s", __FUNCTION__, Param->LiveSetting.LivePushUrlSec, LiveParam.LiveSetting.LivePushUrlSec);
+
+						String URL = Asic2WChar(Param->LiveSetting.LivePushUrlSec).c_str();
+
+						if (URL.IsEmpty())
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Param->LiveSetting.LivePushUrlSec empty", __FUNCTION__);
+							break;
+						}
+
+						int Len = URL.Length();
+						TSTR StrUrl = URL.Array() + Len - 1;
+						int iLoop = Len - 1;
+						while (iLoop <= Len - 1 && iLoop >= 0 && *StrUrl != '\0')
+						{
+							if (*StrUrl == '/')
+							{
+								break;
+							}
+							--iLoop;
+							--StrUrl;
+						}
+
+						PushPath1 = URL.Right(Len - iLoop - 1);
+
+						if (PushPath1.IsEmpty())
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushPath1 empty", __FUNCTION__);
+							break;
+						}
+
+						PushURL1 = URL.Left(iLoop + 1);
+
+						if (PushURL1.IsEmpty())
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushURL1 empty", __FUNCTION__);
+							break;
+						}
+
+						EnterCriticalSection(&NetWorkSection);
+
+						if (network)
+							network->ReConnectPuhlisher(L"Publish1");
+
+						LeaveCriticalSection(&NetWorkSection);
+
+					}
+				} while (0);
+
+			}
+
+			if (Param->LiveSetting.bUseLiveSec)
+			{
+				if (Param->LiveSetting.bUsePushSec)
+				{
+					do 
+					{
+						if (0 != strcmp(LiveParam.LiveSetting.LiveBackPushUrl, Param->LiveSetting.LiveBackPushUrl))
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 推流过程中次直播的主推流地址改变为 %s 原来地址 %s", __FUNCTION__, Param->LiveSetting.LiveBackPushUrl, LiveParam.LiveSetting.LiveBackPushUrl);
+							String URL = Asic2WChar(Param->LiveSetting.LiveBackPushUrl).c_str();
+
+							if (URL.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Param->LiveSetting.LiveBackPushUrl empty", __FUNCTION__);
+								break;
+							}
+
+							int Len = URL.Length();
+							TSTR StrUrl = URL.Array() + Len - 1;
+							int iLoop = Len - 1;
+							while (iLoop <= Len - 1 && iLoop >= 0 && *StrUrl != '\0')
+							{
+								if (*StrUrl == '/')
+								{
+									break;
+								}
+								--iLoop;
+								--StrUrl;
+							}
+
+							PushPath0_back = URL.Right(Len - iLoop - 1);
+
+							if (PushPath0_back.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushPath0_back empty", __FUNCTION__);
+								break;
+							}
+
+							PushURL0_back = URL.Left(iLoop + 1);
+
+
+							if (PushURL0_back.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushURL0_back empty", __FUNCTION__);
+								break;
+							}
+
+							EnterCriticalSection(&NetWorkSection_back);
+
+							if (network_back)
+								network_back->ReConnectPuhlisher(L"Publish0");
+
+							LeaveCriticalSection(&NetWorkSection_back);
+						}
+					} while (0);
+					
+				}
+
+				if (Param->LiveSetting.bUseBackPushSec)
+				{
+					do 
+					{
+						if (0 != strcmp(LiveParam.LiveSetting.LiveBackPushUrlSec, Param->LiveSetting.LiveBackPushUrlSec))
+						{
+
+							Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 推流过程中次直播的次推流地址改变为 %s 原来地址 %s", __FUNCTION__, Param->LiveSetting.LiveBackPushUrlSec, LiveParam.LiveSetting.LiveBackPushUrlSec);
+
+							String URL = Asic2WChar(Param->LiveSetting.LiveBackPushUrlSec).c_str();
+
+							if (URL.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! Param->LiveSetting.LiveBackPushUrlSec empty", __FUNCTION__);
+								break;
+							}
+
+							int Len = URL.Length();
+							TSTR StrUrl = URL.Array() + Len - 1;
+							int iLoop = Len - 1;
+							while (iLoop <= Len - 1 && iLoop >= 0 && *StrUrl != '\0')
+							{
+								if (*StrUrl == '/')
+								{
+									break;
+								}
+								--iLoop;
+								--StrUrl;
+							}
+
+							PushPath1_back = URL.Right(Len - iLoop - 1);
+
+							if (PushPath1_back.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushPath1_back empty", __FUNCTION__);
+								break;
+							}
+
+							PushURL1_back = URL.Left(iLoop + 1);
+
+							if (PushURL1_back.IsEmpty())
+							{
+								Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! PushURL1_back empty", __FUNCTION__);
+								break;
+							}
+
+							EnterCriticalSection(&NetWorkSection_back);
+
+							if (network_back)
+								network_back->ReConnectPuhlisher(L"Publish1");
+
+							LeaveCriticalSection(&NetWorkSection_back);
+						}
+
+					} while (0);
+					
+				}
+
+			}
+
+		}
 
 		memcpy(&LiveParam.LiveSetting, &Param->LiveSetting, sizeof LiveSettingParam);
+
+		if (LiveParam.LiveSetting.VideoBitRate > 100000)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRate  过大 %d,设置为100000", __FUNCTION__, LiveParam.LiveSetting.VideoBitRate);
+			LiveParam.LiveSetting.VideoBitRate = 100000;
+		}
+
+		if (LiveParam.LiveSetting.VideoBitRateSec > 100000)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRateSec  过大 %d,设置为100000", __FUNCTION__, LiveParam.LiveSetting.VideoBitRateSec);
+			LiveParam.LiveSetting.VideoBitRateSec = 100000;
+		}
 
 		if (LiveParam.LiveSetting.FPS <= 0)
 		{
@@ -2015,23 +2283,35 @@ void CInstanceProcess::SetParam(const SLiveParam *Param)
 
 		if (bChange)
 		{
-// 			baseCX = LiveParam.LiveSetting.Width;
-// 			baseCY = LiveParam.LiveSetting.Height;
-// 
-// 			baseCX = MIN(MAX(baseCX, 128), 4096);
-// 			baseCY = MIN(MAX(baseCY, 128), 4096);
-// 
-// 			scaleCX = double(baseCX);
-// 			scaleCY = double(baseCY);
-// 
-// 			outputCX = scaleCX & 0xFFFFFFFC;
-// 			outputCY = scaleCY & 0xFFFFFFFE;
-// 
-// 			if (LiveParam.LiveSetting.bUseLiveSec)
-// 			{
-// 				outputCX_back = LiveParam.LiveSetting.WidthSec & 0xFFFFFFFC;
-// 				outputCY_back = LiveParam.LiveSetting.HeightSec & 0xFFFFFFFE;
-// 			}
+
+			if (IsLiveInstance)
+			{
+				int MaxWidth = LiveParam.LiveSetting.Width;
+				int MaxHeight = LiveParam.LiveSetting.Height;
+				if (LiveParam.LiveSetting.bUseLiveSec && (LiveParam.LiveSetting.WidthSec > LiveParam.LiveSetting.Width))
+				{
+					MaxWidth = LiveParam.LiveSetting.WidthSec;
+					MaxHeight = LiveParam.LiveSetting.HeightSec;
+				}
+
+				EnterCriticalSection(&VideoSection);
+
+				for (int i = 0; i < m_VideoList.Num(); ++i)
+				{
+					VideoStruct &OneVideo = m_VideoList[i];
+
+					if (0 == strcmp(OneVideo.VideoStream->GainClassName(), "AgentSource"))
+					{
+						OneVideo.pos.x = MaxWidth * OneVideo.pos.x / baseCX;
+						OneVideo.pos.y = MaxHeight * OneVideo.pos.y / baseCY;
+						OneVideo.size.x = MaxWidth * OneVideo.size.x / baseCX;
+						OneVideo.size.y = MaxHeight * OneVideo.size.y / baseCY;
+					}
+				}
+
+				LeaveCriticalSection(&VideoSection);
+
+			}
 
 			bReBulid = true;
 		}
@@ -2561,6 +2841,12 @@ void CInstanceProcess::ProcessRecord(CSampleData *Data)
 				if (fileStream)
 					fileStream.reset();
 
+				if (RecordBitRate > 100000)
+				{
+					Log::writeError(LOG_RTSPSERV, 1, "%s RecordBitRate 过大 %d,设置为100000", __FUNCTION__,RecordBitRate);
+					RecordBitRate = 100000;
+				}
+
 				RecordFPS = 10000000.0 / (*Data->UserData)["frameInterval"].asUInt();
 
 				if (IsSupportRecord(L"NVIDIA"))
@@ -3035,6 +3321,14 @@ void CInstanceProcess::StopRecord()
 		LeaveCriticalSection(&NetWorkSection);
 
 		StopLive(false);
+
+		if (videoEncoder)
+			delete videoEncoder;
+		videoEncoder = NULL;
+
+		if (audioEncoder)
+			delete audioEncoder;
+		audioEncoder = NULL;
 	}
 }
 

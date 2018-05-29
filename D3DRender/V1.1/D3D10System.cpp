@@ -24,9 +24,12 @@ static void HandleNvidiaOptimus(IDXGIFactory1 *factory, IDXGIAdapter1 *&adapter,
                 adapter->Release();
 
                 adapterID = 0;
-				Log((const TCHAR*)L"Nvidia optimus detected, second adapter selected, ignoring useless second adapter, I guess.");
-                if(FAILED(factory->EnumAdapters1(adapterID, &adapter)))
-                    CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"));
+				Log::writeMessage(LOG_RTSPSERV,1,"Nvidia optimus detected, second adapter selected, ignoring useless second adapter, I guess.");
+				if (FAILED(factory->EnumAdapters1(adapterID, &adapter)))
+				{
+					Log::writeError(LOG_RTSPSERV,1,"无法获取显卡，请检查显卡设置！");
+					CrashError(TEXT("无法获取显卡，请检查显卡设置！"));
+				}
             }
         }
     }
@@ -367,7 +370,10 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 #endif
 
 	if (FAILED(err = CreateDXGIFactory1(iidVal, (void**)&factory)))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Could not create DXGI factory");
 		CrashError(TEXT("Could not create DXGI factory"));
+	}
 
 	UINT numAdapters = 0, i = 0;
 	IDXGIAdapter1 *giAdapter;
@@ -379,13 +385,16 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	if (adapterID >= numAdapters)
 	{
-		Log(TEXT("Invalid adapter id %d, only %d adapters on system. Resetting to 0."), adapterID, numAdapters);
+		Log::writeMessage(LOG_RTSPSERV, 1, "Invalid adapter id %d, only %d adapters on system. Resetting to 0.", adapterID, numAdapters);
 		adapterID = 0;
 	}
 
 	IDXGIAdapter1 *adapter;
 	if (FAILED(err = factory->EnumAdapters1(adapterID, &adapter)))
-		CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"), 0);
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "无法获取显卡 %d，请检查显卡设置！", adapterID);
+		CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"), adapterID);
+	}
 
 	HandleNvidiaOptimus(factory, adapter, adapterID);
 
@@ -415,12 +424,35 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	adapterName.KillSpaces();
 
-	Log(TEXT("---adapterName %s---"), adapterName.Array());
+	if (adapterName.CompareI(L"Microsoft Basic Render Driver"))
+	{
+		adapter->Release();
+		adapterID = 0;
+
+		if (FAILED(err = factory->EnumAdapters1(adapterID, &adapter)))
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "无法获取显卡 %d，请检查显卡设置！", adapterID);
+			CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"), adapterID);
+		}
+
+		HandleNvidiaOptimus(factory, adapter, adapterID);
+
+		if (adapter->GetDesc(&desc) == S_OK)
+			adapterName = desc.Description;
+		else
+			adapterName = TEXT("<unknown>");
+
+		adapterName.KillSpaces();
+
+		Log::writeMessage(LOG_RTSPSERV, 1, "Microsoft Basic Render Driver Replace by adapter 0, only %d adapters on system.", numAdapters);
+	}
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "---adapterName %s---", Wchar2Ansi(adapterName.Array()).c_str());
 
 	err = D3D11CreateDeviceAndSwapChain(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, createFlags, featureLevels, sizeof(featureLevels) / sizeof(featureLevels[0]), D3D11_SDK_VERSION, &swapDesc, &swap, &d3d, &level, &context);
 	if (FAILED(err))
 	{
-		Log(TEXT("D3D11CreateDeviceAndSwapChain: Failed on %s: 0x%08x"), adapterName.Array(), err);
+		Log::writeError(LOG_RTSPSERV, 1, "D3D11CreateDeviceAndSwapChain: Failed on %s: 0x%08x", Wchar2Ansi(adapterName.Array()).c_str(), err);
 		CrashError(TEXT("Could not initialize DirectX 11 on %s.  This error can happen for one of the following reasons:\r\n\r\n1.) Your GPU is not supported (DirectX 11 is required - note that many integrated laptop GPUs do not support DX11)\r\n2.) You're running Windows Vista without the \"Platform Update\"\r\n3.) Your video card drivers are out of date\r\n\r\nIf you are using a laptop with NVIDIA Optimus or AMD Switchable Graphics, make sure BLive is set to run on the high performance GPU in your driver settings."), adapterName.Array());
 	}
 
@@ -432,7 +464,10 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	err = d3d->CreateDepthStencilState(&depthDesc, &depthState);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV,1,"Unable to create depth state");
 		CrashError(TEXT("Unable to create depth state"));
+	}
 
 	context->OMSetDepthStencilState(depthState, 0);
 
@@ -445,7 +480,10 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	err = d3d->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV,1,"Unable to create rasterizer state");
 		CrashError(TEXT("Unable to create rasterizer state"));
+	}
 
 	context->RSSetState(rasterizerState);
 
@@ -453,17 +491,26 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	err = d3d->CreateRasterizerState(&rasterizerDesc, &scissorState);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to create scissor state");
 		CrashError(TEXT("Unable to create scissor state"));
+	}
 
 
 	ID3D11Texture2D *backBuffer = NULL;
 	err = swap->GetBuffer(0, IID_ID3D11Texture2D, (void**)&backBuffer);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to get back buffer from swap chain");
 		CrashError(TEXT("Unable to get back buffer from swap chain"));
+	}
 
 	err = d3d->CreateRenderTargetView(backBuffer, NULL, &swapRenderView);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to get render view from back buffer");
 		CrashError(TEXT("Unable to get render view from back buffer"));
+	}
 
 	backBuffer->Release();
 
@@ -484,7 +531,10 @@ void D3D10System::initD3D(UINT renderFrameWidth, UINT renderFrameHeight, HWND hw
 
 	err = d3d->CreateBlendState(&disabledBlendDesc, &disabledBlend);
 	if (FAILED(err))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to create disabled blend state");
 		CrashError(TEXT("Unable to create disabled blend state"));
+	}
 
 	this->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
 	bPreBlendEnabled = true;
@@ -511,7 +561,10 @@ void D3D10System::initD3D(UINT adapterID)
 #endif
 
 	if (FAILED(err = CreateDXGIFactory1(iidVal, (void**)&factory)))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "Could not create DXGI factory");
 		CrashError(TEXT("Could not create DXGI factory"));
+	}
 
 	UINT numAdapters = 0, i = 0;
 	IDXGIAdapter1 *giAdapter;
@@ -523,13 +576,16 @@ void D3D10System::initD3D(UINT adapterID)
 
 	if (adapterID >= numAdapters)
 	{
-		Log(TEXT("Invalid adapter id %d, only %d adapters on system. Resetting to 0."), adapterID, numAdapters);
+		Log::writeError(LOG_RTSPSERV, 1, "Invalid adapter id %d, only %d adapters on system. Resetting to 0.", adapterID, numAdapters);
 		adapterID = 0;
 	}
 
 	IDXGIAdapter1 *adapter;
 	if (FAILED(err = factory->EnumAdapters1(adapterID, &adapter)))
-		CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"), 0);
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "无法获取显卡 %d，请检查显卡设置！",adapterID);
+		CrashError(TEXT("无法获取显卡 %d，请检查显卡设置！"), adapterID);
+	}
 
 	HandleNvidiaOptimus(factory, adapter, adapterID);
 
@@ -548,12 +604,10 @@ void D3D10System::initD3D(UINT adapterID)
 
 	adapterName.KillSpaces();
 
-	Log(TEXT("---adapterName %s---"), adapterName.Array());
-
 	err = D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, createFlags, featureLevels, sizeof(featureLevels) / sizeof(featureLevels[0]), D3D11_SDK_VERSION, &d3d, &level, &context);
 	if (FAILED(err))
 	{
-		Log(TEXT("D3D11CreateDeviceAndSwapChain: Failed on %s: 0x%08x"), adapterName.Array(), err);
+		Log::writeError(LOG_RTSPSERV, 1, "D3D11CreateDeviceAndSwapChain: Failed on %s: 0x%08x", Wchar2Ansi(adapterName.Array()).c_str(), err);
 		CrashError(TEXT("Could not initialize DirectX 11 on %s.  This error can happen for one of the following reasons:\r\n\r\n1.) Your GPU is not supported (DirectX 11 is required - note that many integrated laptop GPUs do not support DX11)\r\n2.) You're running Windows Vista without the \"Platform Update\"\r\n3.) Your video card drivers are out of date\r\n\r\nIf you are using a laptop with NVIDIA Optimus or AMD Switchable Graphics, make sure BLive is set to run on the high performance GPU in your driver settings."), adapterName.Array());
 	}
 
@@ -565,7 +619,10 @@ void D3D10System::initD3D(UINT adapterID)
 
 	err = d3d->CreateDepthStencilState(&depthDesc, &depthState);
 	if (FAILED(err))
+	{
+		Log::writeMessage(LOG_RTSPSERV,1,"Unable to create depth state");
 		CrashError(TEXT("Unable to create depth state"));
+	}
 
 	context->OMSetDepthStencilState(depthState, 0);
 
@@ -578,7 +635,10 @@ void D3D10System::initD3D(UINT adapterID)
 
 	err = d3d->CreateRasterizerState(&rasterizerDesc, &rasterizerState);
 	if (FAILED(err))
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to create rasterizer state");
 		CrashError(TEXT("Unable to create rasterizer state"));
+	}
 
 	context->RSSetState(rasterizerState);
 
@@ -586,7 +646,10 @@ void D3D10System::initD3D(UINT adapterID)
 
 	err = d3d->CreateRasterizerState(&rasterizerDesc, &scissorState);
 	if (FAILED(err))
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to create scissor state");
 		CrashError(TEXT("Unable to create scissor state"));
+	}
 
 	D3D11_BLEND_DESC disabledBlendDesc;
 	zero(&disabledBlendDesc, sizeof(disabledBlendDesc));
@@ -604,7 +667,10 @@ void D3D10System::initD3D(UINT adapterID)
 
 	err = d3d->CreateBlendState(&disabledBlendDesc, &disabledBlend);
 	if (FAILED(err))
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to create disabled blend state");
 		CrashError(TEXT("Unable to create disabled blend state"));
+	}
 
 	this->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
 	bPreBlendEnabled = true;
@@ -650,7 +716,7 @@ void D3D10System::SetRenderTarget(Texture *texture)
 			ID3D11RenderTargetView *view = static_cast<D3D10Texture*>(texture)->renderTarget;
 			if (!view)
 			{
-				AppWarning(TEXT("tried to set a texture that wasn't a render target as a render target"));
+				Log::writeMessage(LOG_RTSPSERV, 1, "tried to set a texture that wasn't a render target as a render target");
 				return;
 			}
 			context->OMSetRenderTargets(1, &view, NULL);
@@ -672,7 +738,7 @@ void D3D10System::SetRenderTarget(Texture *texture)
 			ID3D11RenderTargetView *view = static_cast<D3D10Texture*>(texture)->renderTarget;
 			if (!view)
 			{
-				AppWarning(TEXT("tried to set a texture that wasn't a render target as a render target"));
+				Log::writeMessage(LOG_RTSPSERV, 1, "tried to set a texture that wasn't a render target as a render target");
 				return;
 			}
 			context->OMSetRenderTargets(1, &view, NULL);
@@ -686,17 +752,17 @@ void D3D10System::Draw(GSDrawMode drawMode, DWORD startVert, DWORD nVerts)
 {
     if(!curVertexBuffer)
     {
-        AppWarning(TEXT("Tried to call draw without setting a vertex buffer"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Tried to call draw without setting a vertex buffer");
         return;
     }
     if(!curVertexShader)
     {
-        AppWarning(TEXT("Tried to call draw without setting a vertex shader"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Tried to call draw without setting a vertex shader");
         return;
     }
     if(!curPixelShader)
     {
-        AppWarning(TEXT("Tried to call draw without setting a pixel shader"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Tried to call draw without setting a pixel shader");
         return;
     }
     curVertexShader->SetMatrix(curVertexShader->GetViewProj(), curViewProjMatrix);
@@ -768,8 +834,11 @@ void D3D10System::BlendFunction(GSBlendType srcFactor, GSBlendType destFactor, f
     savedBlend->destFactor      = destFactor;
     savedBlend->srcFactor       = srcFactor;
 
-    if(FAILED(d3d->CreateBlendState(&blendDesc, &savedBlend->blendState)))
-        CrashError(TEXT("Could not set blend state"));
+	if (FAILED(d3d->CreateBlendState(&blendDesc, &savedBlend->blendState)))
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "Could not set blend state");
+		CrashError(TEXT("Could not set blend state"));
+	}
 
 	if (bPreBlendEnabled)
         context->OMSetBlendState(savedBlend->blendState, curBlendFactor, 0xFFFFFFFF);
@@ -842,7 +911,7 @@ void D3D10System::DrawSpriteExRotate(Texture *texture, DWORD color, float x, flo
 
     if(!texture)
     {
-        AppWarning(TEXT("Trying to draw a sprite with a NULL texture"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Trying to draw a sprite with a NULL texture");
         return;
     }
 
@@ -1037,7 +1106,7 @@ HRESULT D3D10System::Map(Texture *tex, BYTE *&lpData, UINT &pitch, D3D11_MAP map
 	D3D10Texture *d3d10Tex = static_cast<D3D10Texture*>(tex);
 	if (FAILED(err = context->Map(d3d10Tex->texture, 0, map_type, 0, &map)))
     {
-        AppWarning(TEXT("D3D10Texture::Map: map failed, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::Map: map failed, result = %08lX", err);
         return err;
     }
 	lpData = (BYTE*)map.pData;
@@ -1101,12 +1170,37 @@ void CopyPackedRGB(BYTE *lpDest, BYTE *lpSource, UINT nPixels)
 	}
 }
 
+
+std::string Wchar2Ansi(const std::wstring& strSrc)
+{
+	if (strSrc.empty())
+	{
+		return 0;
+	}
+
+	int nSize = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR)strSrc.c_str(), (int)strSrc.length(), 0, 0, NULL, NULL);
+	char *Tem = new char[nSize + 1];
+	if (!Tem)
+	{
+		return "";
+	}
+	WideCharToMultiByte(CP_ACP, 0, (LPCWSTR)strSrc.c_str(), (int)strSrc.length(), Tem, nSize, NULL, NULL);
+	Tem[nSize] = 0;
+
+	std::string Ret = Tem;
+
+	delete[] Tem;
+
+	return Ret;
+}
+
+
 void D3D10System::SetImage(Texture* tex, void *lpData, GSImageFormat imageFormat, UINT pitch)
 {
 	D3D10Texture *d3d10Tex = static_cast<D3D10Texture*>(tex);
 	if (!d3d10Tex->bDynamic)
     {
-        AppWarning(TEXT("3D11Texture::SetImage: cannot call on a non-dynamic texture"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "3D11Texture::SetImage: cannot call on a non-dynamic texture");
         return;
     }
 
@@ -1126,14 +1220,14 @@ void D3D10System::SetImage(Texture* tex, void *lpData, GSImageFormat imageFormat
 
     if(!bMatchingFormat)
     {
-        AppWarning(TEXT("D3D10Texture::SetImage: invalid or mismatching image format specified"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::SetImage: invalid or mismatching image format specified");
         return;
     }
     HRESULT err;
     D3D11_MAPPED_SUBRESOURCE map;
 	if (FAILED(err = context->Map(d3d10Tex->texture, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
     {
-        AppWarning(TEXT("D3D10Texture::SetImage: map failed, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::SetImage: map failed, result = %08lX", err);
         return;
     }
 
@@ -1184,18 +1278,18 @@ bool D3D10System::GetTextureDC(Texture* tex, HDC &hDC)
 	D3D10Texture *d3d10Tex = static_cast<D3D10Texture*>(tex);
     if(!d3d10Tex->bGDICompatible)
     {
-        AppWarning(TEXT("D3D10Texture::GetDC: function was called on a non-GDI-compatible texture"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::GetDC: function was called on a non-GDI-compatible texture");
         return false;
     }
     HRESULT err;
 	if (FAILED(err = d3d10Tex->texture->QueryInterface(__uuidof(IDXGISurface1), (void**)&d3d10Tex->surface)))
     {
-        AppWarning(TEXT("D3D10Texture::GetDC: could not query surface interface, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::GetDC: could not query surface interface, result = %08lX", err);
         return false;
     }
 	if (FAILED(err = d3d10Tex->surface->GetDC(TRUE, &hDC)))
     {
-        AppWarning(TEXT("D3D10Texture::GetDC: could not get DC, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::GetDC: could not get DC, result = %08lX", err);
 		SafeRelease(d3d10Tex->surface);
         return false;
     }
@@ -1207,7 +1301,7 @@ void  D3D10System::ReleaseTextureDC(Texture* tex)
 	D3D10Texture *d3d10Tex = static_cast<D3D10Texture*>(tex);
     if(!d3d10Tex->surface)
     {
-        AppWarning(TEXT("D3D10Texture::ReleaseDC: no DC to release"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Texture::ReleaseDC: no DC to release");
         return;
     }
 	d3d10Tex->surface->ReleaseDC(NULL);
@@ -1260,17 +1354,17 @@ Texture * D3D10System::CreateRenderTargetSwapChain(HWND Hwnd, UINT Width, UINT H
 	IDXGISwapChain *Swap = NULL;
 
 	if (FAILED(factory->CreateSwapChain(d3d, &swapDesc, &Swap))) {
-		AppWarning(L"Could not create projector swap chain");
+		Log::writeMessage(LOG_RTSPSERV, 1, "Could not create projector swap chain");
 		goto exit;
 	}
 
 	if (FAILED(Swap->GetBuffer(0, IID_ID3D11Texture2D, (void**)&backBuffer))) {
-		AppWarning(TEXT("Unable to get projector back buffer"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to get projector back buffer");
 		goto exit;
 	}
 
 	if (FAILED(d3d->CreateRenderTargetView(backBuffer, NULL, &target))) {
-		AppWarning(TEXT("Unable to get render view from projector back buffer"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to get render view from projector back buffer");
 		goto exit;
 	}
 

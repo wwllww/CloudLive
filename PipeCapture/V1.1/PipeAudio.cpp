@@ -33,6 +33,16 @@ PipeAudioSource::PipeAudioSource()
 	fVolume = 1.0f;
 }
 
+
+void PipeAudioSource::AdjustTimeStamp(int OffSetTime)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "LINE:%d,FUNC:%s 开始调整时戳 offset = %d", __LINE__, __FUNCTION__, OffSetTime);
+	for (UINT i = 0; i < audioSegments.Num(); ++i)
+	{
+		audioSegments[i]->timestamp += OffSetTime;
+	}
+}
+
 bool PipeAudioSource::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp)
 {
     if(sampleBuffer.Num() >= sampleSegmentSize)
@@ -59,6 +69,15 @@ bool PipeAudioSource::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *times
 		}
 		else {
 			*timestamp = lastTimestamp + 10;
+
+			if (*timestamp - LastTimeTimeStamp > 150)
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, "LINE:%d,FUNC:%s 音频时戳偏离基准时钟过大diff =  %llu,开始调整音频时戳列表", __LINE__, __FUNCTION__, *timestamp - LastTimeTimeStamp);
+
+				AdjustTimeStamp(-(int)(*timestamp - (LastTimeTimeStamp + 50)));//调整到LastTimeTimeStamp + 50
+
+				*timestamp = LastTimeTimeStamp + 50;
+			}
 		}
 		//Log(TEXT("hhhhhhhBLiveGetAudioTime() = %llu,*timestamp = %llu"), BLiveGetAudioTime(), *timestamp);
 		lastTimestamp = *timestamp;
@@ -94,6 +113,7 @@ bool PipeAudioSource::Initialize(PipeVideo *parent, const AudioParam& param)
 	Times = 0;
 	LimitGetData = 0;
 	m_PipeVideo = parent;
+	lastTimestamp = 0;
 
 	if (!hAudioMutex)
 	{

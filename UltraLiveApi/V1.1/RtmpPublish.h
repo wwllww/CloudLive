@@ -244,9 +244,10 @@ public:
 	QWORD GetCurrentSentBytes();
 	DWORD NumDroppedFrames() const;
 	DWORD NumTotalVideoFrames() const { return totalVideoFrames; }
-
+	String GetPrefix() const;
 	bool GetLastError();
 	virtual RTMPPublisher* Clone();
+	virtual RTMPPublisher* CloneWithNoDelayConnect();
 	int GetIndex()
 	{
 		return m_index;

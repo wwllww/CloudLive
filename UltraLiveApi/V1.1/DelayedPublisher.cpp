@@ -317,6 +317,21 @@ public:
 		return publisher;
 	}
 
+	RTMPPublisher* CloneWithNoDelayConnect()
+	{
+		DelayedPublisher* publisher = new DelayedPublisher(delayTime, Prefix, __Instances, bUseBack);
+		publisher->bDelayConnected = true;
+
+		publisher->delayedPackets.TransferFrom(delayedPackets);
+
+		if (mDestroy == false)
+		{
+			Destructor();
+		}
+
+		return publisher;
+	}
+
     void RequestKeyframe(int waitTime) {}
 };
 

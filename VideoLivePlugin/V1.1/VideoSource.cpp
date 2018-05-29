@@ -63,13 +63,12 @@ static void VolumeCaculate(char *Dest, char* buf, UINT32 size, double vol)//bufŒ
 /* Output:   input */
 /* Algorithm:   add */
 /****************************************************/
-#define SHADER_PATH TEXT("shaders/")
 
 IMPLEMENT_DYNIC(VideoLiveSource, "÷±≤•‘¥", "1.0.0.1");
 
 VideoLiveSource::VideoLiveSource(Value& data)
 {
-    Log(TEXT("LINE : %d, FUNC : %s ,Using FFmpeg Live Video Source"),__LINE__,String(__FUNCTION__).Array());
+    Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Using FFmpeg Live Video Source"),__LINE__,__FUNCTION__);
 	colorType = DeviceOutputType_I420;
 	HMediaProcess = mp_create(3); //create sync! 
 	m_StatusStream = STOP_STREAM;
@@ -113,7 +112,7 @@ VideoLiveSource::VideoLiveSource(Value& data)
 
 VideoLiveSource::VideoLiveSource()
 {
-	Log(TEXT("LINE : %d, FUNC : %s ,Using FFmpeg Live Video Source"), __LINE__, String(__FUNCTION__).Array());
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Using FFmpeg Live Video Source"), __LINE__, __FUNCTION__);
 	colorType = DeviceOutputType_I420;
 	HMediaProcess = mp_create(3); //create sync! 
 	m_StatusStream = STOP_STREAM;
@@ -163,22 +162,22 @@ VideoLiveSource::~VideoLiveSource()
 	if (H264_AAC_STREAM == m_StatusStream) {         //µ±«∞’˝¥¶‘⁄ª∫≥Â¬Î¡˜
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hH264AACBufferEvent);
-		Log(TEXT("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = H264_AAC_STREAM, This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = H264_AAC_STREAM, This =0x%p"), __LINE__, __FUNCTION__, this);
 	}
 	else if (YUV_STREAM == m_StatusStream) {          //µ±«∞’˝¥¶‘⁄ª∫≥ÂYUV
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hYUVBufferEvent);
-		Log(TEXT("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = YUV_STREAM, This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = YUV_STREAM, This =0x%p"), __LINE__, __FUNCTION__, this);
 	}
 	else if (PCM_STREAM == m_StatusStream) {         //µ±«∞’˝¥¶‘⁄ª∫≥ÂPCM
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hPCMBufferEvent);
-		Log(TEXT("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = PCM_STREAM, This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = PCM_STREAM, This =0x%p"), __LINE__, __FUNCTION__, this);
 	}
 	else if (PLAY_STREAM == m_StatusStream || STOP_STREAM == m_StatusStream) {
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hUpdataEvent);
-		Log(TEXT("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = STOP_STREAM or PLAY_STREAM, This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s  VideoSource Live Destructor,status = STOP_STREAM or PLAY_STREAM, This =0x%p"), __LINE__, __FUNCTION__, this);
 	}
 
 	SetEvent(m_hRenderSleepEvent);
@@ -187,13 +186,13 @@ VideoLiveSource::~VideoLiveSource()
 	{
 		WaitForSingleObject(m_SyncThread, INFINITE);
 		{
-			Log(TEXT("LINE : %d, FUNC : %s VideoSource Release SyncThread Success!This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s VideoSource Release SyncThread Success!This =0x%p"), __LINE__, __FUNCTION__, this);
 		}
 	}
 	
 	WaitForSingleObject(m_MonitorThread, INFINITE);
 	{
-		Log(TEXT("LINE : %d, FUNC : %s VideoSource Release MonitorThread Success!This =0x%p"), __LINE__, String(__FUNCTION__).Array(), this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s VideoSource Release MonitorThread Success!This =0x%p"), __LINE__, __FUNCTION__, this);
 	}
   
 	if (m_hUpdataEvent)
@@ -269,7 +268,7 @@ bool VideoLiveSource::Init(Value &JsonParam)
 
 void VideoLiveSource::StartMonitor()
 {
-	Log(TEXT("LINE : %d, FUNC : %s ,MonitorThread Start!"), __LINE__, String(__FUNCTION__).Array());
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,MonitorThread Start!"), __LINE__, __FUNCTION__);
 	m_MonitorThread = OSCreateThread((XTHREAD)VideoLiveSource::MonitorThread, this);
 }
 unsigned VideoLiveSource::VideoFormatCallback(
@@ -515,7 +514,7 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 	
 	if (status != 0)
 	{
-		Log(TEXT("LINE: %d, FUNC:%s, Decoder Retrun error ! ThreadID = %dThis =0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), ctx);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, Decoder Retrun error ! ThreadID = %dThis =0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), ctx);
 		mp_release_frame(&frame);
 		return;
 	}
@@ -530,7 +529,7 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 			
 			if (This_->m_width != pMPFrameInfo->width || This_->m_height != pMPFrameInfo->height)
 			{
-				/*Log(TEXT("This_->m_width = %d, pMPFrameInfo->width = %d,This_->m_height = %d,pMPFrameInfo->height = %d"),
+				/*Log::writeMessage(LOG_RTSPSERV, 1, ("This_->m_width = %d, pMPFrameInfo->width = %d,This_->m_height = %d,pMPFrameInfo->height = %d"),
 					This_->m_width, pMPFrameInfo->width, This_->m_height, pMPFrameInfo->height);*/
 				mp_release_frame(&frame);
 				return;
@@ -585,12 +584,12 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 			
 			videoSample->timestamp = pMPFrameInfo->pts;
 			if (This_->m_StatusStream == YUV_STREAM) {
-			//	Log(TEXT("LINE : %d, FUNC : %s ,iLastVideoPts = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), pMPFrameInfo->pts,This_);
+			//	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,iLastVideoPts = %d,This =0x%p"), __LINE__, __FUNCTION__, pMPFrameInfo->pts,This_);
 				This_->m_iYUVCount++;
 				if (This_->m_iYUVCount >= This_->m_pMPMediaInfo.v_frame_rate - 3)
 				{
 					This_->m_iYUVCount = 0;
-					Log(TEXT("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, String(__FUNCTION__).Array(),This_);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, __FUNCTION__,This_);
 					SetEvent(This_->m_hYUVBufferEvent);//YUVª∫≥Â«¯¬˙
 				}
 			}
@@ -601,7 +600,7 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 		else if (pMPFrameInfo->media_type == 2)//“Ù∆µ
 		{
 			
-			//Log(TEXT("LINE : %d, FUNC : %s ,audio_pts = %d"), __LINE__, String(__FUNCTION__).Array(), pMPFrameInfo->pts);
+			//Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,audio_pts = %d"), __LINE__, __FUNCTION__, pMPFrameInfo->pts);
 
 			CSampleData* videoSample = new CSampleData;
 			videoSample->bAudio = true;
@@ -614,7 +613,7 @@ void VideoLiveSource::FrameCallBackFunc(void* frame, int frame_type, const void*
 				if (This_->m_iPCMCount >= /*‘› ±œ»’‚—˘π¿À„*/This_->m_pMPMediaInfo.a_channels*This_->m_pMPMediaInfo.a_sample_rate * 2 / 4096)
 				{
 					This_->m_iPCMCount = 0;
-					Log(TEXT("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, String(__FUNCTION__).Array(),This_);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, __FUNCTION__,This_);
 					SetEvent(This_->m_hPCMBufferEvent);//PCMª∫≥Â«¯¬˙
 				}
 			}
@@ -629,7 +628,7 @@ void VideoLiveSource::SetParamCallBackFunc(int nMediatype, void* ctx)
 	VideoLiveSource * This_ = (VideoLiveSource *)(ctx);
 	if (This_->m_StatusStream != STOP_STREAM) {
 		SetEvent(This_->m_hH264AACBufferEvent);
-		Log(TEXT("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ª∫≥Â≥…π¶,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), This_);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ª∫≥Â≥…π¶,This =0x%p"), __LINE__, __FUNCTION__, This_);
 	}
 }
 
@@ -653,12 +652,12 @@ void VideoLiveSource::UpdateSettings(Value &JsonParam)
 
 		if (!strcmp(m_playPath, config->playlist[0].CreateUTF8String()) && (m_iLastBufferTime == JsonParam["bufferTime"].asInt()))
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,URL is Same retrun!This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,URL is Same retrun!m_iLastBufferTime = %d. input = %d.This =0x%p"), __LINE__, __FUNCTION__, m_iLastBufferTime,JsonParam["bufferTime"].asInt(), this);
 			return;
 		}
 		
 	}
-
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,œÏ”¶”√ªß ‰»Îœ˚œ¢!m_StatusStream = %d.This =0x%p"), __LINE__, __FUNCTION__, m_StatusStream, this);
 	if (H264_AAC_STREAM == m_StatusStream) {         //µ±«∞’˝¥¶‘⁄ª∫≥Â¬Î¡˜
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hH264AACBufferEvent);
@@ -672,6 +671,15 @@ void VideoLiveSource::UpdateSettings(Value &JsonParam)
 		SetEvent(m_hPCMBufferEvent);
 	}
 	else if (PLAY_STREAM == m_StatusStream || STOP_STREAM == m_StatusStream) {
+		/*if (m_bAllowClose && m_SyncThread)
+		{
+		Sleep(200);
+		if (m_bAllowClose)
+		{
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Œﬁ∑®œÏ”¶”√ªß ‰»Îœ˚œ¢,∑µªÿ!m_bAllowClose = %d.m_StatusStream = %d.This =0x%p"), __LINE__, __FUNCTION__, m_bAllowClose,m_StatusStream, this);
+		return;
+		}
+		}*/
 		m_StatusStream = STOP_STREAM;
 		SetEvent(m_hUpdataEvent);
 	}
@@ -689,14 +697,16 @@ void VideoLiveSource::BeginScene()
 
 	ChangeShader();
 
-	if (texture)
-	{
-		delete texture;
-		texture = nullptr;
-	}
+// 	if (texture)
+// 	{
+// 		delete texture;
+// 		texture = nullptr;
+// 	}
 	DWORD Width = 0, Heigth = 0;
-	D3DRender->GetTextureWH(texture, Width, Heigth);
-	if (!texture || Width != CallBackWidth || Heigth != CallBackHight) {
+	if (texture)
+		D3DRender->GetTextureWH(texture, Width, Heigth);
+
+	if (Width != CallBackWidth || Heigth != CallBackHight) {
 		if (texture) {
 			delete texture;
 			texture = nullptr;
@@ -778,7 +788,7 @@ bool STDCALL SleepToNS(QWORD qwNSTime)
 		//trap suspicious sleeps that should never happen
 		if (milliseconds > 10000)
 		{
-			Log(TEXT("Tried to sleep for %u seconds, that can't be right! Triggering breakpoint."), milliseconds);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("Tried to sleep for %u seconds, that can't be right! Triggering breakpoint."), milliseconds);
 			DebugBreak();
 		}
 		OSSleep(milliseconds);
@@ -795,7 +805,7 @@ bool STDCALL SleepToNS(QWORD qwNSTime)
 
 void VideoLiveSource::Synchronization()
 {
-	Log(TEXT("LINE : %d, FUNC : %s ,Synchronization Start,sleepTime = %d,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), 1000 / m_pMPMediaInfo.v_frame_rate,GetCurrentThreadId(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Synchronization Start,sleepTime = %d,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, 1000 / m_pMPMediaInfo.v_frame_rate,GetCurrentThreadId(), this);
 	int frameTimeNS = 1; //≥¨ ± ±≥§
 	int iLastVframerate = m_pMPMediaInfo.v_frame_rate;
 	UINT no_sleep_counter = 0;
@@ -825,28 +835,28 @@ void VideoLiveSource::Synchronization()
 		if (m_bAllowClose)
 		{
 			SetEvent(m_hAllowCloseEvent);
-			Log(TEXT("LINE : %d, FUNC : %s ,Ω¯»Î m_hPauseThreadEvent À¯µ»¥˝Thread = %d,This =0x%p"),
-				__LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Ω¯»Î m_hPauseThreadEvent À¯µ»¥˝Thread = %d,This =0x%p"),
+				__LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 			WaitForSingleObject(m_hPauseThreadEvent, INFINITE);
-			Log(TEXT("LINE : %d, FUNC : %s ,◊ﬂ≥ˆ m_hPauseThreadEvent À¯µ»¥˝Thread = %d,This =0x%p"),
-				__LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,◊ﬂ≥ˆ m_hPauseThreadEvent À¯µ»¥˝Thread = %d,This =0x%p"),
+				__LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 			ResetEvent(m_hPauseThreadEvent);
-			m_bAllowClose = false;
+			//m_bAllowClose = false;
 		}
 	    if (m_FirstVideoFrameTime > 0 && m_CurrentVideoFrameTime > 0)
 		{
 			m_DiffVideoFrameTime =  m_CurrentVideoFrameTime - m_FirstVideoFrameTime;
 			if (iLogIndex > 550 && iLogIndex < 560)
-				Log(TEXT("LINE : %d, FUNC : %s º∆À„ ”∆µ÷° ±º‰‘ˆ¡ø.m_CurrentVideoFrameTime = %lld,m_FirstVideoFrameTime = %lld,m_DiffVideoFrameTime = %lld.Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), m_CurrentVideoFrameTime, m_FirstVideoFrameTime, m_DiffVideoFrameTime,GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s º∆À„ ”∆µ÷° ±º‰‘ˆ¡ø.m_CurrentVideoFrameTime = %lld,m_FirstVideoFrameTime = %lld,m_DiffVideoFrameTime = %lld.Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, m_CurrentVideoFrameTime, m_FirstVideoFrameTime, m_DiffVideoFrameTime,GetCurrentThreadId(), this);
 		}
 		m_CurrentQpcTime = GetQPCNS();
 		if (m_FirstQpcTime > 0)
 		{
 			m_DiffQpcTime =  m_CurrentQpcTime - m_FirstQpcTime;
 			if (iLogIndex > 550 && iLogIndex < 560)
-				Log(TEXT("LINE : %d, FUNC : %s º∆À„ ”‰÷»æ ±º‰‘ˆ¡ø.m_CurrentQpcTime = %lld,m_FirstQpcTime = %lld.m_DiffQpcTime = %lld.Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), m_CurrentQpcTime / 1000000, m_FirstQpcTime / 1000000, m_DiffQpcTime / 1000000, GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s º∆À„ ”‰÷»æ ±º‰‘ˆ¡ø.m_CurrentQpcTime = %lld,m_FirstQpcTime = %lld.m_DiffQpcTime = %lld.Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, m_CurrentQpcTime / 1000000, m_FirstQpcTime / 1000000, m_DiffQpcTime / 1000000, GetCurrentThreadId(), this);
 		}
 
 		if (m_DiffQpcTime / 1000000 - m_DiffVideoFrameTime > 10 && !m_bResetDiffMode)  //≤ª « ±¥¡Ã¯±‰«Èøˆœ¬µƒ¥¶¿Ì
@@ -860,16 +870,16 @@ void VideoLiveSource::Synchronization()
 				frameTimeNS = frameTimeNS - (m_DiffQpcTime / 1000000 - m_DiffVideoFrameTime);
 			}
 			if (iLogIndex > 550 && iLogIndex < 560)
-				Log(TEXT("LINE : %d, FUNC : %s m_DiffQpcTime / 1000000 = %lld.m_DiffVideoFrameTime = %lld,µ˜’˚‰÷»æÀØ√ﬂ ±º‰,frameTimeNS = %d.Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), m_DiffQpcTime / 1000000, m_DiffVideoFrameTime, frameTimeNS, GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s m_DiffQpcTime / 1000000 = %lld.m_DiffVideoFrameTime = %lld,µ˜’˚‰÷»æÀØ√ﬂ ±º‰,frameTimeNS = %d.Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, m_DiffQpcTime / 1000000, m_DiffVideoFrameTime, frameTimeNS, GetCurrentThreadId(), this);
 		}
 		else if (m_DiffVideoFrameTime - m_DiffQpcTime / 1000000 > 10 && !m_bResetDiffMode)      //≤ª « ±¥¡Ã¯±‰«Èøˆœ¬µƒ¥¶¿Ì
 		{
 			
 			frameTimeNS = frameTimeNS + 10;
 			if (iLogIndex > 550 && iLogIndex < 560)
-				Log(TEXT("LINE : %d, FUNC : %s m_DiffQpcTime / 1000000 = %lld.m_DiffVideoFrameTime = %lld,µ˜’˚‰÷»æÀØ√ﬂ ±º‰,frameTimeNS = %d.Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), m_DiffQpcTime / 1000000, m_DiffVideoFrameTime, frameTimeNS, GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s m_DiffQpcTime / 1000000 = %lld.m_DiffVideoFrameTime = %lld,µ˜’˚‰÷»æÀØ√ﬂ ±º‰,frameTimeNS = %d.Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, m_DiffQpcTime / 1000000, m_DiffVideoFrameTime, frameTimeNS, GetCurrentThreadId(), this);
 		}	
 		int ret = WaitForSingleObject(m_hRenderSleepEvent, frameTimeNS);
 		if (WAIT_OBJECT_0 == ret) {
@@ -882,7 +892,7 @@ void VideoLiveSource::Synchronization()
 		}
 		if (m_bResetDiffMode) //…œ“ª÷° ”∆µ∑¢…˙¡ÀÃ¯±‰,÷ÿ–¬≥ı ºªØÀ˘”–º∆ ±∆˜
 		{
-			Log(TEXT("LINE : %d, FUNC : %s.µ±«∞÷°∑¢…˙¡ÀÃ¯±‰£¨Ω´À˘”–º∆ ±∆˜÷ÿ–¬≥ı ºªØ!Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(),GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s.µ±«∞÷°∑¢…˙¡ÀÃ¯±‰£¨Ω´À˘”–º∆ ±∆˜÷ÿ–¬≥ı ºªØ!Thread = %d,This =0x%p"), __LINE__, __FUNCTION__,GetCurrentThreadId(), this);
 			m_bResetDiffMode = false;
 			m_FirstVideoFrameTime = m_CurrentVideoFrameTime;
 			m_DiffVideoFrameTime = 0;
@@ -916,7 +926,7 @@ void VideoLiveSource::Synchronization()
 			}
 			if (!m_YUVBuffer.try_pop(Last_inf_Video))  //ªÒ»°µ⁄“ª÷°
 			{
-				Log(TEXT("LINE : %d, FUNC : %s ,m_YUVBufferªÒ»°µ⁄“ª÷° ß∞‹,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_YUVBufferªÒ»°µ⁄“ª÷° ß∞‹,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 				m_StatusStream = STOP_STREAM;
 				frameTimeNS = 40;
 				SetEvent(m_hUpdataEvent);
@@ -924,7 +934,7 @@ void VideoLiveSource::Synchronization()
 			}
 			if (!Last_inf_Video)
 			{
-				Log(TEXT("LINE : %d, FUNC : %s ,Last_inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_YUVBuffer.unsafe_size(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Last_inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, __FUNCTION__, m_YUVBuffer.unsafe_size(), this);
 				continue;
 			}
 			m_iYUVBufferTotalTime = m_iLastVideoFrameTimestamp - Last_inf_Video->timestamp;
@@ -934,16 +944,16 @@ void VideoLiveSource::Synchronization()
 			{
 				m_FirstVideoFrameTime = 1;
 			}
-			Log(TEXT("LINE : %d, FUNC : %s ,µ⁄“ª÷°ø™ º ±º‰¥¡: %lld,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_FirstVideoFrameTime, this);
-			Log(TEXT("LINE : %d, FUNC : %s ,µ⁄“ª÷°ø™ º‰÷»æ ±º‰: %lld,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_FirstQpcTime, this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,µ⁄“ª÷°ø™ º ±º‰¥¡: %lld,This =0x%p"), __LINE__, __FUNCTION__, m_FirstVideoFrameTime, this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,µ⁄“ª÷°ø™ º‰÷»æ ±º‰: %lld,This =0x%p"), __LINE__, __FUNCTION__, m_FirstQpcTime, this);
 			
 			if (m_iYUVBufferTotalTime <1000 || m_iYUVBufferTotalTime > 2000)
 			{
-				Log(TEXT("LINE : %d, FUNC : %s ,yuvª∫≥Â ±≥§m_iYUVBufferTotalTime = %d£¨≤ª∑˚∫œ“™«ÛΩ¯––µ˜’˚Œ™1√Î,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_iYUVBufferTotalTime, GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,yuvª∫≥Â ±≥§m_iYUVBufferTotalTime = %d£¨≤ª∑˚∫œ“™«ÛΩ¯––µ˜’˚Œ™1√Î,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, m_iYUVBufferTotalTime, GetCurrentThreadId(), this);
 				m_iYUVBufferTotalTime = 1000; //÷ªª∫≥Â1√Î ˝æ›
 				
 			}
-			Log(TEXT("LINE : %d, FUNC : %s ,yuvª∫≥Â ±≥§m_iYUVBufferTotalTime = %d£¨Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_iYUVBufferTotalTime, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,yuvª∫≥Â ±≥§m_iYUVBufferTotalTime = %d£¨Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, m_iYUVBufferTotalTime, GetCurrentThreadId(), this);
 			mp_get_frame(HMediaProcess, 1, m_fVideoWarnning);
 			m_bisReBuffer = false;
 		}
@@ -951,7 +961,7 @@ void VideoLiveSource::Synchronization()
 //…œ“ª÷° ±¥¡
 		if (!Last_inf_Video)
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,Last_inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_YUVBuffer.unsafe_size(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Last_inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, __FUNCTION__, m_YUVBuffer.unsafe_size(), this);
 			continue;
 		}
 		iLastVideoPts = Last_inf_Video->timestamp;
@@ -964,7 +974,7 @@ void VideoLiveSource::Synchronization()
 		CSampleData* inf_Video = NULL;
 		if (!m_YUVBuffer.try_pop(inf_Video))
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,m_YUVBufferª∫≥Â«¯ø’¡À÷ÿ–¬¥Úø™,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_YUVBufferª∫≥Â«¯ø’¡À÷ÿ–¬¥Úø™,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 			//…æ≥˝◊Ó∫Û“ª÷°µƒ“Ù∆µ,ª∫≥Â«¯¿Ô√Êµƒ“Ù∆µ‘⁄monitor¿Ô√Ê«Âø’
 			if (Last_inf_Audio)
 			{
@@ -979,14 +989,14 @@ void VideoLiveSource::Synchronization()
 
 		if (!inf_Video || !Last_inf_Video)
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_YUVBuffer.unsafe_size(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,inf_Video ÷∏’ÎŒ™ø’¡À!  m_YUVBuffer.size = %dThis =0x%p"), __LINE__, __FUNCTION__, m_YUVBuffer.unsafe_size(), this);
 			frameTimeNS = 40;
 			continue;
 		}
 		iCurrentVideoPts = inf_Video->timestamp;
 		if (iLogIndex > 550 && iLogIndex < 560)
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,‰÷»æ ”∆µiLastVideoPts = %d, mp_get_frame  m_YUVBuffer.size = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), iLastVideoPts, m_YUVBuffer.unsafe_size(),this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,‰÷»æ ”∆µiLastVideoPts = %d, mp_get_frame  m_YUVBuffer.size = %d,This =0x%p"), __LINE__, __FUNCTION__, iLastVideoPts, m_YUVBuffer.unsafe_size(),this);
 		}
 		Last_inf_Video->bFieldSignal = bIsFieldSignal;
 		EnterCriticalSection(&CallBackLock);
@@ -1013,7 +1023,7 @@ void VideoLiveSource::Synchronization()
 		else        //÷ÿÕ∆‰÷»æ∫Õ…œ“ª÷° ”∆µ ±º‰¥¡Õ¨≤Ωµƒ“Ù∆µ£¨…æ≥˝
 		{
 			//…æ≥˝µ±«∞“Ù∆µ≤¢«“÷ÿ–¬ªÒ»°∞¸¿®≤–¡Ù“Ù∆µ÷°
-			Log(TEXT("LINE : %d, FUNC : %s , ±º‰¥¡∑¢…˙±‰ªØ≤Èø¥ «∑Ò÷ÿÕ∆,iLastVideoPts = %d,iCurrentVideoPts = %d,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), iLastVideoPts, iCurrentVideoPts, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s , ±º‰¥¡∑¢…˙±‰ªØ≤Èø¥ «∑Ò÷ÿÕ∆,iLastVideoPts = %d,iCurrentVideoPts = %d,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, iLastVideoPts, iCurrentVideoPts, GetCurrentThreadId(), this);
 
 			//…æ≥˝ª∫≥Â«¯µƒ“Ù∆µ
 			if (Last_inf_Audio)
@@ -1039,11 +1049,11 @@ void VideoLiveSource::Synchronization()
 		CT = GetTickCount();
 		if (frameTimeNS > 100)
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, GetCurrentThreadId(), this);
 		}
 		if (CT - LT > 200)
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,frameTimeNS = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), frameTimeNS, CT - LT, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,frameTimeNS = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, frameTimeNS, CT - LT, GetCurrentThreadId(), this);
 		}
 		LT = CT;
 		
@@ -1090,7 +1100,7 @@ void VideoLiveSource::Synchronization()
 
 		if (frameTimeNS > 20*1000)  // ±¥¡Ã¯±‰¥Û”⁄20s£¨Ω¯––÷ÿ¡¨
 		{
-			Log(TEXT("LINE : %d, FUNC : %s ,frameTimeNS = %d,diff = %lld, ±¥¡Ã¯±‰Ã´¥Û£¨÷ÿ–¬Ω¯––ª∫≥Â.Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), frameTimeNS, CT - LT, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,frameTimeNS = %d,diff = %lld, ±¥¡Ã¯±‰Ã´¥Û£¨÷ÿ–¬Ω¯––ª∫≥Â.Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, frameTimeNS, CT - LT, GetCurrentThreadId(), this);
 			if (Last_inf_Audio)
 			{
 				Last_inf_Audio->Release();
@@ -1108,7 +1118,7 @@ void VideoLiveSource::Synchronization()
 			audioStartTryTimestamp = 0;
 			audioEndTryTimestamp = 0;
 			m_bResetDiffMode = true;
-			Log(TEXT("LINE : %d, FUNC : %s ,–Ë“™ÃΩ≤‚“Ù∆µ°£frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,m_fVideoWarnning = %d,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, m_fVideoWarnning, GetCurrentThreadId(), this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,–Ë“™ÃΩ≤‚“Ù∆µ°£frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,m_fVideoWarnning = %d,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, m_fVideoWarnning, GetCurrentThreadId(), this);
 		}
 //--------------------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------------------
@@ -1118,10 +1128,12 @@ void VideoLiveSource::Synchronization()
 
 			if (m_pDemandMediaAudio)
 			{
+				if (bisAudioNeedTry)
+					audioStartTryTimestamp = audioStartTryTimestamp + Last_inf_Audio->dataLength;
 				m_pDemandMediaAudio->PushAudio(Last_inf_Audio->lpData, Last_inf_Audio->dataLength, Last_inf_Audio->timestamp, this, enteredSceneCount != 0);
 				mp_get_frame(HMediaProcess, 2, m_fAudioWarnning);
 				if (iLogIndex > 550 && iLogIndex < 560)
-					Log(TEXT("LINE : %d, FUNC : %s ,‰÷»æ“Ù∆µaudio_pts = %d, mp_get_frame  m_PCMuffer.size = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), audio_pts, m_PCMuffer.unsafe_size(), this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,‰÷»æ“Ù∆µaudio_pts = %d, mp_get_frame  m_PCMuffer.size = %d,This =0x%p"), __LINE__, __FUNCTION__, audio_pts, m_PCMuffer.unsafe_size(), this);
 			}
 			Last_inf_Audio->Release();
 			Last_inf_Audio = NULL;
@@ -1133,7 +1145,7 @@ void VideoLiveSource::Synchronization()
 			{
 				if (Last_inf_Audio && (Last_inf_Audio->timestamp > iCurrentVideoPts + 2000))
 				{
-					Log(TEXT("LINE : %d, FUNC : %s ,¡˜—œ÷ÿ≤ªÕ¨≤ΩLast_inf_Audio->timestamp = %d,iLastVideoPts = %d,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), Last_inf_Audio->timestamp, iLastVideoPts, GetCurrentThreadId(), this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,¡˜—œ÷ÿ≤ªÕ¨≤ΩLast_inf_Audio->timestamp = %d,iLastVideoPts = %d,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, Last_inf_Audio->timestamp, iLastVideoPts, GetCurrentThreadId(), this);
 				}
 			}
 			
@@ -1157,7 +1169,7 @@ void VideoLiveSource::Synchronization()
 						Last_inf_Audio = NULL;
 					}
 					if(iLogIndex > 550 && iLogIndex < 560)
-						Log(TEXT("LINE : %d, FUNC : %s ,“Ù∆µø’¡À£¨÷ÿ–¬mp_get_frame  m_PCMuffer.unsafe_size() = %dThis =0x%p"), __LINE__, String(__FUNCTION__).Array(), audio_pts, m_PCMuffer.unsafe_size(), this);
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,“Ù∆µø’¡À£¨÷ÿ–¬mp_get_frame  m_PCMuffer.unsafe_size() = %dThis =0x%p"), __LINE__, __FUNCTION__, audio_pts, m_PCMuffer.unsafe_size(), this);
 					//÷ÿ–¬get “Ù∆µ
 					for (int iIndex = 0; iIndex </*‘› ±œ»’‚—˘π¿À„*/m_iPcmBufferNumber/*m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2 / 4096*/; iIndex++) {
 						mp_get_frame(HMediaProcess, 2, m_fAudioWarnning);//“Ù∆µ
@@ -1173,7 +1185,7 @@ void VideoLiveSource::Synchronization()
 				audio_pts = inf_Audio->timestamp;
 				if (audio_pts < iLastVideoPts) {
 					mp_get_frame(HMediaProcess, 2, m_fAudioWarnning);
-					Log(TEXT("LINE : %d, FUNC : %s , ±¥¡π˝–°…æ≥˝audio_pts = %d,iLastVideoPts = %d, mp_get_frame  m_PCMuffer.unsafe_size() = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), audio_pts, iLastVideoPts, m_PCMuffer.unsafe_size(), this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s , ±¥¡π˝–°…æ≥˝audio_pts = %d,iLastVideoPts = %d, mp_get_frame  m_PCMuffer.unsafe_size() = %d,This =0x%p"), __LINE__, __FUNCTION__, audio_pts, iLastVideoPts, m_PCMuffer.unsafe_size(), this);
 					inf_Audio->Release();//÷±Ω”…æ≥˝
 				}
 				else if ((audio_pts >= iLastVideoPts) && (audio_pts <= iCurrentVideoPts)) {
@@ -1181,7 +1193,7 @@ void VideoLiveSource::Synchronization()
 					{
 						if (m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2 > 0)
 						{
-							audioStartTryTimestamp = audioStartTryTimestamp + inf_Audio->dataLength*1000 / (m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2);
+							audioStartTryTimestamp = audioStartTryTimestamp + inf_Audio->dataLength/**1000 / (m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2)*/;
 						}
 					}
 					inf_Audio->pAudioFormat = (void*)&audioFormat;
@@ -1191,7 +1203,7 @@ void VideoLiveSource::Synchronization()
 						m_pDemandMediaAudio->PushAudio(inf_Audio->lpData, inf_Audio->dataLength, inf_Audio->timestamp, this, enteredSceneCount !=0);
 						mp_get_frame(HMediaProcess, 2, m_fAudioWarnning);
 						if (iLogIndex > 550 && iLogIndex < 560)
-							Log(TEXT("LINE : %d, FUNC : %s ,‰÷»æ“Ù∆µaudio_pts = %d, mp_get_frame  m_PCMuffer.size = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), audio_pts, m_PCMuffer.unsafe_size(), this);
+							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,‰÷»æ“Ù∆µaudio_pts = %d, mp_get_frame  m_PCMuffer.size = %d,This =0x%p"), __LINE__, __FUNCTION__, audio_pts, m_PCMuffer.unsafe_size(), this);
 					}
 					inf_Audio->Release();
 					inf_Audio = NULL;
@@ -1203,10 +1215,17 @@ void VideoLiveSource::Synchronization()
 					{
 						if (audioStartTryTimestamp > 0)  //’˝≥£«Èøˆ
 						{
+							int nLen = audioStartTryTimestamp;
+							audioStartTryTimestamp = audioStartTryTimestamp * 1000 / (m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2) + 1;
 							if (frameTimeNS > audioStartTryTimestamp)
 							{
 								frameTimeNS = audioStartTryTimestamp;
-								Log(TEXT("LINE : %d, FUNC : %s ,ÃΩ≤‚“Ù∆µ≤•∑≈ ±≥§°£audio Time = %d,frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), audioStartTryTimestamp,frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, GetCurrentThreadId(), this);
+								Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,ÃΩ≤‚“Ù∆µ≤•∑≈ ±≥§°£audiolen = %d.audio Time = %d,frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), nLen, audioStartTryTimestamp, frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, GetCurrentThreadId(), this);
+							}
+							else
+							{
+								frameTimeNS = audioStartTryTimestamp;
+								Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,¥Û”⁄ ”∆µ ±≥§£¨ÃΩ≤‚“Ù∆µ≤•∑≈ ±≥§°£audiolen = %d.audio Time = %d,frameTimeNS = %d,iCurrentVideoPts = %d,iLastVideoPts = %d,diff = %lld,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), nLen, audioStartTryTimestamp, frameTimeNS, iCurrentVideoPts, iLastVideoPts, CT - LT, GetCurrentThreadId(), this);
 							}
 						}
 					}
@@ -1215,29 +1234,29 @@ void VideoLiveSource::Synchronization()
 			}
 		}
 	}
-	Log(TEXT("LINE : %d, FUNC : %s ,SyncThread Exit! ThreadID = %d,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(),GetCurrentThreadId(), this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SyncThread Exit! ThreadID = %d,This = 0x%p"), __LINE__, __FUNCTION__,GetCurrentThreadId(), this);
 }
 
 void VideoLiveSource::Monitor()
 {
 	m_MonitorThreadID = GetCurrentThreadId();
-	Log(TEXT("LINE : %d, FUNC : %s ,Monitor Start,Thread = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), m_MonitorThreadID,this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Monitor Start,Thread = %d,This =0x%p"), __LINE__, __FUNCTION__, m_MonitorThreadID,this);
 	while (TRUE){
 		int ret = WaitForSingleObject(m_hUpdataEvent, INFINITE);
 		if (WAIT_OBJECT_0 == ret) {
 			m_pos = 0;
-			Log(TEXT("LINE : %d, FUNC : %s ,UpdateSet Execute£° Open New URL! Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), m_MonitorThreadID, this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,UpdateSet Execute£° Open New URL! Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, m_MonitorThreadID, this);
 			ResetEvent(m_hUpdataEvent);
 			HASSTOP
 			//œ»Õ£÷πÕ¨≤Ωœﬂ≥Ã
 			if (m_SyncThread && !m_bAllowClose)
 			{
 				m_bAllowClose = true;
-				Log(TEXT("LINE : %d, FUNC : %s ,Ω¯»Î m_hAllowCloseEvent À¯µ»¥˝Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Ω¯»Î m_hAllowCloseEvent À¯µ»¥˝Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 				WaitForSingleObject(m_hAllowCloseEvent, INFINITE);
-				Log(TEXT("LINE : %d, FUNC : %s ,Ω¯»Î m_hAllowCloseEvent À¯µ»¥˝Thread = %d,This =0x%p"),
-					__LINE__, String(__FUNCTION__).Array(), GetCurrentThreadId(), this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Ω¯»Î m_hAllowCloseEvent À¯µ»¥˝Thread = %d,This =0x%p"),
+					__LINE__, __FUNCTION__, GetCurrentThreadId(), this);
 				ResetEvent(m_hAllowCloseEvent);
 			}
 			if (HMediaProcess)
@@ -1248,7 +1267,7 @@ void VideoLiveSource::Monitor()
 					URLState = 0;
 					int ret_close = mp_close(HMediaProcess);  //¥¶”⁄STOP_STREAM◊¥Ã¨
 					DWORD afterCloseTime = GetTickCount();
-					Log(TEXT("LINE : %d, FUNC : %s ,mp_close ret_close = %d, Cost time = %d,m_MonitorThreadID =%d,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), ret_close, afterCloseTime - beforeCloseTime, m_MonitorThreadID, this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,mp_close ret_close = %d, Cost time = %d,m_MonitorThreadID =%d,This = 0x%p"), __LINE__, __FUNCTION__, ret_close, afterCloseTime - beforeCloseTime, m_MonitorThreadID, this);
 				}
 			}
 			//‘⁄close÷Æ∫Û«Â≥˝tbbƒ⁄¥Ê£¨∑Ò‘Úªÿµ˜∫Ø ˝»‘»ª‘⁄ºÃ–¯÷¥––
@@ -1279,11 +1298,12 @@ void VideoLiveSource::Monitor()
 			m_nWarnTime = config->WarnTime;
 			if (config->playlist.Num() == 0)
 			{
-				Log(TEXT("LINE : %d, FUNC : %s ,Not Add URL!"), __LINE__, String(__FUNCTION__).Array());
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Not Add URL!"), __LINE__, __FUNCTION__);
 				continue;
 			}
-			m_iLastBufferTime = m_nBufferTime;
-			m_nBufferTime = config->bufferTime;
+			//m_iLastBufferTime = m_nBufferTime;
+			m_iLastBufferTime = m_nBufferTime = config->bufferTime;
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,ª∫≥Â ±º‰:%d.!"), __LINE__, __FUNCTION__, m_nBufferTime);
 			//m_pDemandMediaAudio->SetVolumef(float(config->volume) / 100.0);
 			for (unsigned int i = 0; i < config->playlist.Num(); i++) {
 				String &mediaEntry = config->playlist[i];
@@ -1304,16 +1324,16 @@ void VideoLiveSource::Monitor()
 			sprintf_s(url, " -f YUV");
 
 			DWORD beforeOpenTime = GetTickCount();
-			Log(TEXT("LINE : %d, FUNC : %s ,Start to Open URL %s,m_MonitorThreadID = %d,This =0x%p"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_MonitorThreadID, this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Start to Open URL %s,m_MonitorThreadID = %d,This =0x%p"), __LINE__, __FUNCTION__, m_playPath, m_MonitorThreadID, this);
 			memset(&m_pMPMediaInfo, 0, sizeof m_pMPMediaInfo);
 			int ret_open = mp_open(HMediaProcess, m_playPath, url, FrameCallBackFunc, this, &m_pMPMediaInfo); //¥¶”⁄STOP_STREAM◊¥Ã¨
 			DWORD afterOpenTime = GetTickCount();
-			Log(TEXT("LINE : %d, FUNC : %s ,Open url %s Cost Time = %d, ret = %d, HMediaProcess = 0x%p, ThreadID = %u, This =0x%p"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), afterOpenTime - beforeOpenTime, ret_open, HMediaProcess, m_MonitorThreadID, this);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Open url %s Cost Time = %d, ret = %d, HMediaProcess = 0x%p, ThreadID = %u, This =0x%p"), __LINE__, __FUNCTION__, m_playPath, afterOpenTime - beforeOpenTime, ret_open, HMediaProcess, m_MonitorThreadID, this);
 			HASSTOP
 			if (ret_open != 0 || m_pMPMediaInfo.has_audio && (!m_pMPMediaInfo.a_channels || !m_pMPMediaInfo.a_sample_rate))
 			{
 				ret_open ? URLState = 0 : URLState = 1;
-				Log(TEXT("LINE : %d, FUNC : %s ,Open url %s Fail! ThreadID = %u,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), String(m_playPath).Array(), m_MonitorThreadID, this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Open url %s Fail! ThreadID = %u,This = 0x%p"), __LINE__, __FUNCTION__, m_playPath, m_MonitorThreadID, this);
 				WaitForSingleObject(m_hUpdataEvent, 20000);
 				HASSTOP
 				ResetEvent(m_hUpdataEvent);
@@ -1323,7 +1343,10 @@ void VideoLiveSource::Monitor()
 			
 			URLState = 1;
 			HASSTOP
-			
+			if (m_nBufferTime < 3)
+			{
+				m_nBufferTime = 3;
+			}
 			mp_full_cachebuffer(HMediaProcess, m_nBufferTime * 1000, SetParamCallBackFunc, this);
 			if (m_nBufferTime > 10) {
 				m_iWaitTimeOut = m_nBufferTime * 2 * 1000;
@@ -1338,7 +1361,7 @@ void VideoLiveSource::Monitor()
 
 			if (!m_pMPMediaInfo.v_frame_rate)   //SDK maybe get v_frame_rate 0
 			{
-				Log(TEXT("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), m_MonitorThreadID, this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,SDK FPS return 0,Manual Set 25, Thread = %d ,This = 0x%p"), __LINE__, __FUNCTION__, m_MonitorThreadID, this);
 				m_pMPMediaInfo.v_frame_rate = 25;
 			}
 			if (m_iFPS != m_pMPMediaInfo.v_frame_rate) {
@@ -1352,7 +1375,7 @@ void VideoLiveSource::Monitor()
 			CallBackHight = m_height;
 			CallBackWidth = m_width;
 			InitCSampleData();
-			Log(TEXT("m_height = %d,m_width = %d"),m_height,m_width);
+			Log::writeMessage(LOG_RTSPSERV, 1, ("m_height = %d,m_width = %d"),m_height,m_width);
 			m_FrameWidth = m_width;
 			m_FrameHeight = m_height;
 			m_FrameLines = 0;
@@ -1380,18 +1403,18 @@ void VideoLiveSource::Monitor()
 			int ret = WaitForSingleObject(m_hH264AACBufferEvent, m_iWaitTimeOut);
 			if (WAIT_OBJECT_0 == ret) {
 				//...≥…π¶
-				Log(TEXT("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ∑µªÿThis =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ∑µªÿThis =0x%p"), __LINE__, __FUNCTION__,this);
 				HASSTOP
 				ResetEvent(m_hH264AACBufferEvent);
 				if (STOP_STREAM == m_StatusStream) {     //Õ‚≤ø÷√÷ÿ¡¨
 					SetEvent(m_hUpdataEvent);//÷ÿ¡¨
-					Log(TEXT("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent Õ‚≤ø…Ë÷√,This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent Õ‚≤ø…Ë÷√,This =0x%p"), __LINE__, __FUNCTION__,this);
 					continue;
 				}
 			}
 			else if (WAIT_TIMEOUT == ret){
 				HASSTOP
-				Log(TEXT("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ≥¨ ±,This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hH264AACBufferEvent ≥¨ ±,This =0x%p"), __LINE__, __FUNCTION__,this);
 				ResetEvent(m_hH264AACBufferEvent);
 				m_StatusStream = STOP_STREAM;
 				SetEvent(m_hUpdataEvent);//÷ÿ¡¨
@@ -1405,24 +1428,24 @@ void VideoLiveSource::Monitor()
 				
 				for (int iIndex = 0; iIndex < m_pMPMediaInfo.v_frame_rate; iIndex++) {
 					mp_get_frame(HMediaProcess, 1, m_fVideoWarnning);
-					//Log(TEXT("LINE : %d, FUNC : %s ,m_hYUVBuffer mp_get_frame,This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+					//Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hYUVBuffer mp_get_frame,This =0x%p"), __LINE__, __FUNCTION__,this);
 					HASSTOP
 				}
 				m_StatusStream = YUV_STREAM;
 				int ret = WaitForSingleObject(m_hYUVBufferEvent, m_iWaitTimeOut);
 				if (WAIT_OBJECT_0 == ret) {
-					Log(TEXT("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, __FUNCTION__,this);
 					HASSTOP
 					ResetEvent(m_hYUVBufferEvent);
 					if (STOP_STREAM == m_StatusStream) {     //Õ‚≤ø÷√÷ÿ¡¨
-						Log(TEXT("LINE : %d, FUNC : %s ,m_hYUVBufferEvent Õ‚≤ø÷ÿ÷√This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hYUVBufferEvent Õ‚≤ø÷ÿ÷√This =0x%p"), __LINE__, __FUNCTION__,this);
 						SetEvent(m_hUpdataEvent);//÷ÿ¡¨
 						continue;
 					}
 					
 				} else if (WAIT_TIMEOUT == ret){
 						HASSTOP
-						Log(TEXT("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ≥¨ ±This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hYUVBufferEvent ≥¨ ±This =0x%p"), __LINE__, __FUNCTION__,this);
 						ResetEvent(m_hYUVBufferEvent);
 						m_StatusStream = STOP_STREAM;
 						SetEvent(m_hUpdataEvent);//÷ÿ¡¨
@@ -1443,21 +1466,21 @@ void VideoLiveSource::Monitor()
 				}
 				for (int iIndex = 0; iIndex </*‘› ±œ»’‚—˘π¿À„*/m_iPcmBufferNumber/*m_pMPMediaInfo.a_channels*m_pMPMediaInfo.a_sample_rate * 2 / 4096*/; iIndex++) {
 					mp_get_frame(HMediaProcess, 2, m_fAudioWarnning);//“Ù∆µ
-					//Log(TEXT("LINE : %d, FUNC : %s ,m_hPCMBuffer mp_get_frameThis =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+					//Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hPCMBuffer mp_get_frameThis =0x%p"), __LINE__, __FUNCTION__,this);
 				}
 				m_StatusStream = PCM_STREAM;
 				int ret = WaitForSingleObject(m_hPCMBufferEvent, m_iWaitTimeOut);
 				if (WAIT_OBJECT_0 == ret) {
-					Log(TEXT("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ª∫≥Â≥…π¶This =0x%p"), __LINE__, __FUNCTION__,this);
 					HASSTOP
 					ResetEvent(m_hPCMBufferEvent);
 					if (STOP_STREAM == m_StatusStream) {     //Õ‚≤ø÷√÷ÿ¡¨
-						Log(TEXT("LINE : %d, FUNC : %s ,m_hPCMBufferEvent Õ‚≤ø÷ÿ¡¨This =0x%p"), __LINE__, String(__FUNCTION__).Array(),this);
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hPCMBufferEvent Õ‚≤ø÷ÿ¡¨This =0x%p"), __LINE__, __FUNCTION__,this);
 						SetEvent(m_hUpdataEvent);//÷ÿ¡¨
 						continue;
 					}
 				} else if (WAIT_TIMEOUT == ret){
-						Log(TEXT("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ≥¨ ±"), __LINE__, String(__FUNCTION__).Array());
+						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,m_hPCMBufferEvent ≥¨ ±"), __LINE__, __FUNCTION__);
 						HASSTOP
 						ResetEvent(m_hPCMBufferEvent);
 						m_StatusStream = STOP_STREAM;
@@ -1489,7 +1512,7 @@ void VideoLiveSource::Monitor()
 			LeaveCriticalSection(&TextureDataLock);
 			m_pos = 0;
 			m_StatusStream = PLAY_STREAM;
-
+		
 			if (!m_SyncThread)
 			{
 				m_bAllowClose = false; //µ⁄“ª¥Œ≤ª–Ë“™
@@ -1497,6 +1520,7 @@ void VideoLiveSource::Monitor()
 			}
 			if (m_bAllowClose)
 			{
+				m_bAllowClose = false;
 				SetEvent(m_hPauseThreadEvent);
 			}
 			
@@ -1509,7 +1533,7 @@ void VideoLiveSource::Monitor()
 	}
 	if (HMediaProcess)
 	{
-		Log(TEXT("LINE : %d, FUNC : %s   Close FFmpeg SDK! Thread = %d,This = 0x%p"), __LINE__, String(__FUNCTION__).Array(), m_MonitorThreadID, this);
+		Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s   Close FFmpeg SDK! Thread = %d,This = 0x%p"), __LINE__, __FUNCTION__, m_MonitorThreadID, this);
 		if (URLState){
 			mp_close(HMediaProcess);
 		}
@@ -1526,7 +1550,7 @@ void VideoLiveSource::Monitor()
 		(*iterPCM)->Release();
 	}
 	m_PCMuffer.clear();
-	Log(TEXT("MonitorThread Exit! Thread = %d,This = 0x%p"), m_MonitorThreadID, this);
+	Log::writeMessage(LOG_RTSPSERV, 1, ("MonitorThread Exit! Thread = %d,This = 0x%p"), m_MonitorThreadID, this);
 		
 	
 }

@@ -178,18 +178,18 @@ bool CDemandMediaAudio::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *tim
 			return false;
 		}
 
-		int64_t pts; 
-		int samplesProcessed = 0;
-		while (samplesProcessed != sampleFrameCount) {
-			int remaining = sampleFrameCount - samplesProcessed;
-			AudioTimestamp &ts = sampleBufferPts[0];
-			ts.count -= remaining;
-			samplesProcessed += remaining;
-			if (ts.count < 0) {
-				samplesProcessed += ts.count;
-				sampleBufferPts.pop_front();
-			}
-		}
+// 		int64_t pts; 
+// 		int samplesProcessed = 0;
+// 		while (samplesProcessed != sampleFrameCount) {
+// 			int remaining = sampleFrameCount - samplesProcessed;
+// 			AudioTimestamp &ts = sampleBufferPts[0];
+// 			ts.count -= remaining;
+// 			samplesProcessed += remaining;
+// 			if (ts.count < 0) {
+// 				samplesProcessed += ts.count;
+// 				sampleBufferPts.pop_front();
+// 			}
+// 		}
 
 		mcpy(outputBuffer.Array(), sampleBuffer.Array(), sampleSegmentSize);
 		sampleBuffer.RemoveRange(0, sampleSegmentSize);
@@ -446,12 +446,8 @@ void CDemandMediaAudio::PushAudio(const void *lpData, unsigned int size, int64_t
 
 			if (bLiveInstance)
 			{
-				AudioTimestamp audioTimestamp;
 				EnterCriticalSection(&sampleBufferLock);
 				sampleBuffer.AppendArray((BYTE *)(OutputconvertBuffer.Array()), OutputconvertBuffer.Num() * 4);
-				audioTimestamp.count = size / m_uBlockSize;
-				audioTimestamp.pts = pts;
-				sampleBufferPts.push_back(audioTimestamp);
 				LeaveCriticalSection(&sampleBufferLock);
 				bPlayLive = m_bPlayPcmLive;
 			}
@@ -502,12 +498,8 @@ void CDemandMediaAudio::PushAudio(const void *lpData, unsigned int size, int64_t
 		size = size / m_uBlockSize;
 		if (bLiveInstance)
 		{
-			AudioTimestamp audioTimestamp;
 			EnterCriticalSection(&sampleBufferLock);
 			sampleBuffer.AppendArray(static_cast<const BYTE *>(lpData), size * m_uBlockSize);
-			audioTimestamp.count = size;
-			audioTimestamp.pts = pts;
-			sampleBufferPts.push_back(audioTimestamp);
 			LeaveCriticalSection(&sampleBufferLock);
 			bPlayLive = m_bPlayPcmLive;
 		}

@@ -16,7 +16,7 @@ NVENCSTATUS CNvHWEncoder::NvEncOpenEncodeSession(void* device, uint32_t deviceTy
     nvStatus = g_pEncodeAPI->nvEncOpenEncodeSession(device, deviceType, &m_hEncoder);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncOpenEncodeSession Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -29,7 +29,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeGUIDCount(uint32_t* encodeGUIDCount)
     nvStatus = g_pEncodeAPI->nvEncGetEncodeGUIDCount(m_hEncoder, encodeGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeGUIDCount Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -42,7 +42,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeProfileGUIDCount(GUID encodeGUID, uint32
     nvStatus = g_pEncodeAPI->nvEncGetEncodeProfileGUIDCount(m_hEncoder, encodeGUID, encodeProfileGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeProfileGUIDCount Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -55,7 +55,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeProfileGUIDs(GUID encodeGUID, GUID* prof
     nvStatus = g_pEncodeAPI->nvEncGetEncodeProfileGUIDs(m_hEncoder, encodeGUID, profileGUIDs, guidArraySize, GUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeProfileGUIDs Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -68,7 +68,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeGUIDs(GUID* GUIDs, uint32_t guidArraySiz
     nvStatus = g_pEncodeAPI->nvEncGetEncodeGUIDs(m_hEncoder, GUIDs, guidArraySize, GUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeGUIDs Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -81,7 +81,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetInputFormatCount(GUID encodeGUID, uint32_t* in
     nvStatus = g_pEncodeAPI->nvEncGetInputFormatCount(m_hEncoder, encodeGUID, inputFmtCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetInputFormatCount Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -94,7 +94,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetInputFormats(GUID encodeGUID, NV_ENC_BUFFER_FO
     nvStatus = g_pEncodeAPI->nvEncGetInputFormats(m_hEncoder, encodeGUID, inputFmts, inputFmtArraySize, inputFmtCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetInputFormats Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -107,7 +107,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeCaps(GUID encodeGUID, NV_ENC_CAPS_PARAM*
     nvStatus = g_pEncodeAPI->nvEncGetEncodeCaps(m_hEncoder, encodeGUID, capsParam, capsVal);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeCaps Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -120,7 +120,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodePresetCount(GUID encodeGUID, uint32_t* e
     nvStatus = g_pEncodeAPI->nvEncGetEncodePresetCount(m_hEncoder, encodeGUID, encodePresetGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodePresetCount Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -133,7 +133,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodePresetGUIDs(GUID encodeGUID, GUID* prese
     nvStatus = g_pEncodeAPI->nvEncGetEncodePresetGUIDs(m_hEncoder, encodeGUID, presetGUIDs, guidArraySize, encodePresetGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodePresetGUIDs Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -146,7 +146,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodePresetConfig(GUID encodeGUID, GUID  pres
     nvStatus = g_pEncodeAPI->nvEncGetEncodePresetConfig(m_hEncoder, encodeGUID, presetGUID, presetConfig);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodePresetConfig Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -168,7 +168,7 @@ NVENCSTATUS CNvHWEncoder::NvEncCreateInputBuffer(uint32_t width, uint32_t height
     nvStatus = g_pEncodeAPI->nvEncCreateInputBuffer(m_hEncoder, &createInputBufferParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncCreateInputBuffer Error nvStatus = %d\n", nvStatus);
     }
 
     *inputBuffer = createInputBufferParams.inputBuffer;
@@ -185,7 +185,7 @@ NVENCSTATUS CNvHWEncoder::NvEncDestroyInputBuffer(NV_ENC_INPUT_PTR inputBuffer)
         nvStatus = g_pEncodeAPI->nvEncDestroyInputBuffer(m_hEncoder, inputBuffer);
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncDestroyInputBuffer Error nvStatus = %d\n", nvStatus);
         }
     }
 
@@ -201,7 +201,7 @@ NVENCSTATUS CNvHWEncoder::NvEncCreateMVBuffer(uint32_t size, void** bitstreamBuf
     status = g_pEncodeAPI->nvEncCreateMVBuffer(m_hEncoder, &stAllocMVBuffer);
     if (status != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncCreateMVBuffer Error nvStatus = %d\n", status);
     }
     *bitstreamBuffer = stAllocMVBuffer.mvBuffer;
     return status;
@@ -216,7 +216,7 @@ NVENCSTATUS CNvHWEncoder::NvEncDestroyMVBuffer(NV_ENC_OUTPUT_PTR bitstreamBuffer
     status = g_pEncodeAPI->nvEncDestroyMVBuffer(m_hEncoder, bitstreamBuffer);
     if (status != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "NvEncDestroyMVBuffer Error nvStatus = %d\n", status);
     }
     bitstreamBuffer = NULL;
     return status;
@@ -252,7 +252,7 @@ NVENCSTATUS CNvHWEncoder::NvEncCreateBitstreamBuffer(uint32_t size, void** bitst
     nvStatus = g_pEncodeAPI->nvEncCreateBitstreamBuffer(m_hEncoder, &createBitstreamBufferParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncCreateBitstreamBuffer Error nvStatus = %d\n", nvStatus);
     }
 
     *bitstreamBuffer = createBitstreamBufferParams.bitstreamBuffer;
@@ -269,7 +269,7 @@ NVENCSTATUS CNvHWEncoder::NvEncDestroyBitstreamBuffer(NV_ENC_OUTPUT_PTR bitstrea
         nvStatus = g_pEncodeAPI->nvEncDestroyBitstreamBuffer(m_hEncoder, bitstreamBuffer);
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncDestroyBitstreamBuffer Error nvStatus = %d\n", nvStatus);
         }
     }
 
@@ -283,7 +283,7 @@ NVENCSTATUS CNvHWEncoder::NvEncLockBitstream(NV_ENC_LOCK_BITSTREAM* lockBitstrea
     nvStatus = g_pEncodeAPI->nvEncLockBitstream(m_hEncoder, lockBitstreamBufferParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncLockBitstream Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -296,7 +296,7 @@ NVENCSTATUS CNvHWEncoder::NvEncUnlockBitstream(NV_ENC_OUTPUT_PTR bitstreamBuffer
     nvStatus = g_pEncodeAPI->nvEncUnlockBitstream(m_hEncoder, bitstreamBuffer);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncUnlockBitstream Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -324,7 +324,7 @@ NVENCSTATUS CNvHWEncoder::NvEncUnlockInputBuffer(NV_ENC_INPUT_PTR inputBuffer)
     nvStatus = g_pEncodeAPI->nvEncUnlockInputBuffer(m_hEncoder, inputBuffer);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncUnlockInputBuffer Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -337,7 +337,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetEncodeStats(NV_ENC_STAT* encodeStats)
     nvStatus = g_pEncodeAPI->nvEncGetEncodeStats(m_hEncoder, encodeStats);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeStats Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -350,7 +350,7 @@ NVENCSTATUS CNvHWEncoder::NvEncGetSequenceParams(NV_ENC_SEQUENCE_PARAM_PAYLOAD* 
     nvStatus = g_pEncodeAPI->nvEncGetSequenceParams(m_hEncoder, sequenceParamPayload);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetSequenceParams Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -388,7 +388,7 @@ NVENCSTATUS CNvHWEncoder::NvEncUnregisterAsyncEvent(void* completionEvent)
         nvStatus = g_pEncodeAPI->nvEncUnregisterAsyncEvent(m_hEncoder, &eventParams);
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncUnregisterAsyncEvent Error nvStatus = %d\n", nvStatus);
         }
     }
 
@@ -408,7 +408,7 @@ NVENCSTATUS CNvHWEncoder::NvEncMapInputResource(void* registeredResource, void**
     nvStatus = g_pEncodeAPI->nvEncMapInputResource(m_hEncoder, &mapInputResParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncMapInputResource Error nvStatus = %d\n", nvStatus);
     }
 
     *mappedResource = mapInputResParams.mappedResource;
@@ -425,7 +425,7 @@ NVENCSTATUS CNvHWEncoder::NvEncUnmapInputResource(NV_ENC_INPUT_PTR mappedInputBu
         nvStatus = g_pEncodeAPI->nvEncUnmapInputResource(m_hEncoder, mappedInputBuffer);
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncUnmapInputResource Error nvStatus = %d\n", nvStatus);
         }
     }
 
@@ -442,7 +442,7 @@ NVENCSTATUS CNvHWEncoder::NvEncDestroyEncoder()
         nvStatus = g_pEncodeAPI->nvEncDestroyEncoder(m_hEncoder);
 		if (nvStatus != NV_ENC_SUCCESS)
 		{
-			assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncDestroyEncoder Error nvStatus = %d\n", nvStatus);
 		}
         m_bEncoderInitialized = false;
     }
@@ -478,7 +478,6 @@ NVENCSTATUS CNvHWEncoder::NvEncOpenEncodeSessionEx(void* device, NV_ENC_DEVICE_T
     if (nvStatus != NV_ENC_SUCCESS)
     {
 		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncOpenEncodeSessionEx Error nvStatus = %d\n", nvStatus);
-        assert(0);
     }
 
     return nvStatus;
@@ -504,7 +503,7 @@ NVENCSTATUS CNvHWEncoder::NvEncRegisterResource(NV_ENC_INPUT_RESOURCE_TYPE resou
     nvStatus = g_pEncodeAPI->nvEncRegisterResource(m_hEncoder, &registerResParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncRegisterResource Error nvStatus = %d\n", nvStatus);
     }
 
     *registeredResource = registerResParams.registeredResource;
@@ -519,7 +518,7 @@ NVENCSTATUS CNvHWEncoder::NvEncUnregisterResource(NV_ENC_REGISTERED_PTR register
     nvStatus = g_pEncodeAPI->nvEncUnregisterResource(m_hEncoder, registeredRes);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncUnregisterResource Error nvStatus = %d\n", nvStatus);
     }
 
     return nvStatus;
@@ -562,7 +561,7 @@ NVENCSTATUS CNvHWEncoder::NvEncReconfigureEncoder(const NvEncPictureCommand *pEn
         nvStatus = g_pEncodeAPI->nvEncReconfigureEncoder(m_hEncoder, &stReconfigParams);
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncReconfigureEncoder Error nvStatus = %d\n", nvStatus);
         }
     }
 
@@ -602,7 +601,7 @@ NVENCSTATUS CNvHWEncoder::ValidateEncodeGUID (GUID inputCodecGuid)
     nvStatus = g_pEncodeAPI->nvEncGetEncodeGUIDCount(m_hEncoder, &encodeGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeGUIDCount Error nvStatus = %d\n", nvStatus);
         return nvStatus;
     }
 
@@ -614,11 +613,11 @@ NVENCSTATUS CNvHWEncoder::ValidateEncodeGUID (GUID inputCodecGuid)
     if (nvStatus != NV_ENC_SUCCESS)
     {
         delete[] encodeGUIDArray;
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodeGUIDs Error nvStatus = %d\n", nvStatus);
         return nvStatus;
     }
 
-    assert(encodeGUIDArraySize <= encodeGUIDCount);
+//     assert(encodeGUIDArraySize <= encodeGUIDCount);
 
     codecFound = 0;
     for (i = 0; i < encodeGUIDArraySize; i++)
@@ -647,7 +646,7 @@ NVENCSTATUS CNvHWEncoder::ValidatePresetGUID(GUID inputPresetGuid, GUID inputCod
     nvStatus = g_pEncodeAPI->nvEncGetEncodePresetCount(m_hEncoder, inputCodecGuid, &presetGUIDCount);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodePresetCount Error nvStatus = %d\n", nvStatus);
         return nvStatus;
     }
 
@@ -658,12 +657,12 @@ NVENCSTATUS CNvHWEncoder::ValidatePresetGUID(GUID inputPresetGuid, GUID inputCod
     nvStatus = g_pEncodeAPI->nvEncGetEncodePresetGUIDs(m_hEncoder, inputCodecGuid, presetGUIDArray, presetGUIDCount, &presetGUIDArraySize);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncGetEncodePresetGUIDs Error nvStatus = %d\n", nvStatus);
         delete[] presetGUIDArray;
         return nvStatus;
     }
 
-    assert(presetGUIDArraySize <= presetGUIDCount);
+//     assert(presetGUIDArraySize <= presetGUIDCount);
 
     presetFound = 0;
     for (i = 0; i < presetGUIDArraySize; i++)
@@ -1207,7 +1206,7 @@ NVENCSTATUS CNvHWEncoder::NvEncEncodeFrame(EncodeBuffer *pEncodeBuffer, NvEncPic
         nvStatus = g_pEncodeAPI->nvEncReconfigureEncoder(m_hEncoder, &stReconfigParams); // no reset/idr since streaming is infinite IDR
         if (nvStatus != NV_ENC_SUCCESS)
         {
-            assert(0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "nvEncReconfigureEncoder Error nvStatus = %d\n", nvStatus);
             return nvStatus;
         }
     }
@@ -1261,7 +1260,7 @@ NVENCSTATUS CNvHWEncoder::NvEncFlushEncoderQueue(void *hEOSEvent)
     nvStatus = g_pEncodeAPI->nvEncEncodePicture(m_hEncoder, &encPicParams);
     if (nvStatus != NV_ENC_SUCCESS)
     {
-        assert(0);
+		Log::writeMessage(LOG_RTSPSERV, 1, "nvEncEncodePicture Error nvStatus = %d\n", nvStatus);
     }
     return nvStatus;
 }

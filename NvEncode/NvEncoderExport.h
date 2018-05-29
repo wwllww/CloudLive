@@ -15,3 +15,5 @@ EXTERN_DLLEXPORT int NvEncodeDestroy(void* hEncode);
 EXTERN_DLLEXPORT int NvEncodeFrame(void* hEncode, VCodecBuffer* pIn, VCodecBuffer** pOut);
 
 EXTERN_DLLEXPORT unsigned int NvGetBufferedCount(void* hEncode);
+
+EXTERN_DLLEXPORT int QueryHardEncodeSupport();

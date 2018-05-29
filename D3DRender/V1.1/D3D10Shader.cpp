@@ -51,7 +51,7 @@ bool D3D10Shader::ProcessData(ShaderProcessor &processor, CTSTR lpFileName)
 		HRESULT err = System->GetDeviceInline()->CreateBuffer(&bd, NULL, &constantBuffer);
         if(FAILED(err))
         {
-            AppWarning(TEXT("Unable to create constant buffer for shader '%s', result = %08lX"), lpFileName, err);
+			Log::writeError(LOG_RTSPSERV, 1, "Unable to create constant buffer for shader '%s', result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
             return false;
         }
     }
@@ -83,10 +83,10 @@ void D3D10VertexShader::CreateVertexShaderBlob(ShaderBlob &blob, CTSTR lpShader,
             if (errorMessages->GetBufferSize())
             {
                 LPSTR lpErrors = (LPSTR)errorMessages->GetBufferPointer();
-                Log(TEXT("Error compiling vertex shader '%s':\r\n\r\n%S\r\n"), lpFileName, lpErrors);
+				Log::writeError(LOG_RTSPSERV, 1, "Error compiling vertex shader '%s':\r\n\r\n%S\r\n", Wchar2Ansi(lpFileName).c_str(), lpErrors);
             }
         }
-
+		Log::writeError(LOG_RTSPSERV, 1, "Compilation of vertex shader '%s' failed, result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
         CrashError(TEXT("Compilation of vertex shader '%s' failed, result = %08lX"), lpFileName, err);
         return;
     }
@@ -98,7 +98,7 @@ Shader* D3D10VertexShader::CreateVertexShaderFromBlob(ShaderBlob const &blob, CT
 {
     ShaderProcessor shaderProcessor;
     if (!shaderProcessor.ProcessShader(lpShader, lpFileName,D3DSytem))
-        AppWarning(TEXT("Unable to process vertex shader '%s'"), lpFileName); //don't exit, leave it to the actual shader compiler to tell the errors
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to process vertex shader '%s'", Wchar2Ansi(lpFileName).c_str()); //don't exit, leave it to the actual shader compiler to tell the errors
 
     if (!blob.size())
         return nullptr;
@@ -109,6 +109,7 @@ Shader* D3D10VertexShader::CreateVertexShaderFromBlob(ShaderBlob const &blob, CT
 	HRESULT err = D3DSytem->GetDeviceInline()->CreateVertexShader(&blob.front(), blob.size(), NULL, vShader.Assign());
     if (FAILED(err))
     {
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to create vertex shader '%s', result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
         CrashError(TEXT("Unable to create vertex shader '%s', result = %08lX"), lpFileName, err);
         return NULL;
     }
@@ -116,6 +117,7 @@ Shader* D3D10VertexShader::CreateVertexShaderFromBlob(ShaderBlob const &blob, CT
 	err = D3DSytem->GetDeviceInline()->CreateInputLayout(shaderProcessor.generatedLayout.Array(), shaderProcessor.generatedLayout.Num(), &blob.front(), blob.size(), &vShaderLayout);
     if (FAILED(err))
     {
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to create vertex layout for vertex shader '%s', result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
         CrashError(TEXT("Unable to create vertex layout for vertex shader '%s', result = %08lX"), lpFileName, err);
         return NULL;
     }
@@ -172,12 +174,18 @@ Shader* D3D10VertexShader::CreateVertexShaderFromFile(CTSTR lpFileName,D3D10Syst
 		fullPathFilename << lpFileName;
 
 	if (!ShaderFile.Open(fullPathFilename, XFILE_READ | XFILE_SHARED, XFILE_OPENEXISTING))
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "CreateVertexShaderFromFile: Couldn't open %s: %d", Wchar2Ansi(lpFileName).c_str(), GetLastError());
 		CrashError(TEXT("CreateVertexShaderFromFile: Couldn't open %s: %d"), lpFileName, GetLastError());
+	}
 
 	String strShader;
 	ShaderFile.ReadFileToString(strShader);
 	if (strShader.IsEmpty())
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "CreateVertexShaderFromFile: Couldn't read %s: %d", Wchar2Ansi(lpFileName).c_str(), GetLastError());
 		CrashError(TEXT("CreateVertexShaderFromFile: Couldn't read %s: %d"), lpFileName, GetLastError());
+	}
 
 	ShaderBlob blob;
 	CreateVertexShaderBlob(blob, strShader, lpFileName, D3DSytem);
@@ -206,10 +214,10 @@ void D3D10PixelShader::CreatePixelShaderBlob(ShaderBlob &blob, CTSTR lpShader, C
             if (errorMessages->GetBufferSize())
             {
                 LPSTR lpErrors = (LPSTR)errorMessages->GetBufferPointer();
-                Log(TEXT("Error compiling pixel shader '%s':\r\n\r\n%S\r\n"), lpFileName, lpErrors);
+				Log::writeError(LOG_RTSPSERV, 1, "Error compiling pixel shader '%s':\r\n\r\n%S\r\n", Wchar2Ansi(lpFileName).c_str(), lpErrors);
             }
         }
-
+		Log::writeError(LOG_RTSPSERV, 1, "Compilation of pixel shader '%s' failed, result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
         CrashError(TEXT("Compilation of pixel shader '%s' failed, result = %08lX"), lpFileName, err);
         return;
     }
@@ -221,7 +229,7 @@ Shader *D3D10PixelShader::CreatePixelShaderFromBlob(ShaderBlob const &blob, CTST
 {
     ShaderProcessor shaderProcessor;
     if (!shaderProcessor.ProcessShader(lpShader, lpFileName,System))
-        AppWarning(TEXT("Unable to process pixel shader '%s'"), lpFileName); //don't exit, leave it to the actual shader compiler to tell the errors
+		Log::writeMessage(LOG_RTSPSERV, 1, "Unable to process pixel shader '%s'", Wchar2Ansi(lpFileName).c_str()); //don't exit, leave it to the actual shader compiler to tell the errors
 
     if (!blob.size())
         return nullptr;
@@ -230,6 +238,7 @@ Shader *D3D10PixelShader::CreatePixelShaderFromBlob(ShaderBlob const &blob, CTST
 	HRESULT err = System->GetDeviceInline()->CreatePixelShader(&blob.front(), blob.size(), NULL, &pShader);
     if (FAILED(err))
     {
+		Log::writeError(LOG_RTSPSERV, 1, "Unable to create pixel shader '%s', result = %08lX", Wchar2Ansi(lpFileName).c_str(), err);
         CrashError(TEXT("Unable to create pixel shader '%s', result = %08lX"), lpFileName, err);
         return NULL;
     }
@@ -271,19 +280,33 @@ Shader* D3D10PixelShader::CreatePixelShaderFromFile(CTSTR lpFileName, D3D10Syste
 		}
 		Len--;
 	}
+
+	for (int i = 0; i < Len; ++i)
+	{
+		if (*(strDirectory.Array() + i) != '\0' && *(strDirectory.Array() + i) == '\\')
+		{
+			*(strDirectory.Array() + i) = '/';
+		}
+	}
 	
 	if ((lpFileName[0] != '.' && lpFileName[0] != '/' && lpFileName[0] != '\\') && !(lpFileName[0] && lpFileName[1] == ':'))
-		fullPathFilename << strDirectory << L"\\" << lpFileName;
+		fullPathFilename << strDirectory << L"/" << lpFileName;
 	else
 		fullPathFilename << lpFileName;
 
 	if (!ShaderFile.Open(fullPathFilename, XFILE_READ | XFILE_SHARED, XFILE_OPENEXISTING))
+	{
+		Log::writeError(LOG_RTSPSERV,1,"CreatePixelShaderFromFile: Couldn't open %s: %d", Wchar2Ansi(lpFileName).c_str(), GetLastError());
 		CrashError(TEXT("CreatePixelShaderFromFile: Couldn't open %s: %d"), lpFileName, GetLastError());
+	}
 
 	String strShader;
 	ShaderFile.ReadFileToString(strShader);
 	if (strShader.IsEmpty())
+	{
+		Log::writeError(LOG_RTSPSERV,1,"CreatePixelShaderFromFile: Couldn't read %s: %d", Wchar2Ansi(lpFileName).c_str(), GetLastError());
 		CrashError(TEXT("CreatePixelShaderFromFile: Couldn't read %s: %d"), lpFileName, GetLastError());
+	}
 
 	ShaderBlob blob;
 	CreatePixelShaderBlob(blob, strShader, lpFileName, System);
@@ -442,7 +465,7 @@ void  D3D10Shader::UpdateParams()
         {
             if(!param.curValue.Num())
             {
-                AppWarning(TEXT("D3D10Shader::UpdateParams: shader parameter '%s' not set"), param.name.Array());
+				Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Shader::UpdateParams: shader parameter '%s' not set",Wchar2Ansi(param.name.Array()).c_str());
                 bUpload = false;
                 break;
             }
@@ -467,7 +490,7 @@ void  D3D10Shader::UpdateParams()
 
     if(shaderConstantData.Num() != constantSize)
     {
-        AppWarning(TEXT("D3D10Shader::UpdateParams: invalid parameter specifications, constant size given: %d, constant size expected: %d"), shaderConstantData.Num(), constantSize);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Shader::UpdateParams: invalid parameter specifications, constant size given: %d, constant size expected: %d", shaderConstantData.Num(), constantSize);
         bUpload = false;
     }
 
@@ -478,7 +501,7 @@ void  D3D10Shader::UpdateParams()
         HRESULT err;
 		if (FAILED(err = System->GetContextInline()->Map(constantBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
         {
-            AppWarning(TEXT("D3D10Shader::UpdateParams: could not map constant buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10Shader::UpdateParams: could not map constant buffer, result = %08lX", err);
             return;
         }
 

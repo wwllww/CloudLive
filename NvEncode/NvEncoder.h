@@ -120,9 +120,6 @@ protected:
     uint32_t                                             m_uEncodeBufferCount;
     uint32_t                                             m_uPicStruct;
     void*                                                m_pDevice;
-#if defined(NV_WINDOWS)
-    IDirect3D9                                          *m_pD3D;
-#endif
 
     CUcontext                                            m_cuContext;
     EncodeBuffer                                         m_stEncodeBuffer[MAX_ENCODE_QUEUE];
@@ -144,7 +141,6 @@ protected:
 	NVENCSTATUS                                          FlushEncoder(VCodecBuffer** pOut);
     void                                                 FlushMVOutputBuffer();
 
-	///////////
 public:
 	EncodeConfig    m_stEncoderConfig;
 	VCodecBuffer*   m_pTempBuffer;
@@ -155,6 +151,8 @@ public:
 	int NvEncodeDestroy();
 	int NvEncodeFrame(VCodecBuffer* pIn, VCodecBuffer** pOut);
 	unsigned int NvGetBufferedCount();
+	int QueryHardEncodeSupport();
+	int QueryNvidia();
 };
 
 // NVEncodeAPI entry point

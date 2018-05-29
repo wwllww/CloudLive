@@ -149,7 +149,7 @@ public:
 
     void GlobalSourceEnterScene();
     void GlobalSourceLeaveScene();
-
+	virtual void RenameSource(const char *NewName);
     void SetInt(CTSTR lpName, int iVal);
     void SetFloat(CTSTR lpName, float fValue);
 

@@ -452,6 +452,7 @@ void BlackMagic::ApplySDISettings(SDIOutInfo *ID, bool bForceUpdata)
 		bNoChange = bNoChange && (strcmp(pOutInof[i].Format.c_str(), ID[i].Format.c_str()) == 0);
 
 		pOutInof[i].Format = ID[i].Format;
+		Log::writeMessage(LOG_RTSPSERV, 1, "ApplySDISettings DispModeName = %s", pOutInof[i].Format.c_str());
 
 		int sdiDeviceId = SDIDeviceOutlst[i]->strID;
 

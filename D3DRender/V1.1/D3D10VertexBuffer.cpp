@@ -5,7 +5,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 {
     if(!vbData)
     {
-        AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: vbData NULL"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: vbData NULL");
         return NULL;
     }
 
@@ -32,7 +32,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 	err = D3DSystem->GetDeviceInline()->CreateBuffer(&bd, &srd, &buf->vertexBuffer);
     if(FAILED(err))
     {
-        AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: Failed to create the vertex portion of the vertex buffer, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: Failed to create the vertex portion of the vertex buffer, result = %08lX", err);
         delete buf;
         return NULL;
     }
@@ -47,7 +47,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 		err = D3DSystem->GetDeviceInline()->CreateBuffer(&bd, &srd, &buf->normalBuffer);
         if(FAILED(err))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: Failed to create the normal portion of the vertex buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: Failed to create the normal portion of the vertex buffer, result = %08lX", err);
             delete buf;
             return NULL;
         }
@@ -63,7 +63,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 		err = D3DSystem->GetDeviceInline()->CreateBuffer(&bd, &srd, &buf->colorBuffer);
         if(FAILED(err))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: Failed to create the color portion of the vertex buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: Failed to create the color portion of the vertex buffer, result = %08lX", err);
             delete buf;
             return NULL;
         }
@@ -79,7 +79,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 		err = D3DSystem->GetDeviceInline()->CreateBuffer(&bd, &srd, &buf->tangentBuffer);
         if(FAILED(err))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: Failed to create the tangent portion of the vertex buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: Failed to create the tangent portion of the vertex buffer, result = %08lX", err);
             delete buf;
             return NULL;
         }
@@ -104,7 +104,7 @@ D3D10VertexBuffer* D3D10VertexBuffer::CreateVertexBuffer(VBData *vbData, BOOL bS
 			err = D3DSystem->GetDeviceInline()->CreateBuffer(&bd, &srd, &tvBuffer);
             if(FAILED(err))
             {
-                AppWarning(TEXT("D3D10VertexBuffer::CreateVertexBuffer: Failed to create the texture vertex %d portion of the vertex buffer, result = %08lX"), i, err);
+				Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::CreateVertexBuffer: Failed to create the texture vertex %d portion of the vertex buffer, result = %08lX", i, err);
                 delete buf;
                 return NULL;
             }
@@ -146,7 +146,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
 {
     if(!bDynamic)
     {
-        AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: Cannot flush buffers on a non-dynamic vertex buffer"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: Cannot flush buffers on a non-dynamic vertex buffer");
         return;
     }
 
@@ -158,7 +158,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
 
 	if (FAILED(err = D3DSystem->GetContextInline()->Map(vertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
     {
-        AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: failed to map vertex buffer, result = %08lX"), err);
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: failed to map vertex buffer, result = %08lX", err);
         return;
     }
 
@@ -172,7 +172,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
     {
 		if (FAILED(err = D3DSystem->GetContextInline()->Map(normalBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: failed to map normal buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: failed to map normal buffer, result = %08lX", err);
             return;
         }
 
@@ -186,7 +186,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
     {
 		if (FAILED(err = D3DSystem->GetContextInline()->Map(colorBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: failed to map color buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: failed to map color buffer, result = %08lX", err);
             return;
         }
 
@@ -200,7 +200,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
     {
 		if (FAILED(err = D3DSystem->GetContextInline()->Map(tangentBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
         {
-            AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: failed to map tangent buffer, result = %08lX"), err);
+			Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: failed to map tangent buffer, result = %08lX", err);
             return;
         }
 
@@ -220,7 +220,7 @@ void D3D10VertexBuffer::FlushBuffers(D3D10System *D3DSystem)
 
 			if (FAILED(err = D3DSystem->GetContextInline()->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &map)))
             {
-                AppWarning(TEXT("D3D10VertexBuffer::FlushBuffers: failed to map texture vertex buffer %d, result = %08lX"), i, err);
+				Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::FlushBuffers: failed to map texture vertex buffer %d, result = %08lX", i, err);
                 return;
             }
 
@@ -234,7 +234,7 @@ VBData* D3D10VertexBuffer::GetData()
 {
     if(!bDynamic)
     {
-        AppWarning(TEXT("D3D10VertexBuffer::GetData: Cannot get vertex data of a non-dynamic vertex buffer"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "D3D10VertexBuffer::GetData: Cannot get vertex data of a non-dynamic vertex buffer");
         return NULL;
     }
 
@@ -256,7 +256,7 @@ void D3D10VertexBuffer::MakeBufferList(D3D10VertexShader *vShader, List<ID3D11Bu
             strides << normalSize;
         }
         else
-            AppWarning(TEXT("Trying to use a vertex buffer without normals with a vertex shader that requires normals"));
+			Log::writeMessage(LOG_RTSPSERV, 1, "Trying to use a vertex buffer without normals with a vertex shader that requires normals");
     }
 
     if(vShader->bHasColors)
@@ -267,7 +267,7 @@ void D3D10VertexBuffer::MakeBufferList(D3D10VertexShader *vShader, List<ID3D11Bu
             strides << colorSize;
         }
         else
-            AppWarning(TEXT("Trying to use a vertex buffer without colors with a vertex shader that requires colors"));
+			Log::writeMessage(LOG_RTSPSERV, 1, "Trying to use a vertex buffer without colors with a vertex shader that requires colors");
     }
 
     if(vShader->bHasTangents)
@@ -278,7 +278,7 @@ void D3D10VertexBuffer::MakeBufferList(D3D10VertexShader *vShader, List<ID3D11Bu
             strides << tangentSize;
         }
         else
-            AppWarning(TEXT("Trying to use a vertex buffer without tangents with a vertex shader that requires tangents"));
+			Log::writeMessage(LOG_RTSPSERV, 1, "Trying to use a vertex buffer without tangents with a vertex shader that requires tangents");
     }
 
     if(vShader->nTextureCoords <= UVBuffers.Num())
@@ -290,5 +290,5 @@ void D3D10VertexBuffer::MakeBufferList(D3D10VertexShader *vShader, List<ID3D11Bu
         }
     }
     else
-        AppWarning(TEXT("Trying to use a vertex buffer with insufficient texture coordinates compared to the vertex shader requirements"));
+		Log::writeMessage(LOG_RTSPSERV, 1, "Trying to use a vertex buffer with insufficient texture coordinates compared to the vertex shader requirements");
 }

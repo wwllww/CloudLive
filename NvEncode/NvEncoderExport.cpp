@@ -31,3 +31,18 @@ EXTERN_DLLEXPORT unsigned int NvGetBufferedCount(void* hEncode)
 	return ((CNvEncoder*)hEncode)->NvGetBufferedCount();
 }
 
+EXTERN_DLLEXPORT int QueryHardEncodeSupport()
+{
+	int nRet = -1;
+	CNvEncoder* pCNvEncoder = new CNvEncoder;
+	if (pCNvEncoder)
+	{
+		nRet = pCNvEncoder->QueryHardEncodeSupport();
+		pCNvEncoder->UnLoadCodecLib();
+
+		delete pCNvEncoder;
+		pCNvEncoder = nullptr;
+	}
+	return nRet;
+}
+

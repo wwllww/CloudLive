@@ -219,7 +219,7 @@
       <TargetEnvironment>X64</TargetEnvironment>
     </Midl>
     <ClCompile>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <AdditionalIncludeDirectories>.\;..\..\..\UltraLiveApi\v1.1\;Z:\Log_writer;..\..\..\D3DRender\v1.1\;..\..\..\Common\v1.1;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;DSHOWPLUGIN_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>

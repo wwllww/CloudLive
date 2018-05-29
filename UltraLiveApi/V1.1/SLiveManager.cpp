@@ -20,6 +20,10 @@
 #pragma message("new(__FILE__,__LINE__)")
 #endif
 
+extern "C"
+{
+	#include "NvEncoderExport.h"
+}
 
 extern LARGE_INTEGER clockFre;
 extern HINSTANCE hMain;
@@ -542,6 +546,7 @@ CSLiveManager::CSLiveManager()
 
 	circleTransitionPixel = NULL;
 	bStartLive = false;
+	bNewStart = true;
 	StartVideoTime = 0;
 	bOutPicDel = false;
 	bOutPicDel_Back = false;
@@ -584,6 +589,8 @@ CSLiveManager::CSLiveManager()
 	projectorTexture = NULL;
 	LocalInstance = NULL;
 	m_CheckTime = 2 * 60 * 1000;
+	m_EncodeAudioCount = 0;
+	m_RealAudioFrameTime = 0;
 	m_CheckEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
 	copyRGBTexture = NULL;
 	SDIMutex = OSCreateMutex();
@@ -594,6 +601,7 @@ CSLiveManager::CSLiveManager()
 	Deinterlacer = NULL;
 	DeinterlacerLocal = NULL;
 	bNeedAgentInPGM = false;
+	bCanSecondCheck = true;
 }
 
 CSLiveManager::~CSLiveManager()
@@ -965,6 +973,18 @@ int CSLiveManager::SLiveInit(const SLiveParam *Param)
 		if (BSParam.Advanced.BufferTime == 0)
 			BSParam.Advanced.BufferTime = 200;
 
+		if (BSParam.LiveSetting.VideoBitRate > 100000)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRate  过大 %d,设置为100000", __FUNCTION__, BSParam.LiveSetting.VideoBitRate);
+			BSParam.LiveSetting.VideoBitRate = 100000;
+		}
+
+		if (BSParam.LiveSetting.VideoBitRateSec > 100000)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRateSec  过大 %d,设置为100000", __FUNCTION__, BSParam.LiveSetting.VideoBitRateSec);
+			BSParam.LiveSetting.VideoBitRateSec = 100000;
+		}
+
 		G_MainHwnd = (HWND)Param->MainHwnd;
 
 		if (BSParam.SDIOut && BSParam.SDICount > 0)
@@ -1029,6 +1049,10 @@ int CSLiveManager::SLiveInit(const SLiveParam *Param)
 				ListPlugin.push_back(MS);
 			}
 		}
+
+		iHardEncoderType = QueryHardEncodeSupport();//1 Nvida 2Intel 3都支持
+
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s QueryHardEncodeSupport ret %d", __FUNCTION__, iHardEncoderType);
 	}
 	catch (CErrorBase& e)
 	{
@@ -1135,6 +1159,18 @@ int CSLiveManager::SLiveSetParam(const SLiveParam *Param)
 			}
 
 			bUseBack = Param->LiveSetting.bUseLiveSec;
+
+			if (BSParam.LiveSetting.VideoBitRate > 100000)
+			{
+				Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRate  过大 %d,设置为100000", __FUNCTION__, BSParam.LiveSetting.VideoBitRate);
+				BSParam.LiveSetting.VideoBitRate = 100000;
+			}
+
+			if (BSParam.LiveSetting.VideoBitRateSec > 100000)
+			{
+				Log::writeError(LOG_RTSPSERV, 1, "%s BSParam.LiveSetting.VideoBitRateSec  过大 %d,设置为100000", __FUNCTION__, BSParam.LiveSetting.VideoBitRateSec);
+				BSParam.LiveSetting.VideoBitRateSec = 100000;
+			}
 		}
 
 		if (Param->DeviceSetting.bChange)
@@ -2241,6 +2277,13 @@ int CSLiveManager::SLiveSetRenderStream(uint64_t iIntanceID, uint64_t iStreamID,
 						{
 							BaseVideo->GlobalSourceEnterScene();
 							BaseVideo->SetCanEnterScene(false);
+
+							if (__Video.VideoDevice)
+							{
+								__Video.VideoDevice->GlobalSourceEnterScene();
+								__Video.VideoDevice->SetCanEnterScene(false);
+							}
+
 							EnterCriticalSection(&Process->VideoSection);
 							BaseVideo->BeginScene();
 							LeaveCriticalSection(&Process->VideoSection);
@@ -3360,7 +3403,13 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 
 			int Ref = type == Cut ? 2 : 3;
 
-			if (VSTem.bGlobalStream && (VSTem.VideoStream.use_count() - iRefCount) == Ref)
+			long UseCount = VSTem.VideoStream.use_count();
+			if (VSTem.VideoDevice)
+			{
+				UseCount = VSTem.VideoDevice.use_count();
+			}
+
+			if (VSTem.bGlobalStream && (UseCount - iRefCount) == Ref)
 			{
 				IBaseVideo *BaseVideo = VSTem.VideoStream.get();
 
@@ -6133,5 +6182,15 @@ void CSLiveManager::RemoveFilterFromPGMOrPVM(IBaseVideo *Video, const List<Filte
 D3DAPI * CSLiveManager::GetD3DRender() const
 {
 	return m_D3DRender;
+}
+
+int CSLiveManager::SLiveQueryHardEncodeSupport()
+{
+	return QueryHardEncodeSupport();
+}
+
+int CSLiveManager::GetHardEncoderType() const
+{
+	return iHardEncoderType;
 }
 

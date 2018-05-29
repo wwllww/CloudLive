@@ -14,6 +14,7 @@ inline GSColorFormat ConvertGIBackBufferFormat(DXGI_FORMAT format)
     return GS_UNKNOWNFORMAT;
 }
 
+std::string Wchar2Ansi(const std::wstring& strSrc);
 class D3D10VertexShader;
 class D3D10VertexBuffer 
 {

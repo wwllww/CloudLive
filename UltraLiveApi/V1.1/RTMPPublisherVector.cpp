@@ -355,3 +355,32 @@ void RTMPPublisherVector::GetRtmpPublist(std::vector<RTMPPublisher *> &Publisher
 	LeaveCriticalSection(&hBuildMutex);
 }
 
+void RTMPPublisherVector::ReConnectPuhlisher(const String &Prefix)
+{
+	EnterCriticalSection(&hBuildMutex);
+
+	std::list<RTMPPublisher*>::const_iterator pos = Publishers.begin();
+	std::list<RTMPPublisher*>::const_iterator end = Publishers.end();
+
+	RTMPPublisher *NewPublisher = NULL;
+	for (; pos != end; ++pos)
+	{
+		String &PublisherPrefix = (*pos)->GetPrefix();
+
+		if (PublisherPrefix.CompareI(Prefix.Array()))
+		{
+			NewPublisher = (*pos)->CloneWithNoDelayConnect();
+			delete (*pos);
+			Publishers.erase(pos);
+			break;
+		}
+	}
+
+	if (NewPublisher)
+	{
+		Publishers.push_back(NewPublisher);
+	}
+
+	LeaveCriticalSection(&hBuildMutex);
+}
+

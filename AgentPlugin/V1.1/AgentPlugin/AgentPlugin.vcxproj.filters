@@ -42,6 +42,9 @@
     <ClInclude Include="..\TextOutputSource.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\BitmapTransitionSource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -63,6 +66,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\TextOutputSource.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\BitmapTransitionSource.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

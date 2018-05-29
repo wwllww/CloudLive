@@ -53,10 +53,13 @@ bool PipeVideo::Init(Value &data)
 {
 	b_flag = false;
 	bThreadRuning = true;
+
+	this->data = data;
+
 	Log::writeMessage(LOG_RTSPSERV,1,"line: %d   func:%s,  --PipeVideo is start,Create a PipeServer!", __LINE__, __FUNCTION__);
 	CPipeServer::GetInstance()->Start(data);
 	CPipeServer::GetInstance()->AddVideoRender(this);
-	this->data = data;
+	
 
 	m_size = Vect2(-1, -1);
 
@@ -76,14 +79,6 @@ bool PipeVideo::Init(Value &data)
 		Log::writeError(LOG_RTSPSERV, 1, "PipeVideoPlugin: could not create sample mutex");
         return false;
     }
-
-	hListMutex = OSCreateMutex();
-
-	if (!hListMutex)
-	{
-		Log::writeError(LOG_RTSPSERV, 1, "PipeVideoPlugin: could not create hListMutex mutex");
-		return false;
-	}
 
 //     int numThreads = MAX(OSGetTotalCores()-2, 1);
 	hConvertThreads = NULL; //(HANDLE*)Allocate_Bak(sizeof(HANDLE)*numThreads);
@@ -180,8 +175,6 @@ PipeVideo::~PipeVideo()
 
 }
 
-#define SHADER_PATH TEXT("shaders/")
-
 String PipeVideo::ChooseShader(bool bNeedField)
 {
     if(colorType == DeviceOutputType_RGB)
@@ -252,8 +245,19 @@ bool PipeVideo::LoadFilters()
     String strShader;
 	bUseThreadedConversion = false;//API->UseMultithreadedOptimizations() && (OSGetTotalCores() > 1);
 
-	renderCX = newCX = 640;
-	renderCY = newCY = 480;
+	
+	if (bitmapImage)
+	{
+		Vect2 &Size = bitmapImage->GetSize();
+
+		renderCX = newCX = Size.x;
+		renderCY = newCY = Size.y;
+	}
+	else
+	{
+		renderCX = newCX = 1280;
+		renderCY = newCY = 720;
+	}
 
     bFirstFrame = true;
 
@@ -405,22 +409,28 @@ void PipeVideo::Start()
 	}
 	OSLeaveMutex(hAudioMutex);
 
-	if (bitmapImage)
-	{
-		delete bitmapImage;
-		bitmapImage = NULL;
-	}
-	String path = L".\\img\\PIPE_1024x768.png"; //默认是16:9
+	String path = L".\\img\\PIPE_1920x1080.png"; //默认是16:9
 
 	if (!OSFileExists(path)) // 文件不存在
 	{
 		return;
 	}
 
-	bitmapImage = new BitmapImage();
-	bitmapImage->SetPath(path);
-	bitmapImage->EnableFileMonitor(false);
-	bitmapImage->Init();
+	if (!bitmapImage)
+	{
+		bitmapImage = new BitmapImage();
+		bitmapImage->SetPath(path);
+		bitmapImage->EnableFileMonitor(false);
+		bitmapImage->Init();
+	}
+
+	if (!b_flag)
+	{
+		Vect2 &Size = bitmapImage->GetSize();
+
+		renderCX = newCX = Size.x;
+		renderCY = newCY = Size.y;
+	}
 }
 
 void PipeVideo::Stop()
@@ -458,9 +468,12 @@ void PipeVideo::BeginScene()
 
 	ChangeShader();
 
-	ChangeSize(bLoadSucceed, true);
+	if (!texture)
+		ChangeSize(bLoadSucceed, true);
 
-	drawShader = D3DRender->CreatePixelShaderFromFile(TEXT("shaders\\DrawTexture_ColorAdjust.pShader"));
+	if (!drawShader)
+		drawShader = D3DRender->CreatePixelShaderFromFile(TEXT("shaders\\DrawTexture_ColorAdjust.pShader"));
+
 	bCapturing = true;
 }
 
@@ -649,26 +662,25 @@ void PipeVideo::ReceiveState(bool connected)
 
 	if (m_ListCallBack.Num())
 	{
-		CSampleData   *VideoSample = new CSampleData;
+		CSampleData VideoSample;
 
-		VideoSample->bAudio = false;
-		VideoSample->dataLength = 1024 * 768 * 3 / 2;
-		VideoSample->lpData = (LPBYTE)Allocate_Bak(VideoSample->dataLength);//pointer; //
-		VideoSample->cx = 1024;
-		VideoSample->cy = 768;
-		VideoSample->colorType = ColorType_I420;
+		VideoSample.bAudio = false;
+		VideoSample.dataLength = 1024 * 768 * 3 / 2;
+		VideoSample.lpData = (LPBYTE)m_pDefaultImgYUVbuffer;//pointer; //
+		VideoSample.cx = 1024;
+		VideoSample.cy = 768;
+		VideoSample.colorType = ColorType_I420;
 
-		memcpy(VideoSample->lpData, m_pDefaultImgYUVbuffer, VideoSample->dataLength);
 
 		OSEnterMutex(hListMutex);
 		for (int i = 0; i < m_ListCallBack.Num(); ++i)
 		{
 			__DataCallBack &OneBack = m_ListCallBack[i];
-			OneBack.CallBack(OneBack.Context, VideoSample);
+			OneBack.CallBack(OneBack.Context, &VideoSample);
 		}
 		OSLeaveMutex(hListMutex);
 
-		VideoSample->Release();
+		VideoSample.lpData = NULL;
 	}	
 // 	delete[] buffer;
 // 	buffer = NULL;
@@ -725,6 +737,7 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 			{
 				__DataCallBack &OneBack = m_ListCallBack[i];
 				OneBack.CallBack(OneBack.Context, &VideoSample);
+				m_bFirstReceiveData = true;
 			}
 			VideoSample.lpData = NULL;
 		}
@@ -833,7 +846,8 @@ void PipeVideo::ReceiveMediaSample(ISampleData *sample, bool bAudio)
 			audioOut->ReceiveAudio(sample->lpData, sample->AInfo.Datalen, sample->AInfo.Timestamp, false);
 		}
 		sample->Release();
-		
+		bReadyToDraw = false;
+		m_LastTimeStamp = 0;
 	}
 }
 
@@ -868,19 +882,16 @@ void PipeVideo::Preprocess()
 
     ISampleData *lastSample = NULL;
 
-    OSEnterMutex(hSampleMutex);
-
-
+	OSEnterMutex(hSampleMutex);
 	if (ListSample.size())
 	{
 		ListParam &Param = ListSample.front();
 		lastSample = Param.pData;
+		m_LastTimeStamp = Param.TimeStamp;
+		//上面为引用，所以要在赋值要在pop_front之前
 		ListSample.pop_front();
 	}
-
-	//	lastSample = latestVideoSample;
-   // latestVideoSample = NULL;
-    OSLeaveMutex(hSampleMutex);
+	OSLeaveMutex(hSampleMutex);
 
     if(lastSample)
     { 
@@ -978,7 +989,7 @@ void PipeVideo::Preprocess()
 void PipeVideo::Render(const Vect2 &pos, const Vect2 &size, Texture *FilterTexture, bool bScaleFull, bool bIsLiveC)
 {
 	//if (m_Server->IsConnected() == false) //当连接不成功时调用该函数
-	if (!b_flag)
+	if (!b_flag || !m_bFirstReceiveData)
 	{
 		if (bitmapImage)
 		{
@@ -988,7 +999,7 @@ void PipeVideo::Render(const Vect2 &pos, const Vect2 &size, Texture *FilterTextu
 				D3DRender->DrawSprite(local_texture, 0xFFFFFFFF, pos.x, pos.y, pos.x + size.x, pos.y + size.y);
 			}
 		}
-
+		m_LastTimeStamp = 0;
 		return;
 	}
 
@@ -1308,6 +1319,7 @@ PipeVideo::PipeVideo()
 	bCapturing = false;
 	bInterlaceSignal = false;
 	enteredSceneCount = 0;
+	hListMutex = OSCreateMutex();
 }
 
 void PipeVideo::SetHasPreProcess(bool bHasPre)
@@ -2052,6 +2064,12 @@ void CPipeServer::on_pipe_write(AsynIoErr st, AIOID id, const char *pipename, ch
 				
 			return;
 		}
+		else if (pModerDataTransMode->type == AddPipeVideoCommand || pModerDataTransMode->type == DelPipeVideoCommand || pModerDataTransMode->type == RenamePipeVideoCommand)
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "发送 %d 命令成功 消息 %s", pModerDataTransMode->type,pModerDataTransMode->send_buffer + sizeof MSGHeader);
+			delete pModerDataTransMode;
+			pModerDataTransMode = NULL;
+		}
 	} 
 	else
 	{
@@ -2068,26 +2086,38 @@ void CPipeServer::on_pipe_write(AsynIoErr st, AIOID id, const char *pipename, ch
 			pModerDataTransMode->refs--;
 			OSLeaveMutex(pModerDataTransMode->mutex_lock);
 		}
-		if (pModerDataTransMode->Datatype == ParamSet)
+		if (m_processID == id)
 		{
-			if (pModerDataTransMode->LRefs == 0)
+
+			ResetInitParam();
+			if (pModerDataTransMode->type == ParamSet)
 			{
-				SubRef();
-				delete pModerDataTransMode;    //第一次管道对象删除
-				pModerDataTransMode = NULL;
-				Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  正常删除id = %d,--m_iLRefs = %d!", __LINE__, __FUNCTION__, id, m_iLRefs);
-				ReleaseThread(NULL);
-				return;
+				if (pModerDataTransMode->LRefs == 0)
+				{
+					SubRef();
+					delete pModerDataTransMode;    //第一次管道对象删除
+					pModerDataTransMode = NULL;
+					Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  正常删除id = %d,--m_iLRefs = %d!", __LINE__, __FUNCTION__, id, m_iLRefs);
+					ReleaseThread(NULL);
+					return;
+				}
+				else
+				{
+					SubRef();
+					Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer 已经关闭 id = %d,pModerDataTransMode->LRefs =  %d,应该为0，删除可能会崩溃，thread_ID = %d",
+						__LINE__, __FUNCTION__, id, pModerDataTransMode->LRefs, GetCurrentThreadId());
+					delete pModerDataTransMode;    //第一次管道对象删除
+					pModerDataTransMode = NULL;
+					Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --m_iLRefs = %d!", __LINE__, __FUNCTION__, m_iLRefs);
+					ReleaseThread(NULL);
+					return;
+				}
 			}
 			else
 			{
-				SubRef();
-				Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer 已经关闭 id = %d,pModerDataTransMode->LRefs =  %d,应该为0，删除可能会崩溃，thread_ID = %d",
-					__LINE__, __FUNCTION__, id, pModerDataTransMode->LRefs, GetCurrentThreadId());
-				delete pModerDataTransMode;    //第一次管道对象删除
+				Log::writeMessage(LOG_RTSPSERV, 1, "发送 %d 命令失败 消息 %s",pModerDataTransMode->type,pModerDataTransMode->send_buffer + sizeof MSGHeader);
+				delete pModerDataTransMode;
 				pModerDataTransMode = NULL;
-				Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --m_iLRefs = %d!", __LINE__, __FUNCTION__, m_iLRefs);
-				ReleaseThread(NULL);
 				return;
 			}
 		}
@@ -2142,7 +2172,15 @@ void CPipeServer::on_pipe_read(AsynIoErr st, AIOID id, const char *pipename, cha
 			AnalyzeCommand(id, pModerDataTransMode->receive_buffer, retlen, pModerDataTransMode->send_buffer, 
 				pModerDataTransMode->send_len, pModerDataTransMode);
 			pModerDataTransMode->AddRef();
+			MsgType TemMsgType = pModerDataTransMode->type;
 			m_pPipeControl->asyn_write_pipe(id, pModerDataTransMode->send_buffer, pModerDataTransMode->send_len, (ULL64)pModerDataTransMode, 0);
+
+			//这里asyn_write_pipe 可能会失败，导致在on_write_pipe时删除pModerDataTransMode，再用pModerDataTransMode崩溃
+			if (TemMsgType == ParamSet) //说明是信令管道
+			{
+				//遍历当前互动源列表发送互动源名字
+				ProcessNameCommand(NULL, NULL, AddPipeVideoCommand, true);
+			}
 		}
 		else
 		{
@@ -2240,7 +2278,9 @@ void CPipeServer::on_pipe_read(AsynIoErr st, AIOID id, const char *pipename, cha
 
 				Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer  对方关闭互动机,erase  m_processID = %d, m_pModerDataTransModeList size = %d, leave m_hDataStListMutex ,thread_ID=%d",
 					__LINE__, __FUNCTION__, id, m_pModerDataTransModeList.size(), GetCurrentThreadId());
-			}	
+			}
+
+			ResetInitParam();
 		}
 		else if (pModerDataTransMode->type == HostMode) //主持人模式,此模式数据读取失败不需要关闭管道,但是需要移除
 		{
@@ -2264,6 +2304,7 @@ void CPipeServer::on_pipe_read(AsynIoErr st, AIOID id, const char *pipename, cha
 				{
 					(*iter)->m_aioId = -1;
 					(*iter)->b_flag = false;
+					(*iter)->m_bFirstReceiveData = false;
 					(*iter)->m_NickName = L"NULL";
 					(*iter)->FlushSamples();
 					std::stringstream SourceId;
@@ -3381,7 +3422,7 @@ bool CPipeServer::AnalyzeCommand(AIOID id, char *pcommand, int msgLen, char * me
 					 DeviceParam oDeviceParam;
 					 strResponse oResponse;
 					 strHostMode oHostMode;
-					 oResponse.code = 1;
+					 oResponse.code = -1;
 					 pModerDataTransMode->bHasAPipeVideoRender = false;
 					 if (msgLen - sizeof(MSGHeader) < sizeof strHostMode)
 					 {
@@ -3394,19 +3435,19 @@ bool CPipeServer::AnalyzeCommand(AIOID id, char *pcommand, int msgLen, char * me
 					Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer HostMode get hPipeVideoMutex id = %d, thread_id = %d",
 						__LINE__, __FUNCTION__,id, GetCurrentThreadId());
 
-					memset(m_cNickName, 0, 64);
-					memcpy(m_cNickName, oHostMode.Nickname,64);
+					//memset(m_cNickName, 0, 64);
+					//memcpy(m_cNickName, oHostMode.Nickname,64);
 					OSEnterMutex(hPipeVideoMutex);
-					std::list<PipeVideo*>::iterator iter;
-					for (iter = PipeRenders.begin(); iter != PipeRenders.end(); iter++)
+					for (auto iter = PipeRenders.begin(); iter != PipeRenders.end(); iter++)
 				    {
-						if (!(*iter)->b_flag){
+						if (strcmp(((*iter)->data["Name"]).asString().c_str(), oHostMode.InteractionName) == 0)
+						{
 							(*iter)->b_flag = true;
 							(*iter)->m_aioId = id;
 							oResponse.code = 0;
 							pModerDataTransMode->bHasAPipeVideoRender = true;
 							memset((*iter)->name, 0x00, sizeof((*iter)->name));
-							memcpy((*iter)->name, oHostMode.ChannelNumber, sizeof((*iter)->name)); 
+							memcpy((*iter)->name, oHostMode.ChannelNumber, sizeof((*iter)->name));
 							(*iter)->m_NickName = Asic2WChar(oHostMode.Nickname).c_str();
 							RenderMap[id] = (*iter);
 							std::stringstream SourceId;
@@ -3422,7 +3463,7 @@ bool CPipeServer::AnalyzeCommand(AIOID id, char *pcommand, int msgLen, char * me
 								NameCb(InstanceID, (uint64_t)(*iter), oHostMode.Nickname);
 							}
 							Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer AIOID  %d is success get a pos for PipeVideo, thread_ID = %d",
-								__LINE__, __FUNCTION__, id,GetCurrentThreadId());
+								__LINE__, __FUNCTION__, id, GetCurrentThreadId());
 							break;
 						}
 					}
@@ -3432,7 +3473,13 @@ bool CPipeServer::AnalyzeCommand(AIOID id, char *pcommand, int msgLen, char * me
 						__LINE__, __FUNCTION__, id,GetCurrentThreadId());
 					sendMSGHeader.type = HostMode;
 					sendMSGHeader.len = sizeof(oResponse);
-					memset(oResponse.description, 0, 256);
+					memset(oResponse.description, 0, sizeof (oResponse.description));
+
+					if (oResponse.code == -1)
+					{
+						memcpy(oResponse.description, oHostMode.InteractionName, sizeof(oHostMode.InteractionName));
+					}
+
 					memcpy(messageBuffer, &sendMSGHeader, sizeof(sendMSGHeader));
 					memcpy(messageBuffer + sizeof(sendMSGHeader), &oResponse, sizeof(oResponse));
 					SendSize = sizeof(sendMSGHeader)+sizeof(oResponse);
@@ -3654,6 +3701,9 @@ int CPipeServer::AddVideoRender(PipeVideo* pPipeVideo) {
 	PipeRenders.push_back(pPipeVideo);
 	Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func : %s, --PipeServer add a PipeVideo to PipeRenders, PipeRenders.size = %d",
 		__LINE__, __FUNCTION__, PipeRenders.size());
+
+	ProcessNameCommand(pPipeVideo->data["Name"].asString().c_str(), NULL, AddPipeVideoCommand);
+
 	OSLeaveMutex(hPipeVideoMutex);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer AddVideoRender leave hPipeVideoMutex, PipeRenders size =%d,thread_id = %d",
@@ -3719,6 +3769,9 @@ void CPipeServer::RemoveVideoRender(PipeVideo* pipeVideo) {
 			break;
 		}
 	}
+
+	ProcessNameCommand(pipeVideo->data["Name"].asString().c_str(), NULL, DelPipeVideoCommand);
+
 	OSLeaveMutex(hPipeVideoMutex);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "line: %d   func:%s,  --PipeServer leave hPipeVideoMutex,RenderMap.size() = %d, thread_ID = %d",
@@ -4911,6 +4964,73 @@ void CPipeServer::ReceiveVideoData(void *context, CSampleData *RGBdata)
 	OSLeaveMutex(pModerDataTransMode->mutex_lock);
 }
 
+void CPipeServer::ResetInitParam()
+{
+	m_bHasSendFristPipeName = false;
+}
+
+void CPipeServer::ProcessNameCommand(const char *NewName, const char *OldName, MsgType type, bool bFristAdd)
+{
+	if (type != AddPipeVideoCommand && type != DelPipeVideoCommand && type != RenamePipeVideoCommand)
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "错误的MsgType %d",type);
+		return;
+	}
+	if (!bFristAdd && (!m_bHasSendFristPipeName || m_processID == -1))
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "信令管道还未建立连接");
+		return;
+	}
+
+	//遍历当前互动源列表发送互动源名字
+	StModerDataTransMode *pModerVideoName = new StModerDataTransMode;
+	pModerVideoName->type = type;
+	pModerVideoName->id = m_processID;
+
+	MSGHeader *NickHeader = (MSGHeader*)pModerVideoName->send_buffer;
+	NickHeader->type = type;
+
+	Json::Value PipeVideoNameList;
+	Json::Value &OneList = PipeVideoNameList["NameList"];
+
+	if (bFristAdd && type == AddPipeVideoCommand)
+	{
+		int Index = 0;
+		OSEnterMutex(hPipeVideoMutex);
+		for (auto iter = PipeRenders.begin(); iter != PipeRenders.end(); iter++)
+		{
+			if (!(*iter)->data["Name"].isNull())
+			{
+				OneList[Index++] = (*iter)->data["Name"].asString().c_str();
+			}
+		}
+		m_bHasSendFristPipeName = true;
+		OSLeaveMutex(hPipeVideoMutex);
+	}
+	else
+	{
+		if (type == AddPipeVideoCommand || type == DelPipeVideoCommand)
+			OneList[Json::UInt(0)] = NewName;
+		else
+		{
+			OneList[Json::UInt(0)]["OldName"] = OldName;
+			OneList[Json::UInt(0)]["NewName"] = NewName;
+		}
+	}
+	
+
+	std::string &strList = PipeVideoNameList.toStyledString();
+	NickHeader->len = strList.length();
+
+	int Sendlen = strList.length() + sizeof MSGHeader;
+	memcpy(pModerVideoName->send_buffer + sizeof MSGHeader, strList.c_str(), strList.length());
+	pModerVideoName->send_buffer[Sendlen] = 0;
+
+
+	m_pPipeControl->asyn_write_pipe(m_processID, pModerVideoName->send_buffer, Sendlen + 1, (ULL64)pModerVideoName, 0);
+
+}
+
 
 void PipeVideo::SetCanEnterScene(bool bCanEnter)
 {
@@ -4933,15 +5053,7 @@ DWORD PipeVideo::AudioThread(LPVOID Param)
 	Video->m_qwrdAudioTime = GetQPCMS();
 	while (Video->bThreadRuning)
 	{
-		ListParam Param = { 0 };
-		OSEnterMutex(Video->hSampleMutex);
-		if (Video->ListSample.size())
-		{
-			Param = Video->ListSample.front();
-		}
-		OSLeaveMutex(Video->hSampleMutex);
-
-		if (Param.TimeStamp > 0)
+		if (Video->m_LastTimeStamp > 0)
 		{
 			ListParam __AudioParam;
 			OSEnterMutex(Video->hAudioMutex);
@@ -4950,7 +5062,7 @@ DWORD PipeVideo::AudioThread(LPVOID Param)
 			{
 				__AudioParam = Video->ListAudioSample.front();
 
-				if (__AudioParam.TimeStamp <= Param.TimeStamp)
+				if (__AudioParam.TimeStamp <= Video->m_LastTimeStamp)
 				{
 					if (Video->audioOut)
 					{
@@ -5012,6 +5124,15 @@ void PipeVideo::ChangeShader()
 		strShader = ChooseShader();
 		colorFieldConvertShader = D3DRender->CreatePixelShaderFromFile(strShader);
 
+	}
+}
+
+void PipeVideo::RenameSource(const char *NewName)
+{
+	if (NewName)
+	{
+		CPipeServer::GetInstance()->ProcessNameCommand(NewName,data["Name"].asString().c_str(),RenamePipeVideoCommand);
+		data["Name"] = NewName;
 	}
 }
 

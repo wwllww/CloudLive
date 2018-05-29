@@ -38,19 +38,14 @@ DSource::DSource()
 	audioOut = NULL;
 	memset(&audioFormat, 0, sizeof WAVEFORMATEX);
 
+	hSampleMutex = OSCreateMutex();
 }
 
 bool DSource::Init(Value &data)
 {
 	bCapturing = false;
 	bRequestVolume = true;
-    hSampleMutex = OSCreateMutex();
-    if(!hSampleMutex)
-    {
-		Log::writeError(LOG_RTSPSERV, 1, "AuidoPlugin: could not create sample mutex");
-        return false;
-    }
-
+  
 	m_hCheckExitEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 
 	m_pEvent = NULL;
@@ -693,6 +688,10 @@ void DSource::SetFloat(CTSTR lpName, float fValue)
 	{
 		audioOut->SetDenoise(fValue, true);
 	}
+	else if(scmpi(lpName, TEXT("false")) == 0)
+	{
+		audioOut->SetDenoise(fValue, false);
+	}
 	
     if(!bCapturing)
         return;
@@ -758,6 +757,14 @@ void DSource::UnRegisterDataCallBack(void *Context)
 		}
 	}
 	OSLeaveMutex(hSampleMutex);
+}
+
+void DSource::RenameSource(const char *NewName)
+{
+	if (NewName)
+	{
+		data["Name"] = NewName;
+	}
 }
 
 

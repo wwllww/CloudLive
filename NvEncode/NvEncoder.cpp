@@ -6,6 +6,14 @@
 #include "inc/nvFileIO.h"
 #include <new>
 
+#include <dxgi1_2.h>
+#include <vector>
+#include <array>
+#include "inc/mfx/mfxdefs.h"
+#include "inc/mfx/mfxcommon.h"
+#include "inc/mfx/mfxvideo++.h"
+//#pragma comment(lib, "libmfx.lib")
+
 #include "LogDeliver.h"
 
 #pragma comment(lib,"Log_writer.lib")
@@ -17,8 +25,7 @@
 HINSTANCE g_hinstLib;
 NV_ENCODE_API_FUNCTION_LIST*  g_pEncodeAPI = nullptr;
 
-volatile bool g_bLoadNvEncodeLib = false;
-volatile int  g_RefCount = 0;
+volatile int  g_CodecLibRefCount = 0;
 
 #define BITSTREAM_BUFFER_SIZE 2 * 1024 * 1024
 
@@ -52,9 +59,6 @@ CNvEncoder::CNvEncoder()
 	Log::writeMessage(LOG_RTSPSERV, 1, "CNvEncoder 构造");
     m_pNvHWEncoder = new CNvHWEncoder;
     m_pDevice = NULL;
-#if defined (NV_WINDOWS)
-    m_pD3D = NULL;
-#endif
     m_cuContext = NULL;
 
     m_uEncodeBufferCount = 0;
@@ -150,92 +154,6 @@ NVENCSTATUS CNvEncoder::InitCuda(uint32_t deviceID)
     return NV_ENC_SUCCESS;
 }
 
-#if defined(NV_WINDOWS)
-NVENCSTATUS CNvEncoder::InitD3D9(uint32_t deviceID)
-{
-    D3DPRESENT_PARAMETERS d3dpp;
-    D3DADAPTER_IDENTIFIER9 adapterId;
-    unsigned int iAdapter = NULL; // Our adapter
-    HRESULT hr = S_OK;
-
-    m_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-    if (m_pD3D == NULL)
-    {
-		Log::writeMessage(LOG_RTSPSERV, 1, "Direct3DCreate9 error!\n");
-        return NV_ENC_ERR_OUT_OF_MEMORY;;
-    }
-
-    if (deviceID >= m_pD3D->GetAdapterCount())
-    {
-		Log::writeMessage(LOG_RTSPSERV, 1, "Invalid Device Id = %d\n. Please use DX10/DX11 to detect headless video devices.\n", deviceID);
-        return NV_ENC_ERR_INVALID_ENCODERDEVICE;
-    }
-
-    hr = m_pD3D->GetAdapterIdentifier(deviceID, 0, &adapterId);
-    if (hr != S_OK)
-    {
-		Log::writeMessage(LOG_RTSPSERV, 1, "Invalid Device Id = %d\n", deviceID);
-        return NV_ENC_ERR_INVALID_ENCODERDEVICE;
-    }
-
-    ZeroMemory(&d3dpp, sizeof(d3dpp));
-    d3dpp.Windowed = TRUE;
-    d3dpp.BackBufferFormat = D3DFMT_X8R8G8B8;
-    d3dpp.BackBufferWidth = 640;
-    d3dpp.BackBufferHeight = 480;
-    d3dpp.BackBufferCount = 1;
-    d3dpp.SwapEffect = D3DSWAPEFFECT_COPY;
-    d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE;
-    d3dpp.Flags = D3DPRESENTFLAG_VIDEO;//D3DPRESENTFLAG_LOCKABLE_BACKBUFFER;
-    DWORD dwBehaviorFlags = D3DCREATE_FPU_PRESERVE | D3DCREATE_MULTITHREADED | D3DCREATE_HARDWARE_VERTEXPROCESSING;
-
-    hr = m_pD3D->CreateDevice(deviceID,
-        D3DDEVTYPE_HAL,
-        GetDesktopWindow(),
-        dwBehaviorFlags,
-        &d3dpp,
-        (IDirect3DDevice9**)(&m_pDevice));
-
-	if (FAILED(hr))
-	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "InitD3D9 CreateDevice error!\n", deviceID);
-		return NV_ENC_ERR_OUT_OF_MEMORY;
-	}
-
-    return  NV_ENC_SUCCESS;
-}
-
-NVENCSTATUS CNvEncoder::InitD3D10(uint32_t deviceID)
-{
-    HRESULT hr;
-    IDXGIFactory * pFactory = NULL;
-    IDXGIAdapter * pAdapter;
-
-    if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&pFactory) != S_OK)
-    {
-		Log::writeMessage(LOG_RTSPSERV, 1, "InitD3D10 CreateDXGIFactory1 error Device Id = %d\n", deviceID);
-        return NV_ENC_ERR_GENERIC;
-    }
-
-    if (pFactory->EnumAdapters(deviceID, &pAdapter) != DXGI_ERROR_NOT_FOUND)
-    {
-        hr = D3D10CreateDevice(pAdapter, D3D10_DRIVER_TYPE_HARDWARE, NULL, 0,
-            D3D10_SDK_VERSION, (ID3D10Device**)(&m_pDevice));
-        if (FAILED(hr))
-        {
-			Log::writeMessage(LOG_RTSPSERV, 1, "Problem while creating %d D3d10 device \n", deviceID);
-            return NV_ENC_ERR_OUT_OF_MEMORY;
-        }
-    }
-    else
-    {
-		Log::writeMessage(LOG_RTSPSERV, 1, "Invalid Device Id = %d\n", deviceID);
-        return NV_ENC_ERR_INVALID_ENCODERDEVICE;
-    }
-
-    return  NV_ENC_SUCCESS;
-}
-
 NVENCSTATUS CNvEncoder::InitD3D11(uint32_t deviceID)
 {
     HRESULT hr;
@@ -260,13 +178,12 @@ NVENCSTATUS CNvEncoder::InitD3D11(uint32_t deviceID)
     }
     else
     {
-		Log::writeMessage(LOG_RTSPSERV, 1, "Invalid Device Id = %d\n", deviceID);
+		Log::writeMessage(LOG_RTSPSERV, 1, "InitD3D11 Invalid Device Id = %d\n", deviceID);
         return NV_ENC_ERR_INVALID_ENCODERDEVICE;
     }
 
     return  NV_ENC_SUCCESS;
 }
-#endif
 
 NVENCSTATUS CNvEncoder::AllocateIOBuffers(uint32_t uInputWidth, uint32_t uInputHeight, NV_ENC_BUFFER_FORMAT inputFormat)
 {
@@ -496,14 +413,10 @@ NVENCSTATUS CNvEncoder::LoadCodecLib()
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "调用LoadCodecLib!\n");
 
-#if defined(NV_WINDOWS)
 #if defined (_WIN64)
 	g_hinstLib = LoadLibrary(TEXT("nvEncodeAPI64.dll"));
 #else
 	g_hinstLib = LoadLibrary(TEXT("nvEncodeAPI.dll"));
-#endif
-#else
-	g_hinstLib = dlopen("libnvidia-encode.so.1", RTLD_LAZY);
 #endif
 	if (g_hinstLib == NULL)
 	{
@@ -511,12 +424,7 @@ NVENCSTATUS CNvEncoder::LoadCodecLib()
 		return NV_ENC_ERR_OUT_OF_MEMORY;
 	}
 
-#if defined(NV_WINDOWS)
 	nvEncodeAPICreateInstance = (MYPROC)GetProcAddress(g_hinstLib, "NvEncodeAPICreateInstance");
-#else
-	nvEncodeAPICreateInstance = (MYPROC)dlsym(g_hinstLib, "NvEncodeAPICreateInstance");
-#endif
-
 	if (nvEncodeAPICreateInstance == NULL)
 	{
 		Log::writeMessage(LOG_RTSPSERV, 1, "GetProcAddress nvEncodeAPI64.dll error!\n");
@@ -553,11 +461,7 @@ void CNvEncoder::UnLoadCodecLib()
 	}
 	if (g_hinstLib)
 	{
-#if defined (NV_WINDOWS)
 		FreeLibrary(g_hinstLib);
-#else
-		dlclose(g_hinstLib);
-#endif
 		g_hinstLib = NULL;
 	}
 }
@@ -566,38 +470,31 @@ void* CNvEncoder::NvEncodeCreate(EncodeConfig* pEncodeConfig)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "调用NvEncodeCreate");
 
-	g_RefCount++;
-	if (!g_bLoadNvEncodeLib)
+	g_CodecLibRefCount++;
+	if (NULL == g_pEncodeAPI)
 	{
 		NVENCSTATUS status = LoadCodecLib();
 		if (NV_ENC_ERR_OUT_OF_MEMORY == status)
 			return nullptr;
-		g_bLoadNvEncodeLib = true;
-	}
-	if (pEncodeConfig)
-		memcpy(&m_stEncoderConfig, pEncodeConfig, sizeof(EncodeConfig));
-	switch (pEncodeConfig->deviceType)
-	{
-#if defined(NV_WINDOWS)
-	case NV_ENC_DX9:
-		InitD3D9(pEncodeConfig->deviceID);
-		break;
-	case NV_ENC_DX10:
-		InitD3D10(pEncodeConfig->deviceID);
-		break;
-	case NV_ENC_DX11:
-		InitD3D11(pEncodeConfig->deviceID);
-		break;
-#endif
-	case NV_ENC_CUDA:
-		InitCuda(pEncodeConfig->deviceID);
-		break;
 	}
 
+	if (pEncodeConfig)
+		memcpy(&m_stEncoderConfig, pEncodeConfig, sizeof(EncodeConfig));
+
+// 	switch (pEncodeConfig->deviceType)
+// 	{
+// 	case NV_ENC_DX11:
+// 		InitD3D11(pEncodeConfig->deviceID);
+// 		break;
+// 	case NV_ENC_CUDA:
+		InitCuda(0);
+// 		break;
+// 	}
+
 	NVENCSTATUS nvStatus = NV_ENC_SUCCESS;
-	if (pEncodeConfig->deviceType != NV_ENC_CUDA)
-		nvStatus = m_pNvHWEncoder->Initialize(m_pDevice, NV_ENC_DEVICE_TYPE_DIRECTX);
-	else
+// 	if (pEncodeConfig->deviceType != NV_ENC_CUDA)
+// 		nvStatus = m_pNvHWEncoder->Initialize(m_pDevice, NV_ENC_DEVICE_TYPE_DIRECTX);
+// 	else
 		nvStatus = m_pNvHWEncoder->Initialize(m_pDevice, NV_ENC_DEVICE_TYPE_CUDA);
 
 	if (nvStatus != NV_ENC_SUCCESS)
@@ -797,6 +694,12 @@ int CNvEncoder::NvEncodeDestroy()
 // 			m_bFlushComplete = true;
 // 	}
 
+	for (size_t i = 0; i < m_uEncodeBufferCount; i++)
+	{
+		VCodecBuffer* pOut = nullptr;
+		FlushEncoder(&pOut);
+	}
+
 	if (m_stEncoderConfig.enableMEOnly)
 		ReleaseMVIOBuffers();
 	else
@@ -806,40 +709,17 @@ int CNvEncoder::NvEncodeDestroy()
 
 	if (m_pDevice)
 	{
-		switch (m_stEncoderConfig.deviceType)
-		{
-#if defined(NV_WINDOWS)
-		case NV_ENC_DX9:
-			((IDirect3DDevice9*)(m_pDevice))->Release();
-			break;
-		case NV_ENC_DX10:
-			((ID3D10Device*)(m_pDevice))->Release();
-			break;
-		case NV_ENC_DX11:
-			((ID3D11Device*)(m_pDevice))->Release();
-			break;
-#endif
-		case NV_ENC_CUDA:
-			CUresult cuResult = CUDA_SUCCESS;
-			cuResult = cuCtxDestroy((CUcontext)m_pDevice);
-			if (cuResult != CUDA_SUCCESS)
-				Log::writeMessage(LOG_RTSPSERV, 1, "cuCtxDestroy error:0x%x\n", cuResult);
-		}
+		CUresult cuResult = CUDA_SUCCESS;
+		cuResult = cuCtxDestroy((CUcontext)m_pDevice);
+		if (cuResult != CUDA_SUCCESS)
+			Log::writeMessage(LOG_RTSPSERV, 1, "cuCtxDestroy error:0x%x\n", cuResult);
 		m_pDevice = NULL;
 	}
 
-#if defined (NV_WINDOWS)
-	if (m_pD3D)
-	{
-		m_pD3D->Release();
-		m_pD3D = NULL;
-	}
-#endif
-	g_RefCount--;
-	if (g_bLoadNvEncodeLib && g_RefCount == 0)
+	g_CodecLibRefCount--;
+	if (g_CodecLibRefCount == 0)
 	{
 		UnLoadCodecLib();
-		g_bLoadNvEncodeLib = false;
 	}
 	return nvStatus;
 }
@@ -847,6 +727,180 @@ int CNvEncoder::NvEncodeDestroy()
 unsigned int CNvEncoder::NvGetBufferedCount()
 {
 	return m_EncodeBufferQueue.GetPendingCount();
+}
+
+static void GetCpuInfo(int *isPentium)
+{
+	std::array<int, 4> _cpui;
+	std::vector<std::array<int, 4>> data_;
+	std::vector<std::array<int, 4>> extdata_;
+	bool _isintel = false;
+	bool _isamd = false;
+	__cpuid(_cpui.data(), 0);
+	int _nids = _cpui[0];
+	for (int i = 0; i <= _nids; ++i)
+	{
+		__cpuidex(_cpui.data(), i, 0);
+		data_.push_back(_cpui);
+	}
+	char vendor[32];
+	memset(vendor, 0, sizeof(vendor));
+	*reinterpret_cast<int*>(vendor) = data_[0][1];
+	*reinterpret_cast<int*>(vendor + 4) = data_[0][3];
+	*reinterpret_cast<int*>(vendor + 8) = data_[0][2];
+	if (strstr(vendor, "GenuineIntel") != NULL)
+		_isintel = true;
+	else if (strstr(vendor, "AuthenticAMD") != NULL)
+		_isamd = true;
+
+	__cpuid(_cpui.data(), 0x80000000);
+	int _nExids = _cpui[0];
+	for (int i = 0x80000000; i <= _nExids; ++i)
+	{
+		__cpuidex(_cpui.data(), i, 0);
+		extdata_.push_back(_cpui);
+	}
+	char brand[64];
+	memset(brand, 0, sizeof(brand));
+	if (_nExids >= 0x80000004)
+	{
+		memcpy(brand, extdata_[2].data(), sizeof(_cpui));
+		memcpy(brand + 16, extdata_[3].data(), sizeof(_cpui));
+		memcpy(brand + 32, extdata_[4].data(), sizeof(_cpui));
+	}
+	if (strstr(brand, "Pentium") != NULL || strstr(brand, "Celeron") != NULL)
+		*isPentium = 1;
+}
+
+static bool QueryIntelSupport()
+{
+	bool _bsupport = true;
+	mfxStatus sts;
+	MFXVideoSession _session;
+	mfxVersion _version = { 0, 1 };
+	mfxIMPL _impl = MFX_IMPL_AUTO_ANY;
+	sts = _session.Init(_impl, &_version);
+	if (sts == MFX_ERR_NONE)
+	{
+		sts = _session.QueryIMPL(&_impl);
+		if ((_impl & MFX_IMPL_HARDWARE) || (_impl & MFX_IMPL_HARDWARE_ANY))
+		{
+			int isPentium = 0;
+			GetCpuInfo(&isPentium);
+			if (isPentium)
+				_bsupport = false;
+		}
+		else
+			_bsupport = false;
+	}
+	else
+		_bsupport = false;
+	_session.Close();
+	return _bsupport;
+}
+
+int  OSGetVersion()
+{
+	OSVERSIONINFO osVersionInfo;
+	osVersionInfo.dwOSVersionInfoSize = sizeof(osVersionInfo);
+	GetVersionEx(&osVersionInfo);
+	if (osVersionInfo.dwMajorVersion > 6)
+		return 8;
+	if (osVersionInfo.dwMajorVersion == 6)
+	{
+		//Windows 8
+		if (osVersionInfo.dwMinorVersion >= 2)
+			return 8;
+		//Windows 7
+		if (osVersionInfo.dwMinorVersion == 1)
+			return 7;
+		//Vista
+		if (osVersionInfo.dwMinorVersion == 0)
+			return 6;
+	}
+	return 0;
+}
+
+int CNvEncoder::QueryNvidia()
+{
+	int ret = -1;
+	HRESULT err;
+	REFIID iidVal = OSGetVersion() >= 8 ? __uuidof(IDXGIFactory2) : __uuidof(IDXGIFactory1);
+
+	IDXGIFactory1 *factory;
+	if (SUCCEEDED(err = CreateDXGIFactory1(iidVal, (void**)&factory)))
+	{
+		UINT i = 0;
+		IDXGIAdapter1 *giAdapter;
+		while (factory->EnumAdapters1(i++, &giAdapter) == S_OK)
+		{
+			DXGI_ADAPTER_DESC adapterDesc;
+			if (SUCCEEDED(err = giAdapter->GetDesc(&adapterDesc)))
+			{
+				if (adapterDesc.DedicatedVideoMemory != 0)
+				{
+					if (wcsstr(adapterDesc.Description, L"NVIDIA"))
+					{
+						err = D3D11CreateDevice(giAdapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, 0,
+							NULL, 0, D3D11_SDK_VERSION, (ID3D11Device**)(&m_pDevice), NULL, NULL);
+						if (FAILED(err))
+						{
+							Log::writeMessage(LOG_RTSPSERV, 1, "Problem while creating %d D3d11 device \n", i);
+							return NV_ENC_ERR_OUT_OF_MEMORY;
+						}
+						ret = i;
+						giAdapter->Release();
+						break;
+					}
+				}
+			}
+			giAdapter->Release();
+		}
+		factory->Release();
+	}
+	return ret;
+}
+
+int CNvEncoder::QueryHardEncodeSupport()
+{
+	int nRet = -1;
+	int nRetNvidia = 0, nRetIntel = 0;
+
+	if (QueryIntelSupport())
+		nRetIntel = 2;
+
+	if (QueryNvidia() != -1)
+	{
+		NVENCSTATUS nvStatus = NV_ENC_SUCCESS;
+		nvStatus = LoadCodecLib();
+		if (nvStatus != NV_ENC_SUCCESS)
+		{
+			if (nRetNvidia || nRetIntel)
+				nRet = nRetIntel | nRetNvidia;
+			return nRet;
+		}
+
+		nvStatus = m_pNvHWEncoder->Initialize(m_pDevice, NV_ENC_DEVICE_TYPE_DIRECTX);
+		if (nvStatus != NV_ENC_SUCCESS)
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "NvEncOpenEncodeSessionEx error: %d!\n", nvStatus);
+			if (m_pDevice)
+			{
+				((ID3D11Device*)(m_pDevice))->Release();
+				m_pDevice = NULL;
+			}
+			UnLoadCodecLib();
+		}
+		else
+		{
+			nRetNvidia = 1;
+		}
+	}
+
+	if (nRetNvidia || nRetIntel)
+		nRet = nRetIntel | nRetNvidia;
+
+	return nRet;
 }
 
 UINT BGRA2ARGB(UINT bgra)

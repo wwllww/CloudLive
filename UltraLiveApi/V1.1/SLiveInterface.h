@@ -24,7 +24,7 @@ typedef void(*NickNameCallBack)(uint64_t InstanceID, uint64_t StreamID, const ch
 #endif // !ULTRALIVEAPI_EXPORTS
 
 //É«²Ê¿Õ¼äÂ·¾¶
-#define SHADER_PATH TEXT("./shaders/")
+#define SHADER_PATH TEXT("shaders/")
 
 enum TColorType
 {
@@ -134,6 +134,7 @@ struct CSampleData {
 	bool bFieldSignal;
 	Json::Value *UserData;
 	uint64_t CheckNum;
+
 	inline CSampleData() { lpData = NULL; UserData = NULL; refs = 1; bDisableAudio = false; SampleData = NULL; bFieldSignal = false; }
 	inline CSampleData(IMediaSample *Sample) :SampleData(Sample)
 	{
@@ -165,7 +166,6 @@ struct CSampleData {
 		{
 			SampleData->Release();
 		}
-
 	}
 };
 

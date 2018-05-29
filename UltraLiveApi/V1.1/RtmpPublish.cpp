@@ -467,6 +467,19 @@ RTMPPublisher* RTMPPublisher::Clone()
 	return publisher;
 }
 
+RTMPPublisher* RTMPPublisher::CloneWithNoDelayConnect()
+{
+	if (bDestroy == false)
+	{
+		CloneTag = true;
+		Destructor();
+		CloneTag = false;
+	}
+	RTMPPublisher* publisher = new RTMPPublisher(Prefix, __Instances, bUseBack);
+
+	return publisher;
+}
+
 void RTMPPublisher::Destructor()
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
@@ -1140,6 +1153,14 @@ void LogInterfaceType(RTMP *rtmp)
 
 	destAddr = *(DWORD *)h->h_addr_list[0];
 
+	char str[INET_ADDRSTRLEN];
+	PCSTR Addr = inet_ntop(AF_INET, &destAddr, str, sizeof str);
+
+	if (Addr)
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "hostname %s ½âÎö Ip %s", hostname,Addr);
+	}
+
 	if (!GetBestRoute(destAddr, rtmp->m_bindIP.addr.sin_addr.S_un.S_addr, &route))
 	{
 		MIB_IFROW row;
@@ -1149,20 +1170,24 @@ void LogInterfaceType(RTMP *rtmp)
 		if (!GetIfEntry(&row))
 		{
 			DWORD speed = row.dwSpeed / 1000000;
-			TCHAR *type;
+			char *type;
 			String otherType;
+			std::string TemType;
 
 			if (row.dwType == IF_TYPE_ETHERNET_CSMACD)
-				type = TEXT("ethernet");
+				type = "ethernet";
 			else if (row.dwType == IF_TYPE_IEEE80211)
-				type = TEXT("802.11");
+				type = "802.11";
 			else
 			{
 				otherType = FormattedString(TEXT("type %d"), row.dwType);
-				type = otherType.Array();
+
+				TemType = WcharToAnsi(otherType.Array());
+
+				type = (char *)TemType.c_str();
 			}
 
-			//Log(TEXT("  Interface: %S (%s, %d mbps)"), row.bDescr, type, speed);
+			Log::writeMessage(LOG_RTSPSERV,1,"  Interface: %s (%s, %d mbps)", row.bDescr, type, speed);
 		}
 	}
 }
@@ -2321,6 +2346,11 @@ void RTMPPublisher::ClearRRHash()
 	OSEnterMutex(m_handleLock);
 	m_pMap_addr.clear();
 	OSLeaveMutex(m_handleLock);
+}
+
+String RTMPPublisher::GetPrefix() const
+{
+	return Prefix;
 }
 
 RTMPPublisherVectorBase* CreateRTMPPublisher(CInstanceProcess *Instance, bool bBackUp)

@@ -71,7 +71,7 @@ DuplicatorInfo D3D10OutputDuplicator::AcquireNextFrame(UINT timeout)
 {
     if(!duplicator)
     {
-        AppWarning(TEXT("D3D10OutputDuplicator::AcquireNextFrame: Well, apparently there's no duplicator."));
+		Log::writeError(LOG_RTSPSERV, 1, "D3D10OutputDuplicator::AcquireNextFrame: Well, apparently there's no duplicator.");
         return DuplicatorInfo_Error;
     }
 

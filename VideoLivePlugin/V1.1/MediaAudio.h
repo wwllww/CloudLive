@@ -62,7 +62,6 @@ private:
 	List<float> TemconvertBuffer;
 	List<float> OutputconvertBuffer;
 	CRITICAL_SECTION sampleBufferLock;
-	std::deque<AudioTimestamp> sampleBufferPts;
 	unsigned int sampleSegmentSize;
 	unsigned int sampleFrameCount;
 	AudioWaveOut  *m_pAudioWaveOut;

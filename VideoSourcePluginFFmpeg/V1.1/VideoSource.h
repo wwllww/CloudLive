@@ -116,7 +116,8 @@ private:
 	bool bHasPreProcess = false;
 	bool bIsFieldSignal = true;
 	String strShaderOld;
-
+	int video_pts = 0;
+	int audio_pts = 0;
 	CDeinterlacer *Deinterlacer = NULL;
 	DeinterlacerConfig DeinterConfig;
 	D3DAPI *D3DRender;
@@ -157,7 +158,7 @@ public:
 	static DWORD STDCALL TickThread(LPVOID lpUnused)
 	{
 		VideoSource* _This = (VideoSource*)lpUnused;
-		_This->YUV420_2_RGB32();
+		_This->Synchronization();
 
 		return 0;
 	}
@@ -190,7 +191,7 @@ public:
 
 	int m_iConvertNum;
 	char *m_pYUVData;
-	void YUV420_2_RGB32();
+	void Synchronization();
 	void StoreBuffer3sThread();
     void Tick(float fSeconds);
 	void Preprocess();

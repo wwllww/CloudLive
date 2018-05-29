@@ -47,6 +47,7 @@ public:
 	virtual void UnRegisterDataCallBack(void *Context){}
 
 	virtual bool IsFieldSignal() const { return false; }
+	virtual void RenameSource(const char *NewName) {}
 
 
 	virtual void SetFloat(CTSTR lpName, float fValue) {}

@@ -97,8 +97,8 @@ public:
 	unsigned int CurrentIndex = 0;
 	bool m_bisDirectPlay = false;
 	bool isHaveSelect = false;
-	int bufferTime = 0;
-	int WarnTime = 0;
+	int bufferTime = 5;
+	int WarnTime = 2;
 	String LastPlayFile;
 	int LastbufferTime = 0;
 	bool bIsScanInterlace;// «∑Ò «∏Ù––…®√Ë
@@ -136,8 +136,8 @@ public:
 		videoBrightness = 100;
 		isHaveSelect = false;
 		isHardwareDecode = false;
-		int bufferTime = 0;
-		int WarnTime = 0;
+		int bufferTime = 5;
+		int WarnTime = 2;
 		String LastPlayFile;
 		int LastbufferTime = 0;
 		bIsScanInterlace = false;
@@ -155,9 +155,24 @@ public:
 		volume = element["volume"].asDouble();
 		isStretching = element["isStretching"].asUInt() == 1;
 		isAudioOutputToStream = element["isAudioOutputToStream"].asUInt() == 1;
-		bufferTime = element["bufferTime"].asInt();
+		if (element["bufferTime"].isNull())
+		{
+			bufferTime = 5;
+		}
+		else
+		{
+			bufferTime = element["bufferTime"].asInt();
+		}
 		LastbufferTime = element["LastbufferTime"].asInt();
-		WarnTime = element["WarnTime"].asInt();
+		
+		if (element["WarnTime"].isNull())
+		{
+			WarnTime = 2;
+		}
+		else
+		{
+			WarnTime = element["WarnTime"].asInt();
+		}
 		isPlaylistLooping = element["isPlaylistLooping"].asUInt() == 1;
 		isFileLoop = element["isFileLoop"].asUInt() == 1;
 		isListLoop = element["isListLoop"].asUInt() == 1;

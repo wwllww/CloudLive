@@ -27,29 +27,27 @@ struct ModeMapping
 	_BMDDisplayMode    mode;
 };
 
-// static ModeMapping kDisplayModeMappings[] =
-// {
-// 	{ NTSC, bmdModeNTSC },
-// 	{ PAL, bmdModePAL },
-// 
-// 	{ HD1080p2398, bmdModeHD1080p2398 },
-// 	{ HD1080p24, bmdModeHD1080p24 },
-// 	{ HD1080p25, bmdModeHD1080p25 },
-// 	{ HD1080p2997, bmdModeHD1080p2997 },
-// 	{ HD1080p30, bmdModeHD1080p30 },
-// 	{ HD1080i50, bmdModeHD1080i50 },
-// 	{ HD1080i5994, bmdModeHD1080i5994 },
-// 	{ HD1080i6000, bmdModeHD1080i6000 },
-// 	{ HD1080p50, bmdModeHD1080p50 },
-// 	{ HD1080p5994, bmdModeHD1080p5994 },
-// 	{ HD1080p60, bmdModeHD1080p6000 },
-// 
-// 	{ HD720p50, bmdModeHD720p50 },
-// 	{ HD720p5994, bmdModeHD720p5994 },
-// 	{ HD720p60, bmdModeHD720p60 }
-// };
-
 static ModeMapping kDisplayModeMappings[] =
+{
+	{ NTSC, bmdModeNTSC },
+	{ NTSC2398, bmdModePAL },
+	{ PAL, bmdModeHD1080p2398 },
+	{ NTSCp, bmdModeHD1080p24 },
+	{ PALp, bmdModeHD1080p25 },
+	{ HD1080p2398, bmdModeHD1080p2997 },
+	{ HD1080p24, bmdModeHD1080p30 },
+	{ HD1080p25, bmdModeHD1080i50 },
+	{ HD1080p2997, bmdModeHD1080i5994 },
+	{ HD1080p30, bmdModeHD1080i6000 },
+	{ HD1080i50, bmdModeHD1080p50 },
+	{ HD1080i5994, bmdModeHD1080p5994 },
+	{ HD1080i60, bmdModeHD1080p6000 },
+	{ HD720p50, bmdModeHD720p50 },
+	{ HD720p5994, bmdModeHD720p5994 },
+	{ HD720p60, bmdModeHD720p60 }
+};
+
+static ModeMapping kDisplayModeMappingsOne[] =
 {
 	{ NTSC, bmdModeNTSC },
 	{ NTSC2398, bmdModeNTSC2398 },
@@ -63,7 +61,7 @@ static ModeMapping kDisplayModeMappings[] =
 	{ HD1080p30, bmdModeHD1080p30 },
 	{ HD1080i50, bmdModeHD1080i50 },
 	{ HD1080i5994, bmdModeHD1080i5994 },
-	{ HD1080i6000, bmdModeHD1080i6000 },
+	{ HD1080i60, bmdModeHD1080i6000 },
 	{ HD720p50, bmdModeHD720p50 },
 	{ HD720p5994, bmdModeHD720p5994 },
 	{ HD720p60, bmdModeHD720p60 }
@@ -315,7 +313,8 @@ public:
 // 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame%d!引用计数=%d", curDeviceID, (*pos)->ref);
 // 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame 输出起点=%lld, Duration=%lld, Timescale=%lld!", ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale);
 
-					m_deckLinkOutput->ScheduleVideoFrame(completedFrame, (*pos)->uiTotalFrames * (*pos)->frameDuration, (*pos)->frameDuration, (*pos)->frameTimescale);
+					int n = ((((*pos)->uiTotalFrames) - FRAMECOUNT) * (*pos)->frameDuration);
+					m_deckLinkOutput->ScheduleVideoFrame(completedFrame, n, (*pos)->frameDuration, (*pos)->frameTimescale);
 					(*pos)->uiTotalFrames++;
 				}
 

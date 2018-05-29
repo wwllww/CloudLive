@@ -137,6 +137,7 @@ protected:
 	virtual bool GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp);
 	virtual void ReleaseBuffer();
 	virtual CTSTR GetDeviceName() const;
+	void    AdjustTimeStamp(int OffSetTime);
 
 public:
 	bool Initialize(PipeVideo *parent, const AudioParam& param);
@@ -258,9 +259,10 @@ class PipeVideo : public IBaseVideo
 	std::list<ListParam> ListSample;
 	std::list<ListParam> ListAudioSample;
 	bool bThreadRuning;
-
+	bool m_bFirstReceiveData = false;
 	D3DAPI *D3DRender;
 	QWORD  m_qwrdAudioTime = 0;
+	long long m_LastTimeStamp = 0;
 
 public:
 	bool Init(Value &data);
@@ -281,6 +283,7 @@ public:
 	virtual void SetHasPreProcess(bool bHasPre);
 	virtual bool GetHasPreProcess() const;
 	virtual bool IsFieldSignal() const;
+	virtual void RenameSource(const char *NewName);
 
     void GlobalSourceEnterScene();
     void GlobalSourceLeaveScene();
@@ -409,6 +412,7 @@ private:
 	bool m_bDirectorHostSameName = false;
 	bool m_bDirectorThirdSameName = false;
 	bool m_bHostThirdSameName = false;
+	bool m_bHasSendFristPipeName = false;
 	AIOID m_DirectorID;
 	AIOID m_HostID;
 	AIOID m_ThirdID;
@@ -508,6 +512,10 @@ public:
 	bool AnalyzeHostModeCommand(AIOID id, char *pcommand, int msglen, StModerDataTransMode * pModerDataTransMode);
 
 	int RegisterDevice(DeviceParam & oDeviceParam);
+
+	void ProcessNameCommand(const char *NewName, const char *OldName, MsgType type,bool bFristAdd = false);
+
+	void ResetInitParam();
 
 	int CheckDeviceByName(const String & DeviceName, const String & DeviceNameID,int flag);
 

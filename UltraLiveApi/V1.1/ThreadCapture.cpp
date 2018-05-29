@@ -740,7 +740,7 @@ void CSLiveManager::MainVideoLoop()
 
 				}
 
-				if (GetQPCMS() - StartStreamTime >= m_CheckTime)
+				if ((GetQPCMS() - StartStreamTime >= m_CheckTime) && m_EncodeAudioCount)
 				{
 					m_FPSCount = FPSCount;
 					m_RealTime = GetQPCMS() - StartStreamTime;
@@ -1115,13 +1115,20 @@ void CSLiveManager::MainVideoLoop()
 			{
 				bFirst = false;
 				EnterCriticalSection(&LocalInstance->VideoSection);
-				if (LocalInstance->m_VideoList.Num() == 1)
-				{
-					VideoStruct &VS = LocalInstance->m_VideoList[0];
-					VS.VideoStream.reset();
-					LocalInstance->m_VideoList.Clear();
 
+				for (UINT i = 0; i < LocalInstance->m_VideoList.Num(); ++i)
+				{
+					VideoStruct &VS = LocalInstance->m_VideoList[i];
+
+					if (VS.VideoStream.get() == ImageBlack)
+					{
+						VS.VideoStream.reset();
+
+						LocalInstance->m_VideoList.Remove(i);
+						break;
+					}
 				}
+
 				LeaveCriticalSection(&LocalInstance->VideoSection);
 			}
 
@@ -1595,13 +1602,16 @@ void CSLiveManager::VideoEncoderLoop()
 	sleepTargetTime = GetQPCNS();
 	bfirstTimeStamp = true;
 	bool bufferedFrames = false;
-	bool bFirst = true;
+	//bool bFirst = true;
+	
 	FrameProcessInfo ProcessInfo;
 	FrameProcessInfo ProcessInfo_back;
 
 	QWORD StartEncodeTime = GetQPCMS();
-
+	bool bHasEncoder = false;
+	bool bMainLive = true;
 	int EncodeFrameCount = 0;
+	bool bCanCheck = true;
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:VideoEncoderLoop 开始时间 %llu", sleepTargetTime / 1000000);
 	while (bRunning)
 	{
@@ -1613,12 +1623,15 @@ void CSLiveManager::VideoEncoderLoop()
 		//profileIn("VideoEncoderLoop")
 		if ((bStartLive && Outpic)/* || bufferedFrames*/)
 		{
-			bFirst = false;
+			//bFirst = false;
 			if (LiveInstance->bfirstTimeStamp)
 			{
 				CurrentVideoTime = 0;
 				StartVideoTime = GetQPCNS();
 				LiveInstance->bfirstTimeStamp = false;
+				bNewStart = true;
+				bCanCheck = true;
+				bCanSecondCheck = true;
 				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个视频时间戳 %llu", StartVideoTime / 1000000);
 			}
 			else
@@ -1646,30 +1659,53 @@ void CSLiveManager::VideoEncoderLoop()
 			}
 			//profileIn("VideoEncoderLoop ProcessFrame")
 			
+			
 			if (bUseBack && (BSParam.LiveSetting.Width < BSParam.LiveSetting.WidthSec || BSParam.LiveSetting.Height < BSParam.LiveSetting.HeightSec))
 			{
+				bMainLive = false;
 				EnterCriticalSection(&LiveInstance->NetWorkSection_back);
 				if (!bOutPicDel_Back && LiveInstance)
 				{
-					LiveInstance->ProcessFrame_back(ProcessInfo);
+					bHasEncoder = LiveInstance->ProcessFrame_back(ProcessInfo);
 				}
 				LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
 			}
 			else
 			{
+				bMainLive = true;
 				EnterCriticalSection(&LiveInstance->NetWorkSection);
 				if (!bOutPicDel && LiveInstance)
 				{
-					LiveInstance->ProcessFrame(ProcessInfo);
+					bHasEncoder = LiveInstance->ProcessFrame(ProcessInfo);
+
 				}
 				LeaveCriticalSection(&LiveInstance->NetWorkSection);
 			}
+
+			if (bHasEncoder)
+				bCanCheck = false;
 			
+			if (!bHasEncoder && bNewStart && bCanCheck)
+			{
+				if ((GetQPCNS() - StartVideoTime) / 1000000 >= (bMainLive ? 3000 : 3500))
+				{
+					bNewStart = false;
+					
+					if (LiveInstance->LiveParam.TipsCb)
+					{
+						LiveInstance->LiveParam.TipsCb(-101, bMainLive ? "主直播硬编码不出数据,请换用软编码！": "次直播硬编码不出数据,请换用软编码！");
+					}
+				}
+			}
 			
 			//profileOut
 			if (bSetEvent)
 				WaitForSingleObject(hVideoComplete, INFINITE);
 
+		}
+		else
+		{
+			bNewStart = false;
 		}
 
 		//这里不会进入
@@ -1715,7 +1751,8 @@ void CSLiveManager::VideoEncoderLoop()
 void CSLiveManager::VideoEncoderLoop_back()
 {
 	FrameProcessInfo ProcessInfo;
-
+	bool bMainLive = true;
+	bool bHasEncoder = false;
 	while (bRunning)
 	{
 		while (WaitForSingleObject(hVideoEvent_back, INFINITE) == WAIT_OBJECT_0)
@@ -1742,25 +1779,44 @@ void CSLiveManager::VideoEncoderLoop_back()
 
 				if (BSParam.LiveSetting.Width < BSParam.LiveSetting.WidthSec || BSParam.LiveSetting.Height < BSParam.LiveSetting.HeightSec)
 				{
+					bMainLive = true;
 					EnterCriticalSection(&LiveInstance->NetWorkSection);
 					if (!bOutPicDel && LiveInstance)
 					{
-						LiveInstance->ProcessFrame(ProcessInfo);
+						bHasEncoder = LiveInstance->ProcessFrame(ProcessInfo);
 					}
 					LeaveCriticalSection(&LiveInstance->NetWorkSection);
 				}
 				else
 				{
+					bMainLive = false;
 					EnterCriticalSection(&LiveInstance->NetWorkSection_back);
 					if (!bOutPicDel_Back && LiveInstance)
 					{
-						LiveInstance->ProcessFrame_back(ProcessInfo);
+						bHasEncoder = LiveInstance->ProcessFrame_back(ProcessInfo);
 					}
 					LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
 				}
 
 				//profileOut
 				SetEvent(hVideoComplete);
+
+				if (bHasEncoder)
+					bCanSecondCheck = false;
+
+				if (!bHasEncoder && bNewStart && bCanSecondCheck)
+				{
+					if ((GetQPCNS() - StartVideoTime) / 1000000 >= (bMainLive ? 3000 : 3500))
+					{
+						bNewStart = false;
+
+						if (LiveInstance->LiveParam.TipsCb)
+						{
+							LiveInstance->LiveParam.TipsCb(-101, bMainLive ? "主直播硬编码不出数据,请换用软编码！" : "次直播硬编码不出数据,请换用软编码！");
+						}
+					}
+				}
+
 			}
 			//profileOut
 		}

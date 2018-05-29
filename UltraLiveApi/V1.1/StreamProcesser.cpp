@@ -907,6 +907,15 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 											if (!CSLiveManager::GetInstance()->IsHaveStream(m_VideoList[i].VideoDevice.get()))
 												m_VideoList[i].VideoDevice->BeginScene();
 
+											if (OldVideo && !OldVideo->CanEnterScene())//OldVideo不可进入场景，说明OldVideo在场景中
+											{
+												m_VideoList[i].VideoDevice->GlobalSourceEnterScene();
+												m_VideoList[i].VideoDevice->SetCanEnterScene(false);
+
+												OldVideo->GlobalSourceLeaveScene();
+												OldVideo->SetCanEnterScene(true);
+											}
+
 											BaseVideo->UnRegisterDataCallBack(this);
 
 											char Tem[50] = { 0 };
@@ -947,6 +956,16 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 											//不在当前场景中需要BeginScene
 											if (!CSLiveManager::GetInstance()->IsHaveStream(m_VideoList[i].VideoDevice.get()))
 												m_VideoList[i].VideoDevice->BeginScene();
+
+											if (OldVideo && !OldVideo->CanEnterScene())//OldVideo不可进入场景，说明OldVideo在场景中
+											{
+												m_VideoList[i].VideoDevice->GlobalSourceEnterScene();
+												m_VideoList[i].VideoDevice->SetCanEnterScene(false);
+
+												OldVideo->GlobalSourceLeaveScene();
+												OldVideo->SetCanEnterScene(true);
+											}
+
 											char Tem[50] = { 0 };
 											sprintf_s(Tem, "%llu", (uint64_t)OneVideo.VideoStream.get());
 											(*m_VideoList[i].Config)["DeviceSourceID"] = Tem;
@@ -994,6 +1013,16 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 
 												//增加录制回调
 												BaseStream->RegisterDataCallBack(this, RecordCallBack);
+
+												if (OldVideo && !OldVideo->CanEnterScene())//OldVideo不可进入场景，说明OldVideo在场景中
+												{
+													m_VideoList[i].VideoDevice->GlobalSourceEnterScene();
+													m_VideoList[i].VideoDevice->SetCanEnterScene(false);
+
+													OldVideo->GlobalSourceLeaveScene();
+													OldVideo->SetCanEnterScene(true);
+												}
+
 												//新建的需要BeginScene
 												BaseStream->BeginScene();
 												
@@ -1023,6 +1052,15 @@ void CInstanceProcess::ConfigStream(uint64_t iStreamID, const char *cJson)
 
 												//增加录制回调
 												BaseStream->RegisterDataCallBack(this, RecordCallBack);
+
+												if (OldVideo && !OldVideo->CanEnterScene())//OldVideo不可进入场景，说明OldVideo在场景中
+												{
+													m_VideoList[i].VideoDevice->GlobalSourceEnterScene();
+													m_VideoList[i].VideoDevice->SetCanEnterScene(false);
+
+													OldVideo->GlobalSourceLeaveScene();
+													OldVideo->SetCanEnterScene(true);
+												}
 												//新建的需要BeginScene
 												BaseStream->BeginScene();
 
@@ -1118,7 +1156,12 @@ string CInstanceProcess::ReNameStream(uint64_t iStreamID, const char *NewName)
 		{
 			RetStr = (*m_VideoList[i].Config)["Name"].asString().c_str();
 			(*m_VideoList[i].Config)["Name"] = NewName;
+			m_VideoList[i].VideoStream->RenameSource(NewName);
+			if (m_VideoList[i].VideoDevice)
+				m_VideoList[i].VideoDevice->RenameSource(NewName);
+
 			bFind = true;
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s oldName = %s,NewName = %s", __FUNCTION__,RetStr.c_str(), NewName);
 			break;
 		}
 	}

@@ -48,8 +48,6 @@ static void VolumeCaculate(char* buf, UINT32 size, double vol)//bufÎªÐèÒªµ÷½ÚÒôÁ
 	}
 }
 
-#define SHADER_PATH TEXT("shaders/")
-
 IMPLEMENT_DYNIC(VideoSource, "µã²¥Ô´", "1.0.0.1");
 
 VideoSource::VideoSource(Value& data)
@@ -64,7 +62,7 @@ VideoSource::VideoSource(Value& data)
 	CallBackHight = 0;
 	m_mediaDuration = 0;
 	enteredSceneCount = 0;
-
+	memset(m_playPath, 0, 256);
 	texture = NULL;
 	audioSample = NULL;
 	latestVideoSample = NULL;
@@ -100,7 +98,7 @@ VideoSource::VideoSource()
 	latestVideoSample = NULL;
 	colorConvertShader = NULL;
 	colorFieldConvertShader = NULL;
-
+	memset(m_playPath, 0, 256);
 	Captureing = false;
 	D3DRender = GetD3DRender();
 	m_MediaState = MediaStop;
@@ -357,30 +355,31 @@ void VideoSource::Preprocess()
 					Deinterlacer->SetImage(texture, &DeinterConfig, CallBackWidth, CallBackHight, colorType);
 			}
 //		}
-		uint64_t uCurrentCheckNum = *(uint64_t *)(lastSample->lpData - 24);
-		if (uCurrentCheckNum == lastSample->CheckNum)
+		//uint64_t uCurrentCheckNum = *(uint64_t *)(lastSample->lpData - 24);
+		UINT64 nHigeCheckNum = lastSample->CheckNum & 0xFF00000000000000;
+		if (nHigeCheckNum != 0) //×î¸ß×Ö½Ú²»Îª0
 		{
 			lastSample->Release();
 		}
 		else
 		{
-			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ÊÍ·ÅlastSampleÖ®Ç°£¬Ð£ÑéÖµ²»Æ¥Åä: uCurrentCheckNum = 0x%x,lastSample->CheckNum =0x%x.lastSample->lpData :0x%x.lastSample :0x%x.ThreadID = %d,This = 0x%x"), 
-				__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, lastSample->lpData, lastSample,GetCurrentThreadId(), this);
+			//Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ÊÍ·ÅlastSampleÖ®Ç°£¬Ð£ÑéÖµ²»Æ¥Åä: uCurrentCheckNum = 0x%x,lastSample->CheckNum =0x%x.lastSample->lpData :0x%x.lastSample :0x%x.ThreadID = %d,This = 0x%x"), 
+			//	__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, lastSample->lpData, lastSample,GetCurrentThreadId(), this);
 
-			UINT64 nHigeCheckNum = lastSample->CheckNum & 0xFF00000000000000;
-			UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
+			//UINT64 nHigeCheckNum = lastSample->CheckNum & 0xFF00000000000000;
+			//UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
 
-			if (nHigeCheckNum == nHigeCurrrntNum)//×î¸ß×Ö½ÚÆ¥Åä
-			{
-				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµÆ¥ÅäÊÍ·Å: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
-					__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
-				lastSample->Release();
-			}
-			else
-			{
-				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµ²»Æ¥Åä£¬²»ÊÍ·Å: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
-					__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
-			}
+			//if (nHigeCheckNum == nHigeCurrrntNum)//×î¸ß×Ö½ÚÆ¥Åä
+			//{
+			//	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµÆ¥ÅäÊÍ·Å: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
+			//		__LINE__, __FUNCTION__, uCurrentCheckNum, lastSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
+			//	lastSample->Release();
+			//}
+			//else
+			//{
+				Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµÎª0£¬²»ÊÍ·Å: uCurrentCheckNum = 0x%p,lastSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.lastSample->lpData :0x%p.lastSample :0x%p.ThreadID = %d,This = 0x%p"),
+					__LINE__, __FUNCTION__, 0, lastSample->CheckNum, 0, nHigeCheckNum, lastSample->lpData, lastSample, GetCurrentThreadId(), this);
+			//}
 		}
 	}
 	LeaveCriticalSection(&TextureDataLock);
@@ -528,7 +527,7 @@ void VideoSource::FrameCallBackFunc(void* frame, int frame_type, const void* ctx
 	if (frame_type == 2) //MPFrameInfoÀàÐÍ
 	{
 		MPFrameInfo * pMPFrameInfo = reinterpret_cast<MPFrameInfo *>(frame);
-		This_->fileLoopPlayUseTsp = pMPFrameInfo->pts;
+		This_->fileLoopPlayUseTsp = pMPFrameInfo->pts - This_->m_bFirstTsTimeStamp;
 		if (pMPFrameInfo->media_type == 1)//ÊÓÆµ
 		{
 			if (This_->m_width != pMPFrameInfo->width || This_->m_height != pMPFrameInfo->height)
@@ -554,6 +553,13 @@ void VideoSource::FrameCallBackFunc(void* frame, int frame_type, const void* ctx
 				
 				videoSample->dataLength = This_->CallBackWidth*This_->CallBackHight * 3 / 2;
 				videoSample->lpData = (LPBYTE)Allocate_Bak(videoSample->dataLength);//pointer; //
+				if (!videoSample->lpData)
+				{
+					Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ÉêÇëÄÚ´æÊ§°Ü£¬¶ªÆúµ±Ç°Ö¡ ThreadID = %d, This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), This_);
+					mp_release_frame(&frame);
+					videoSample->Release();
+					return;
+				}
 				videoSample->colorType = ColorType_I420;
 
 				if (pMPFrameInfo->frame_size[0] == This_->m_width)
@@ -803,7 +809,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 // 				info += L" file do not exist";
 // 				AddCreateInfo(info);
 			}
-			if (!strcmp(config->playlist[iIndex].CreateUTF8String(), m_playPath))
+			if (!strcmp(WcharToAnsi(config->playlist[iIndex].Array()).c_str(), m_playPath))
 			{
 				config->CurrentIndex = iIndex;
 				config->Save();
@@ -814,7 +820,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 		}
 	}
 	unsigned int i = config->CurrentIndex;
-	if (strcmp(config->playlist[config->CurrentIndex].CreateUTF8String(), m_playPath)) //²»ÊÇµ±Ç°²¥·ÅÎÄ¼þ
+	if (strcmp(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str(), m_playPath)) //²»ÊÇµ±Ç°²¥·ÅÎÄ¼þ
 	{
 		if (i < config->playlist.Num())
 		{
@@ -828,7 +834,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 				//AddCreateInfo(info);
 			}
 			memset(m_playPath, 0, 256);
-			memcpy(m_playPath, config->playlist[i].CreateUTF8String(), strlen(config->playlist[i].CreateUTF8String()));
+			memcpy(m_playPath, WcharToAnsi(config->playlist[i].Array()).c_str(), strlen(WcharToAnsi(config->playlist[i].Array()).c_str()));
 		}
 	}
 	else
@@ -918,15 +924,22 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 	videoSize.x = m_pMPMediaInfo.v_width;
 	videoSize.y = m_pMPMediaInfo.v_height;
 	InitCSampleData();
-
+	m_bPlay = true;
+	m_ChangePosPts = 0;
+	m_bFirstVideo = false;
+	m_bFirstTsTimeStamp = -1;
 	for (CSampleData* inf : m_VideoYuvBuffer)
 	{
+		video_pts = 0;
+		audio_pts = 0;
 		inf->Release();
 	}
 	m_VideoYuvBuffer.clear();
 	EnterCriticalSection(&AudioDataLock);
 	for (CSampleData* inf : m_AudioAACBuffer)
 	{
+		video_pts = 0;
+		audio_pts = 0;
 		inf->Release();
 	}
 	m_AudioAACBuffer.clear();
@@ -951,10 +964,7 @@ void VideoSource::UpdateSettings(Value &JsonParam)
 	}
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"), 
 		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels,this);
-	m_bPlay = true;
-	m_ChangePosPts = 0;
-	m_bFirstVideo = false;
-	m_bFirstTsTimeStamp = -1;
+	
 	if (!m_hCloseSyncThreadEvent)
 	{
 		m_hCloseSyncThreadEvent = CreateEvent(NULL, true, false, NULL);
@@ -1055,15 +1065,26 @@ bool VideoSource::ChangePos()
 			LeaveCriticalSection(&DataLock);
 			return 0;
 		}
-			
+		m_bPlay = true;
+		m_bclear = true;
+		m_bChangePos = true;
+		if (m_pos == 0)
+		{
+			m_bChangePos = false;
+		}
+		m_ChangePosPts = 0;
 		for (CSampleData* inf : m_VideoYuvBuffer)
 		{
+			video_pts = 0;
+			audio_pts = 0;
 			inf->Release();
 		}
 		m_VideoYuvBuffer.clear();
 		EnterCriticalSection(&AudioDataLock);
 		for (CSampleData* inf : m_AudioAACBuffer)
 		{
+			video_pts = 0;
+			audio_pts = 0;
 			inf->Release();
 		}
 		m_AudioAACBuffer.clear();
@@ -1074,10 +1095,7 @@ bool VideoSource::ChangePos()
 
 		mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 		LeaveCriticalSection(&DataLock);
-		m_bPlay = true;
-		m_bclear = true;
-		m_bChangePos = true;
-		m_ChangePosPts = 0;
+		
 		if (m_MediaState == MediaStop)
 		{
 			m_bFirstVideo = false;
@@ -1157,15 +1175,25 @@ bool VideoSource::ChangeReset()
 		LeaveCriticalSection(&DataLock);
 		return 0;
 	}
+	m_bPlay = true;
+	m_bclear = true;
+	m_ChangePosPts = 0;
+	m_bChangePos = false;
+	m_pts = 0;
+	m_bFirstTsTimeStamp = -1;
 	m_bFirstVideo = false;
 	for (CSampleData* inf : m_VideoYuvBuffer)
 	{
+		video_pts = 0;
+		audio_pts = 0;
 		inf->Release();
 	}
 	m_VideoYuvBuffer.clear();
 	EnterCriticalSection(&AudioDataLock);
 	for (CSampleData* inf : m_AudioAACBuffer)
 	{
+		video_pts = 0;
+		audio_pts = 0;
 		inf->Release();
 	}
 	m_AudioAACBuffer.clear();
@@ -1177,12 +1205,7 @@ bool VideoSource::ChangeReset()
 	mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 
 	LeaveCriticalSection(&DataLock);
-	m_bPlay = true;
-	m_bclear = true;
-	m_ChangePosPts = 0;
-	m_bChangePos = true;
-	m_pts = 0;
-	m_bFirstTsTimeStamp = -1;
+	
 	while (true && !enteredSceneCount)
 	{
 		Sleep(100);
@@ -1250,7 +1273,7 @@ bool VideoSource::ChangeNext()
 // 				AddCreateInfo(info);
 			}
 			memset(currentPath, 0, 256);
-			memcpy(currentPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+			memcpy(currentPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str(), strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 
 			int ret = strcmp(currentPath, m_playPath);
 			if (ret == 0)
@@ -1268,7 +1291,7 @@ bool VideoSource::ChangeNext()
 // 						AddCreateInfo(info);
 					}
 					memset(m_playPath, 0, 256);
-					memcpy(m_playPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+					memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 				}
 				else               //²¥·ÅÏÂÒ»¸öÎÄ¼þ
 				{
@@ -1283,7 +1306,7 @@ bool VideoSource::ChangeNext()
 // 						AddCreateInfo(info);
 					}
 					memset(m_playPath, 0, 256);
-					memcpy(m_playPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+					memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 					
 				}
 				
@@ -1339,7 +1362,7 @@ bool VideoSource::ChangeNext()
 // 				AddCreateInfo(info);
 			}
 			memset(currentPath, 0, 256);
-			memcpy(currentPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+			memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 
 			int ret = strcmp(currentPath, m_playPath);
 			if (ret == 0)
@@ -1373,7 +1396,7 @@ bool VideoSource::ChangeNext()
 // 						AddCreateInfo(info);
 					}
 					memset(m_playPath, 0, 256);
-					memcpy(m_playPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+					memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 				
 				}
 			}
@@ -1438,7 +1461,26 @@ Label:
 		LeaveCriticalSection(&DataLock);
 		return false;
 	}
-
+	m_pts = 0;
+	m_bFirstTsTimeStamp = -1;
+	m_bPlay = true;
+	m_ChangePosPts = 0;
+	for (CSampleData* inf : m_VideoYuvBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_VideoYuvBuffer.clear();
+	EnterCriticalSection(&AudioDataLock);
+	for (CSampleData* inf : m_AudioAACBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_AudioAACBuffer.clear();
+	LeaveCriticalSection(&AudioDataLock);
 	mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
 		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
@@ -1463,19 +1505,7 @@ Label:
 	videoSize.x = m_pMPMediaInfo.v_width;
 	videoSize.y = m_pMPMediaInfo.v_height;
 	InitCSampleData();
-
-	for (CSampleData* inf : m_VideoYuvBuffer)
-	{
-		inf->Release();
-	}
-	m_VideoYuvBuffer.clear();
-	EnterCriticalSection(&AudioDataLock);
-	for (CSampleData* inf : m_AudioAACBuffer)
-	{
-		inf->Release();
-	}
-	m_AudioAACBuffer.clear();
-	LeaveCriticalSection(&AudioDataLock);
+	
 
 	if (m_pDemandMediaAudio)
 		m_pDemandMediaAudio->ResetAudioDB();
@@ -1484,8 +1514,7 @@ Label:
 	m_FrameHeight = m_height;
 	m_FrameLines = 0;
 	m_FramePitchs = 0;
-	m_pts = 0;
-	m_bFirstTsTimeStamp = -1;
+	
 	VideoFormatCallback(m_choma, &m_FrameWidth, &m_FrameHeight, &m_FramePitchs, &m_FrameLines);
 	LeaveCriticalSection(&DataLock);
 
@@ -1538,8 +1567,7 @@ Label:
 		}
 		m_bReadyDraw = false;
 	}
-	m_bPlay = true;
-	m_ChangePosPts = 0;
+	
 	LeaveCriticalSection(&TextureDataLock);
 	return true;
 	
@@ -1556,7 +1584,7 @@ bool VideoSource::ChangeNext_API()
 	//Ö»ÒªÖ´ÐÐ£¬ÄÇÃ´config->CurrentIndex Ò»¶¨Ð¡ÓÚconfig->playlist.NUM
 	config->CurrentIndex++;
 	memset(m_playPath, 0, 256);
-	memcpy(m_playPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+	memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 	config->Save();
 // 	SetPrevState(true);
 // 	SetNextState(true);
@@ -1611,7 +1639,26 @@ bool VideoSource::ChangeNext_API()
 		LeaveCriticalSection(&DataLock);
 		return false;
 	}
-
+	m_pts = 0;
+	m_bFirstTsTimeStamp = -1;
+	m_bPlay = true;
+	m_ChangePosPts = 0;
+	for (CSampleData* inf : m_VideoYuvBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_VideoYuvBuffer.clear();
+	EnterCriticalSection(&AudioDataLock);
+	for (CSampleData* inf : m_AudioAACBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_AudioAACBuffer.clear();
+	LeaveCriticalSection(&AudioDataLock);
 	mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
 		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
@@ -1636,20 +1683,7 @@ bool VideoSource::ChangeNext_API()
 	CallBackHight = m_height;
 	CallBackWidth = m_width;
 	InitCSampleData();
-
-	for (CSampleData* inf : m_VideoYuvBuffer)
-	{
-		inf->Release();
-	}
-	m_VideoYuvBuffer.clear();
-	EnterCriticalSection(&AudioDataLock);
-	for (CSampleData* inf : m_AudioAACBuffer)
-	{
-		inf->Release();
-	}
-	m_AudioAACBuffer.clear();
-	LeaveCriticalSection(&AudioDataLock);
-
+	
 	if (m_pDemandMediaAudio)
 		m_pDemandMediaAudio->ResetAudioDB();
 
@@ -1657,8 +1691,7 @@ bool VideoSource::ChangeNext_API()
 	m_FrameHeight = m_height;
 	m_FrameLines = 0;
 	m_FramePitchs = 0;
-	m_pts = 0;
-	m_bFirstTsTimeStamp = -1;
+	
 	VideoFormatCallback(m_choma, &m_FrameWidth, &m_FrameHeight, &m_FramePitchs, &m_FrameLines);
 	LeaveCriticalSection(&DataLock);
 
@@ -1711,8 +1744,7 @@ bool VideoSource::ChangeNext_API()
 		}
 		m_bReadyDraw = false;
 	}
-	m_bPlay = true;
-	m_ChangePosPts = 0;
+	
 	LeaveCriticalSection(&TextureDataLock);
 	if (m_MediaState == MediaStop)
 	{
@@ -1753,7 +1785,7 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 // 				AddCreateInfo(info);
 			}
 			memset(m_playPath, 0, 256);
-			memcpy(m_playPath, config->playlist[i].CreateUTF8String(), strlen(config->playlist[i].CreateUTF8String()));
+			memcpy(m_playPath, WcharToAnsi(config->playlist[i].Array()).c_str() , strlen(WcharToAnsi(config->playlist[i].Array()).c_str()));
 			config->CurrentIndex = i;
 			break;
 		}
@@ -1810,7 +1842,26 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 		LeaveCriticalSection(&DataLock);
 		return;
 	}
-
+	m_bPlay = true;
+	m_ChangePosPts = 0;
+	m_pts = 0;
+	m_bFirstTsTimeStamp = -1;
+	for (CSampleData* inf : m_VideoYuvBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_VideoYuvBuffer.clear();
+	EnterCriticalSection(&AudioDataLock);
+	for (CSampleData* inf : m_AudioAACBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_AudioAACBuffer.clear();
+	LeaveCriticalSection(&AudioDataLock);
 	mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
 		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
@@ -1835,20 +1886,7 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 	CallBackHight = m_height;
 	CallBackWidth = m_width;
 	InitCSampleData();
-
-	for (CSampleData* inf : m_VideoYuvBuffer)
-	{
-		inf->Release();
-	}
-	m_VideoYuvBuffer.clear();
-	EnterCriticalSection(&AudioDataLock);
-	for (CSampleData* inf : m_AudioAACBuffer)
-	{
-		inf->Release();
-	}
-	m_AudioAACBuffer.clear();
-	LeaveCriticalSection(&AudioDataLock);
-
+	
 	if (m_pDemandMediaAudio)
 		m_pDemandMediaAudio->ResetAudioDB();
 
@@ -1856,8 +1894,7 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 	m_FrameHeight = m_height;
 	m_FrameLines = 0;
 	m_FramePitchs = 0;
-	m_pts = 0;
-	m_bFirstTsTimeStamp = -1;
+	
 	VideoFormatCallback(m_choma, &m_FrameWidth, &m_FrameHeight, &m_FramePitchs, &m_FrameLines);
 	LeaveCriticalSection(&DataLock);
 
@@ -1901,8 +1938,7 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 		}
 		m_bReadyDraw = false;
 	}
-	m_bPlay = true;
-	m_ChangePosPts = 0;
+	
 	LeaveCriticalSection(&TextureDataLock);
 	if (m_MediaState == MediaStop)
 	{
@@ -1920,7 +1956,12 @@ void VideoSource::SetDirectPlay(const String DirectPlayFile)
 
 Vect2 VideoSource::GetSize() const 
 {
-    return videoSize;
+	if (Vect2(0,0) != videoSize)
+		 return videoSize;
+	else
+	{
+		return Vect2(1280, 720);
+	}
 }
 
 void VideoSource::BeginScene()
@@ -1931,11 +1972,22 @@ void VideoSource::BeginScene()
 	ChangeShader();
 
 	//drawShader = CreatePixelShaderFromFile(TEXT("shaders\\DrawTexture_ColorAdjust.pShader"));
-	if (texture)
-	{
+	//if (texture)
+	//{
 		//ClearTexture();
-		delete texture;
-		texture = nullptr;
+	//	delete texture;
+	//	texture = nullptr;
+	//}
+
+	DWORD Width = 0, Heigth = 0;
+	if (texture)
+		D3DRender->GetTextureWH(texture, Width, Heigth);
+
+	if (Width != CallBackWidth || Heigth != CallBackHight) {
+		if (texture) {
+			delete texture;
+			texture = nullptr;
+		}
 	}
 
 	if (!texture) {
@@ -2030,7 +2082,7 @@ bool STDCALL SleepToNS(QWORD qwNSTime)
 	}
 }
 
-void VideoSource::YUV420_2_RGB32()
+void VideoSource::Synchronization()
 {
 	QWORD streamTimeStart = GetQPCNS(); // current nano second
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE:%d,FUNC:%s,YUV420_2_RGB32 Thread is start! Thread ID = %d,This = %x"), __LINE__, __FUNCTION__, GetCurrentThreadId(), this);
@@ -2039,8 +2091,6 @@ void VideoSource::YUV420_2_RGB32()
 	QWORD frameTimeNS = 1000000000 / m_pMPMediaInfo.v_frame_rate;	// one frame nano second
 	QWORD sleepTargetTime = streamTimeStart + frameTimeNS;
 	UINT no_sleep_counter = 0;
-	int video_pts = 0;
-	int audio_pts = 0;
 
 	while (!m_stop){
 		if (!SleepToNS(sleepTargetTime += (frameTimeNS)))
@@ -2070,6 +2120,17 @@ void VideoSource::YUV420_2_RGB32()
 			}
 		}
 
+		if (latestVideoSample && enteredSceneCount && (GetMaxFPS() >= m_pMPMediaInfo.v_frame_rate))
+		{
+			int Index = 0;
+			while (latestVideoSample && enteredSceneCount && (Index < 10))
+			{
+				Sleep(1);
+				if (++Index >= 10)
+					Log::writeMessage(LOG_RTSPSERV, 1, "%s Ã»²Éµ½ÕâÒ»Ö¡Ìø¹ý this = 0x%p ThreadID = %d", __FUNCTION__,this,GetCurrentThreadId());
+			}
+		}
+
 		EnterCriticalSection(&DataLock);
 		if (m_VideoYuvBuffer.size())
 		{
@@ -2087,32 +2148,35 @@ void VideoSource::YUV420_2_RGB32()
 						OneCallBack.CallBack(OneCallBack.Context, inf);
 				}
 				LeaveCriticalSection(&CallBackLock);
+
+		
 				if (latestVideoSample)
 				{
-					uint64_t uCurrentCheckNum = *(uint64_t *)(latestVideoSample->lpData - 24);
-					if (uCurrentCheckNum == latestVideoSample->CheckNum)
+					//uint64_t uCurrentCheckNum = *(uint64_t *)(latestVideoSample->lpData - 24);
+					UINT64 nHigeCheckNum = latestVideoSample->CheckNum & 0xFF00000000000000;
+					if (nHigeCheckNum != 0)
 					{
 						SafeRelease(latestVideoSample);
 					}
 					else
 					{
-						Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ÊÍ·ÅlatestVideoSample³ö´í£¬Ð£ÑéÖµ²»Æ¥Åä: uCurrentCheckNum =0x%p,lastSample->CheckNum =0x%p.ThreadID = %d,This = 0x%p"),
-							__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, GetCurrentThreadId(), this);
+						//Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ÊÍ·ÅlatestVideoSample³ö´í£¬Ð£ÑéÖµ²»Æ¥Åä: uCurrentCheckNum =0x%p,lastSample->CheckNum =0x%p.ThreadID = %d,This = 0x%p"),
+						//	__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, GetCurrentThreadId(), this);
 
-						UINT64 nHigeCheckNum = latestVideoSample->CheckNum & 0xFF00000000000000;
-						UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
+						//UINT64 nHigeCheckNum = latestVideoSample->CheckNum & 0xFF00000000000000;
+						//UINT64 nHigeCurrrntNum = uCurrentCheckNum & 0xFF00000000000000;
 
-						if (nHigeCheckNum == nHigeCurrrntNum)//×î¸ß×Ö½ÚÆ¥Åä
-						{
-							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµÆ¥ÅäÊÍ·Å: uCurrentCheckNum = 0x%p,latestVideoSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.latestVideoSample->lpData :0x%p.latestVideoSample :0x%p.ThreadID = %d,This = 0x%p"),
-								__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
-							SafeRelease(latestVideoSample);
-						}
-						else
-						{
+						//if (nHigeCheckNum == nHigeCurrrntNum)//×î¸ß×Ö½ÚÆ¥Åä
+						//{
+						//	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµÆ¥ÅäÊÍ·Å: uCurrentCheckNum = 0x%p,latestVideoSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.latestVideoSample->lpData :0x%p.latestVideoSample :0x%p.ThreadID = %d,This = 0x%p"),
+						//		__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
+						//	SafeRelease(latestVideoSample);
+						//}
+						//else
+						//{
 							Log::writeMessage(LOG_RTSPSERV, 1, ("LINE: %d, FUNC:%s, ×î¸ßÎ»Ð£ÑéÖµ²»Æ¥Åä£¬²»ÊÍ·Å: uCurrentCheckNum = 0x%p,latestVideoSample->CheckNum =0x%p.nHigeCurrrntNum = 0x%p.nHigeCheckNum = 0x%p.latestVideoSample->lpData :0x%p.latestVideoSample :0x%p.ThreadID = %d,This = 0x%p"),
-								__LINE__, __FUNCTION__, uCurrentCheckNum, latestVideoSample->CheckNum, nHigeCurrrntNum, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
-						}
+								__LINE__, __FUNCTION__, 0, latestVideoSample->CheckNum, 0, nHigeCheckNum, latestVideoSample->lpData, latestVideoSample, GetCurrentThreadId(), this);
+						//}
 
 					}
 				}
@@ -2387,7 +2451,7 @@ bool VideoSource::ChangePrev()
 	//Ö»ÒªÄÜ¹»Ö´ÐÐ¾ÍÈÏÎªÎÄ¼þÊýÁ¿´óÓÚµ±Ç°Ë÷Òý¼õÒ»
 	config->CurrentIndex--;
 	memset(m_playPath, 0, 256);
-	memcpy(m_playPath, config->playlist[config->CurrentIndex].CreateUTF8String(), strlen(config->playlist[config->CurrentIndex].CreateUTF8String()));
+	memcpy(m_playPath, WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str() , strlen(WcharToAnsi(config->playlist[config->CurrentIndex].Array()).c_str()));
 	config->Save();
 
 	char url[256] = { 0 };
@@ -2405,7 +2469,26 @@ bool VideoSource::ChangePrev()
 		LeaveCriticalSection(&DataLock);
 		return false;
 	}
-
+	m_pts = 0;
+	m_bFirstTsTimeStamp = -1;
+	m_bPlay = true;
+	m_ChangePosPts = 0;
+	for (CSampleData* inf : m_VideoYuvBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_VideoYuvBuffer.clear();
+	EnterCriticalSection(&AudioDataLock);
+	for (CSampleData* inf : m_AudioAACBuffer)
+	{
+		video_pts = 0;
+		audio_pts = 0;
+		inf->Release();
+	}
+	m_AudioAACBuffer.clear();
+	LeaveCriticalSection(&AudioDataLock);
 	mp_start(HMediaProcess);    //¿ªÊ¼»ñÈ¡Êý¾Ý
 	Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,Path: %s,frame_rate =%d,nSamplesPerSec = %d,nChannels = %d,wBitsPerSample = 16,This = %x"),
 		__LINE__, __FUNCTION__, m_playPath, m_pMPMediaInfo.v_frame_rate, m_pMPMediaInfo.a_sample_rate, m_pMPMediaInfo.a_channels, this);
@@ -2434,19 +2517,7 @@ bool VideoSource::ChangePrev()
 	if (Param.iBitPerSample > 0)
 		m_pDemandMediaAudio->ResetAudioParam(Param);
 	LeaveLiveVideoSection();
-
-	for (CSampleData* inf : m_VideoYuvBuffer)
-	{
-		inf->Release();
-	}
-	m_VideoYuvBuffer.clear();
-	EnterCriticalSection(&AudioDataLock);
-	for (CSampleData* inf : m_AudioAACBuffer)
-	{
-		inf->Release();
-	}
-	m_AudioAACBuffer.clear();
-	LeaveCriticalSection(&AudioDataLock);
+	
 
 	if (m_pDemandMediaAudio)
 		m_pDemandMediaAudio->ResetAudioDB();
@@ -2455,8 +2526,7 @@ bool VideoSource::ChangePrev()
 	m_FrameHeight = m_height;
 	m_FrameLines = 0;
 	m_FramePitchs = 0;
-	m_pts = 0;
-	m_bFirstTsTimeStamp = -1;
+	
 	VideoFormatCallback(m_choma, &m_FrameWidth, &m_FrameHeight, &m_FramePitchs, &m_FrameLines);
 	LeaveCriticalSection(&DataLock);
 
@@ -2500,8 +2570,7 @@ bool VideoSource::ChangePrev()
 		}
 		m_bReadyDraw = false;
 	}
-	m_bPlay = true;
-	m_ChangePosPts = 0;
+	
 	LeaveCriticalSection(&TextureDataLock);
 	if (m_MediaState == MediaStop)
 	{
@@ -2565,7 +2634,6 @@ bool VideoSource::GetStreamInfo(Value &JsonInfo)
 //		bCanResetAudio = true;
 //	}
 
-	//Log::writeMessage(LOG_RTSPSERV, 1, "FUNC : %s, LINE:%d,  »ñÈ¡ÎÄ¼þ×ÜÊ±³¤ m_uDuration = %d.", String(__FUNCTION__).CreateUTF8String(), __LINE__, m_mediaDuration);
 	return true;
 }
 

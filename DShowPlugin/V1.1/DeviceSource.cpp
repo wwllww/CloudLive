@@ -85,7 +85,7 @@ DeviceSource::DeviceSource()
 	oldDeinterlacerType = 0;
 	hSampleMutex = NULL;
 	colorMutex = NULL;
-	ListCallBackMutex = NULL;
+	ListCallBackMutex = OSCreateMutex();
 	hConvertThreads = NULL;
 	convertData = NULL;
 	bNeedCheck = true;
@@ -115,8 +115,6 @@ bool DeviceSource::Init(Value &data)
 		return false;
 	}
 
-	if (!ListCallBackMutex)
-		ListCallBackMutex = OSCreateMutex();
 
 	if (!ListCallBackMutex)
 	{
@@ -144,9 +142,6 @@ bool DeviceSource::Init(Value &data)
 	UpdateSettings(data);
 	return bCapturing;
 }
-
-
-#define SHADER_PATH TEXT("./shaders/")
 
 String DeviceSource::ChooseShader(bool bNeedField)
 {
@@ -580,7 +575,7 @@ bool DeviceSource::LoadFilters()
     }
 
     //renderCX = renderCY = newCX = newCY = 0;
-    frameInterval = 0;
+	frameInterval = 400000;
 
     UINT elgatoCX = 1280;
     UINT elgatoCY = 720;
@@ -1046,6 +1041,7 @@ bool DeviceSource::LoadFilters()
                 goto cleanFinish;
             }
         }
+
     }
 
     if(FAILED(err = graph->QueryInterface(IID_IMediaControl, (void**)&control)))
@@ -1290,8 +1286,11 @@ void DeviceSource::BeginScene()
 
 	ChangeShader();
 
-	ChangeSize(bLoadSucceed, true);
-	drawShader = D3DRender->CreatePixelShaderFromFile(TEXT("./shaders/DrawTexture_ColorAdjust.pShader"));
+	if (!texture)
+		ChangeSize(bLoadSucceed, true);
+
+	if (!drawShader)
+		drawShader = D3DRender->CreatePixelShaderFromFile(TEXT("./shaders/DrawTexture_ColorAdjust.pShader"));
 
     Start();
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1364,27 +1363,27 @@ void DeviceSource::GlobalSourceEnterScene()
 
  //   float sourceVolume = data["volume"].asDouble();
 
-    if(soundOutputType == 1) {
-		OSEnterMutex(hAudioMutex);
-		if (NULL != audioOut)
-		{
-			if (audioFormat.wBitsPerSample > 0)
-				audioOut->Initialize(this);
-		}   
-		else
-		{
-			int soundTimeOffset = data["soundTimeOffset"].asInt();
-			float volume = data["volume"].asDouble();
-
-			audioOut = new DeviceAudioSource;
-			if (audioFormat.wBitsPerSample > 0)
-				audioOut->Initialize(this);
-
-// 			audioOut->SetAudioOffset(soundTimeOffset);
-// 			audioOut->SetVolume(volume);
-		}
-	   OSLeaveMutex(hAudioMutex);
-    }
+//     if(soundOutputType == 1) {
+// 		OSEnterMutex(hAudioMutex);
+// 		if (NULL != audioOut)
+// 		{
+// 			if (audioFormat.wBitsPerSample > 0)
+// 				audioOut->Initialize(this);
+// 		}   
+// 		else
+// 		{
+// 			int soundTimeOffset = data["soundTimeOffset"].asInt();
+// 			float volume = data["volume"].asDouble();
+// 
+// 			audioOut = new DeviceAudioSource;
+// 			if (audioFormat.wBitsPerSample > 0)
+// 				audioOut->Initialize(this);
+// 
+// // 			audioOut->SetAudioOffset(soundTimeOffset);
+// // 			audioOut->SetVolume(volume);
+// 		}
+// 	   OSLeaveMutex(hAudioMutex);
+//     }
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
 }
@@ -1794,6 +1793,18 @@ void DeviceSource::ReceiveMediaSample(IMediaSample *sample, bool bAudio)
 				}
 			}
 			OSLeaveMutex(ListCallBackMutex);
+
+
+			if (!bAudio && latestVideoSample && enteredSceneCount && (GetMaxFPS() >= INT64(10000000.0 / double(frameInterval))))
+			{
+				int Index = 0;
+				while (latestVideoSample && enteredSceneCount && (Index < 5))
+				{
+					Sleep(1);
+ 					if (++Index >= 5)
+ 						Log::writeMessage(LOG_RTSPSERV, 1, "%s 没采到这一帧跳过 this = 0x%p 视频捕捉设备名字 %s", __FUNCTION__, this, this->data["Name"].asString().c_str());
+				}
+			}
 
 			OSEnterMutex(hSampleMutex);
             if (bUseBuffering && !bAudio) {
@@ -2356,23 +2367,23 @@ void DeviceSource::UpdateSettings(Value &data)
 	}
 
 
-	float sourceVolume = data["volume"].asDouble();
-	OSEnterMutex(hAudioMutex);
-	if (!audioOut)
-	{
-		audioOut = new DeviceAudioSource;
-	}
-	if (soundOutputType == 1)
-	{
-		int soundTimeOffset = data["soundTimeOffset"].asInt();
-		if(audioFormat.wBitsPerSample > 0)
-			audioOut->Initialize(this);
-
-		audioOut->SetAudioOffset(soundTimeOffset);
-		audioOut->SetVolume(sourceVolume);
-	}
-
-	OSLeaveMutex(hAudioMutex);
+// 	float sourceVolume = data["volume"].asDouble();
+// 	OSEnterMutex(hAudioMutex);
+// 	if (!audioOut)
+// 	{
+// 		audioOut = new DeviceAudioSource;
+// 	}
+// 	if (soundOutputType == 1)
+// 	{
+// 		int soundTimeOffset = data["soundTimeOffset"].asInt();
+// 		if(audioFormat.wBitsPerSample > 0)
+// 			audioOut->Initialize(this);
+// 
+// 		audioOut->SetAudioOffset(soundTimeOffset);
+// 		audioOut->SetVolume(sourceVolume);
+// 	}
+// 
+// 	OSLeaveMutex(hAudioMutex);
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
 }
 
@@ -2911,6 +2922,14 @@ void DeviceSource::ChangeShader()
 			colorFieldConvertShader = NULL;
 		}
 		strShaderOld.Clear();
+	}
+}
+
+void DeviceSource::RenameSource(const char *NewName)
+{
+	if (NewName)
+	{
+		data["Name"] = NewName;
 	}
 }
 

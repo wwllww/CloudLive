@@ -149,6 +149,7 @@
     <ClInclude Include="..\AgentPlugin.h" />
     <ClInclude Include="..\BitmapImage.h" />
     <ClInclude Include="..\BitmapImageSource.h" />
+    <ClInclude Include="..\BitmapTransitionSource.h" />
     <ClInclude Include="..\libnsgif.h" />
     <ClInclude Include="..\TextOutputSource.h" />
     <ClInclude Include="resource.h" />
@@ -159,6 +160,7 @@
     <ClCompile Include="..\AgentPlugin.cpp" />
     <ClCompile Include="..\BitmapImage.cpp" />
     <ClCompile Include="..\BitmapImageSource.cpp" />
+    <ClCompile Include="..\BitmapTransitionSource.cpp" />
     <ClCompile Include="..\libnsgif.c" />
     <ClCompile Include="..\TextOutputSource.cpp" />
     <ClCompile Include="dllmain.cpp">

@@ -297,6 +297,7 @@ public:
 	virtual const char* GetAduioClassName() const;
 	virtual IBaseAudio * GetAudioRender();
 	virtual bool IsFieldSignal() const;
+	virtual void RenameSource(const char *NewName);
 
 	virtual void SetHasPreProcess(bool bHasPre);
 	virtual bool GetHasPreProcess() const;

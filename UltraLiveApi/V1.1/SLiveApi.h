@@ -1149,6 +1149,19 @@ extern "C" {
 
 	API_EXPORT int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest);
 
+
+	/************************************************************************/
+	/* 函数功能：                  检测硬件是否支持硬编
+	/* 输入参数：					nDeviceId 如果有N卡则为N卡ID,如果没有N传-1
+	/* 输出参数：
+
+	/* 返 回 值：                  -1硬件不支持硬编，1支持N卡硬编，2支持Intel硬编，3两个都支持
+
+	/* 时    间：                  操作人                     操作内容
+	2017年02月28日                                           修改定义接口
+	/************************************************************************/
+	API_EXPORT int SLiveQueryHardEncodeSupport();
+
 #ifdef  __cplusplus
 }
 #endif //  __cplusplus

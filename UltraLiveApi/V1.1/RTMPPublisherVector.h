@@ -26,6 +26,7 @@ public:
 	virtual void ResetNoDelayPublisher(CInstanceProcess *instance,bool bBackUp) {}
 	virtual ~RTMPPublisherVectorBase() {}
 	virtual void GetRtmpPublist(std::vector<RTMPPublisher *> &PublisherList){}
+	virtual void ReConnectPuhlisher(const String &Prefix) {}
 protected:
 	bool bBack;
 };
@@ -47,6 +48,7 @@ public:
 	void ResetNoDelayPublisher(CInstanceProcess *instance, bool bBackUp);
 	virtual void GetRtmpPublist(std::vector<RTMPPublisher *> &PublisherList);
 	void AddRTMPPublisher(RTMPPublisher* publisher);
+	virtual void ReConnectPuhlisher(const String &Prefix);
 private:
 	std::list<RTMPPublisher*> Publishers;
 	CRITICAL_SECTION hBuildMutex;

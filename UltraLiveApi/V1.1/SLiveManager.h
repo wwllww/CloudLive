@@ -115,6 +115,8 @@ public:
 	int SLiveUpdateFilter(uint64_t iInstansID, uint64_t iStreamID, uint64_t iFilterID, const char *cJson);
 	int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest);
 
+	int SLiveQueryHardEncodeSupport();
+
 	int ReNameStreamSec(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName);
 	//内部使用
 	void SLiveSetLastError(const char *Error);
@@ -180,6 +182,8 @@ public:
 	bool FindVideoInLocalIntance(IBaseAudio *Audio);
 	bool FindVideoInLiveIntance(IBaseAudio *Audio);
 
+	int GetHardEncoderType() const;
+
 public:
 	static MemStack *mem_stack;
 	CBMap<CInstanceProcess*> m_InstanceList = 1;
@@ -194,6 +198,7 @@ public:
 private:
 	string ErrMsg;
 	bool bInit;
+	int  iHardEncoderType;
 	static CSLiveManager *m_Intances;
 	
 	vector<std::string> NameList;
@@ -209,6 +214,8 @@ private:
 	bool bOutPicDel;
 	bool bOutPicDel_Back;
 	bool bStartLive;
+	bool bNewStart;
+	bool bCanSecondCheck;
 
 	HANDLE HVideoCapture;
 	HANDLE HAudioCapture;
@@ -296,6 +303,7 @@ private:
 	CDeinterlacer *DeinterlacerLocal;
 	DeinterlacerConfig DeinterConfig;
 	bool bNeedAgentInPGM;
+
 };
 
 #endif

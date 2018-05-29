@@ -32,7 +32,6 @@ static HWND Hwnd = NULL;
 
 #define  UPTATEEDIT (WM_USER + 43327)
 #define  UPTATESLIDER (WM_USER + 43328)
-#define  HIGHLIGHT (WM_USER + 43329)
 
 struct ConfigDialogData
 {
@@ -285,7 +284,18 @@ LRESULT CALLBACK DenoiseSliderProc(HWND hwnd, UINT message, WPARAM wParam, LPARA
 						 DeleteObject(hdcTemp);
 
 						 ReleaseDC(hwnd, hDC);
-						
+						 std::stringstream SourceId;
+						 uint64_t VideoId = 0;
+						 if (!configData->data["SourceID"].isNull())
+						 {
+							 SourceId << configData->data["SourceID"].asString().c_str();
+							 SourceId >> VideoId;
+						 }
+
+						 IBaseVideo *Video = (IBaseVideo*)VideoId;
+
+						 if (Video && configData->bDenoiseCheckFlag)
+							 Video->SetFloat(TEXT("Denoise"), configData->nDB);
 						 break;
 	}
 	default:
@@ -425,6 +435,22 @@ LRESULT CALLBACK DenoiseCheckProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 							 LineTo(hDC, 12, 28);
 							 SelectObject(hDC, hPenOld);
 							 DeleteObject(hPen);
+						 }
+						 std::stringstream SourceId;
+						 uint64_t VideoId = 0;
+						 if (!configData->data["SourceID"].isNull())
+						 {
+							 SourceId << configData->data["SourceID"].asString().c_str();
+							 SourceId >> VideoId;
+						 }
+
+						 IBaseVideo *Video = (IBaseVideo*)VideoId;
+
+						 if (Video && configData->bDenoiseCheckFlag)
+							 Video->SetFloat(TEXT("Denoise"), configData->nDB);
+						 else if (Video && !configData->bDenoiseCheckFlag)
+						 {
+							 Video->SetFloat(TEXT("false"), configData->nDB);
 						 }
 						 ReleaseDC(hwnd, hDC);
 						 break;
@@ -1282,11 +1308,77 @@ bool  CheckDeviceByValue(const IID &enumType, WSTR lpType, CTSTR lpName)
 }
 
 //===================================================================
+int nTotalCountChannel = 0;
+
+int nCurSelChannel = 0;
+int nScrollPosChannel = 0;
+int nShowCountChannel = 0;
+
 WNDPROC channelListProc = NULL;
 INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+	case WM_MOUSEWHEEL:
+	{
+						  int zDelta = (int)(short)HIWORD(wParam);
+						  if (zDelta < 0)
+						  {
+							  if (nScrollPosChannel < nTotalCountChannel - nShowCountChannel)
+								  nScrollPosChannel += 3;
+							  if (nScrollPosChannel > nTotalCountChannel - nShowCountChannel)
+								  nScrollPosChannel = nTotalCountChannel - nShowCountChannel;
+						  }
+						  else
+						  {
+							  if (nScrollPosChannel > 0)
+								  nScrollPosChannel -= 3;
+							  if (nScrollPosChannel < 0)
+								  nScrollPosChannel = 0;
+						  }
+	}
+		break;
+	case WM_VSCROLL:
+	{
+					   switch (LOWORD(wParam))
+					   {
+					   case SB_THUMBPOSITION:
+					   {
+												nScrollPosChannel = (int)(short)HIWORD(wParam);
+					   }
+						   break;
+					   case SB_LINEUP:
+					   {
+										 if (nScrollPosChannel > 0)
+											 nScrollPosChannel--;
+					   }
+						   break;
+					   case SB_LINEDOWN:
+					   {
+										   if (nScrollPosChannel < nTotalCountChannel - nShowCountChannel)
+											   nScrollPosChannel++;
+					   }
+						   break;
+					   case SB_PAGEUP:
+					   {
+										 if (nScrollPosChannel > 0)
+											 nScrollPosChannel -= nShowCountChannel;
+										 if (nScrollPosChannel < 0)
+											 nScrollPosChannel = 0;
+					   }
+						   break;
+					   case SB_PAGEDOWN:
+					   {
+										   if (nScrollPosChannel < nTotalCountChannel - nShowCountChannel)
+											   nScrollPosChannel += nShowCountChannel;
+										   if (nScrollPosChannel > nTotalCountChannel - nShowCountChannel)
+											   nScrollPosChannel = nTotalCountChannel - nShowCountChannel;
+					   }
+						   break;
+					   }
+					   SetScrollPos(hwnd, 1, nScrollPosChannel, TRUE);
+	}
+		break;
 		case WM_MOUSEMOVE:
 		case WM_MOUSEHOVER:
 		{
@@ -1298,16 +1390,16 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 							  HDC hdc = GetDC(hwnd);
 							  RECT Rect;
 							  GetClientRect(hwnd, &Rect);
-							  RECT *rc = new RECT[configData->audioNameList.Num()];
+							  RECT *rc = new RECT[nShowCountChannel];
 							  int index = -1;
-							  for (int i = 0; i < configData->audioNameList.Num(); i++)
+							  for (int i = 0; i < nShowCountChannel; i++)
 							  {
 								  rc[i].left = Rect.left;
 								  rc[i].right = Rect.right;
 								  rc[i].top = Rect.top + i * 36;
 								  rc[i].bottom = rc[i].top + 36;
 							  }
-							  for (int i = 0; i < configData->audioNameList.Num(); i++)
+							  for (int i = 0; i < nShowCountChannel; i++)
 							  {
 								  if (PtInRect(&rc[i], Pt))
 								  {
@@ -1315,7 +1407,7 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 									  break;
 								  }
 							  }
-							  if (index >= 0)
+							  if (index >= 0 && (index + nScrollPosChannel) < configData->audioNameList.Num())
 							  {
 								  HBRUSH HBrush = CreateSolidBrush(RGB(22, 121, 145));
 								  FillRect(hdc, &rc[index], HBrush);
@@ -1327,8 +1419,9 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 								  HFONT hfontOld = (HFONT)SelectObject(hdc, hFont);
 
 								  rc[index].left += 10;
+
 								  String strAudioDevice;
-								  strAudioDevice = configData->audioNameList[index];
+								  strAudioDevice = configData->audioNameList[index + nScrollPosChannel];
 								  DrawText(hdc, strAudioDevice.Array(), strAudioDevice.Length(), &rc[index], DT_LEFT | DT_VCENTER | DT_SINGLELINE);
 
 								  SelectObject(hdc, hfontOld);
@@ -1341,60 +1434,7 @@ INT_PTR CALLBACK ChannelListProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM 
 							  ReleaseDC(hwnd, hdc);
 		}
 		break;
-		case HIGHLIGHT:
-		{
-						  ConfigDialogData *configData = pGlobalConfigData;
-						  POINT Pt;
-						  Pt.x = (int)(short)LOWORD(lParam);
-						  Pt.y = (int)(short)HIWORD(lParam);
-
-						  HDC hdc = GetDC(hwnd);
-						  RECT Rect;
-						  GetClientRect(hwnd, &Rect);
-						  RECT *rc = new RECT[configData->audioNameList.Num()];
-						  int index = -1;
-						  for (int i = 0; i < configData->audioNameList.Num(); i++)
-						  {
-							  rc[i].left = Rect.left;
-							  rc[i].right = Rect.right;
-							  rc[i].top = Rect.top + i * 36;
-							  rc[i].bottom = rc[i].top + 36;
-						  }
-						  for (int i = 0; i < configData->audioNameList.Num(); i++)
-						  {
-							  if (PtInRect(&rc[i], Pt))
-							  {
-								  index = i;
-								  break;
-							  }
-						  }
-						  index = pGlobalConfigData->nCurrentSelect;
-						  if (index >= 0)
-						  {
-							  HBRUSH HBrush = CreateSolidBrush(RGB(22, 121, 145));
-							  FillRect(hdc, &rc[index], HBrush);
-							  DeleteObject(HBrush);
-							  SetBkMode(hdc, TRANSPARENT);
-
-							  HFONT hFont = CreateFont(22, 0, 0, 0, FW_NORMAL, FALSE, FALSE, 0, ANSI_CHARSET, \
-								  OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"微软雅黑");
-							  HFONT hfontOld = (HFONT)SelectObject(hdc, hFont);
-
-							  rc[index].left += 10;
-							  String strAudioDevice;		 
-							  strAudioDevice = configData->audioNameList[index];
-							  DrawText(hdc, strAudioDevice.Array(), strAudioDevice.Length(), &rc[index], DT_LEFT | DT_VCENTER | DT_SINGLELINE);
-
-							  SelectObject(hdc, hfontOld);
-							  DeleteObject(hFont);
-							  hFont = NULL;
-						  }
-
-						  delete[] rc;
-						  rc = NULL;
-						  ReleaseDC(hwnd, hdc);
-						  break;
-		}
+	
 	}
 	return CallWindowProc(channelListProc, hwnd, message, wParam, lParam);
 }
@@ -1460,6 +1500,12 @@ INT_PTR CALLBACK ChannelComboProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 		break;
 	case WM_LBUTTONDOWN:
 	{
+						   nScrollPosChannel = nCurSelChannel;
+						   if (nCurSelChannel > nTotalCountChannel - nShowCountChannel)
+							   nScrollPosChannel = nTotalCountChannel - nShowCountChannel;
+
+						   if (nScrollPosChannel < 0)
+							   nScrollPosChannel = 0;
 						SendMessage(comboInfo.hwndList, CB_SHOWDROPDOWN, TRUE, 0);
 						if (channelListProc == NULL)
 						{
@@ -1505,7 +1551,7 @@ INT_PTR CALLBACK ChannelComboProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
 		if (HIWORD(wParam) == CBN_SELCHANGE)
 		{
 			ConfigDialogData *configData = (ConfigDialogData *)GetWindowLongPtr(GetParent(hwnd), DWLP_USER);
-			configData->nCurrentSelect = (UINT)SendMessage(hwnd, CB_GETCURSEL, 0, 0);
+			nCurSelChannel = configData->nCurrentSelect = (UINT)SendMessage(hwnd, CB_GETCURSEL, 0, 0);
 			SendMessage(hwnd, CB_SETCURSEL, configData->nCurrentSelect, 0);
 		}
 		break;
@@ -1683,11 +1729,14 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 			break;
         case WM_INITDIALOG:
             {
+							  nTotalCountChannel = 0;
+							  nCurSelChannel = 0;
+							  nScrollPosChannel = 0;
+							  nShowCountChannel = 0;
 							  channelListProc = NULL;
 							  SetWindowLongPtr(hwnd, DWLP_USER, (LONG_PTR)lParam);
 							  ConfigDialogData *configData = (ConfigDialogData*)lParam;
 							  
-							  configData->bDenoiseCheckFlag = configData->data["audioDenoiseCheck"].asInt();
 							  configData->bDenoiseCheckFlag = configData->data["audioDenoiseCheck"].asInt();
 							  configData->nDB = configData->data["audioDenoise"].asInt();
 							  configData->nPos = configData->data["audioDenoisePos"].asInt();
@@ -1733,7 +1782,7 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 								  320, 154, 18, 14, hwnd, (HMENU)ID_DOWNPOSDENOISE, hinstMain, NULL);
 							  SetWindowPos(GetDlgItem(hwnd, IDC_DENOISEEDIT), NULL, 280, 140, 40, 28, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
-							  SetWindowPos(GetDlgItem(hwnd, IDC_AUDIOLIST), NULL, 50, 46, 300, 360, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
+							  SetWindowPos(GetDlgItem(hwnd, IDC_AUDIOLIST), NULL, 50, 46, 300, 216, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
 							  SetWindowPos(GetDlgItem(hwnd, IDCANCEL), NULL, 264, 204, 100, 36, SWP_NOOWNERZORDER | SWP_SHOWWINDOW);
 
@@ -1802,8 +1851,12 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
 
 								SendMessage(hwndAudioList, CB_SETCURSEL, deviceID, 0);
 								configData->nCurrentSelect = deviceID;
-								for (int i = 0; i < 10; i++)
+
+								for (int i = 0; i < configData->audioNameList.Num(); i++)
 									SendMessage(hwndAudioList, CB_SETITEMHEIGHT, i, 36);
+								nCurSelChannel = configData->nCurrentSelect;
+								nTotalCountChannel = configData->audioNameList.Num();
+								nShowCountChannel = nTotalCountChannel > 5 ? 5 : nTotalCountChannel;
 								channelComboProc = (WNDPROC)SetWindowLongPtr(GetDlgItem(hwnd, IDC_AUDIOLIST), GWLP_WNDPROC, (LONG_PTR)ChannelComboProc);
 								
 				bool enable =  1;
@@ -1984,6 +2037,23 @@ INT_PTR CALLBACK ConfigureDialogProc(HWND hwnd, UINT message, WPARAM wParam, LPA
                     if(LOWORD(wParam) == IDCANCEL)
                     {
                        ConfigDialogData *configData = (ConfigDialogData*)GetWindowLongPtr(hwnd, DWLP_USER);
+					   std::stringstream DenoiseSourceId;
+					   uint64_t VideoIdDenoise = 0;
+					   if (!configData->data["SourceID"].isNull())
+					   {
+						   DenoiseSourceId << configData->data["SourceID"].asString().c_str();
+						   DenoiseSourceId >> VideoIdDenoise;
+					   }
+
+					   IBaseVideo *VideoDenoise = (IBaseVideo*)VideoIdDenoise;
+					   configData->nDB = configData->data["audioDenoise"].asInt();
+					   configData->bDenoiseCheckFlag = configData->data["audioDenoiseCheck"].asInt();
+					    if (VideoDenoise && configData->bDenoiseCheckFlag)
+							VideoDenoise->SetFloat(TEXT("Denoise"), configData->nDB);
+						else if (VideoDenoise && !configData->bDenoiseCheckFlag)
+						{
+							VideoDenoise->SetFloat(TEXT("false"), configData->nDB);
+						}
 					   DeleteObject(configData->HBrushGreen);
 					   DeleteObject(configData->HBrushBlack);
 					   DeleteObject(configData->HBrushBackGround);

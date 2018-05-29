@@ -662,7 +662,14 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 
 		IDeckLinkDisplayModeIterator*		pDLDisplayModeIterator = NULL;
 		IDeckLinkDisplayMode*				pDLDisplayMode = NULL;
-		_BMDDisplayMode DisplayMode = getDisplayMode(kDisplayModeMappings, mode);
+		_BMDDisplayMode DisplayMode = bmdModePAL;
+		if (m_nDeviceCount == 1)
+			DisplayMode = getDisplayMode(kDisplayModeMappingsOne, mode);
+		else if (m_nDeviceCount == 4)
+			DisplayMode = getDisplayMode(kDisplayModeMappings, mode);
+
+		Log::writeError(LOG_SDI, 1, "SDI_StartOut DisplayMode = %d", mode);
+
 		if (pCurDLOutput->GetDisplayModeIterator(&pDLDisplayModeIterator) == S_OK)
 		{
 			while (pDLDisplayModeIterator->Next(&pDLDisplayMode) == S_OK)
@@ -718,7 +725,7 @@ int SDIOutput::SDI_StartOut(int nDeviceID, SDIOUT_DISPLAYMODE mode, SDIOUT_COLOR
 		channelInfo->colorFormat = nColorFormat;
 		channelInfo->displayMode = mode;
 
-		float fScale = (float)channelInfo->uiFPS / 25.0f;
+		float fScale = 1.0;//(float)channelInfo->uiFPS / 25.0f;
 		if (nInnerBufferCount > 0)
 		{
 			channelInfo->nInnerBufFrameCount = nInnerBufferCount * fScale;
@@ -1369,7 +1376,8 @@ void SDIOutput::SetPreroll(int nDeviceID, SDIOUT_COLORFORMAT nColorFormat)
 
 // 					Log::writeMessage(LOG_SDI, 1, "SetPreroll%d ScheduleVideoFrame!%d", nDeviceID, (*pos)->ref);
 
-					if ((*pos)->pDLOutput->ScheduleVideoFrame(pDLVideoFrame, ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale) != S_OK)
+					int n = ((((*pos)->uiTotalFrames) - FRAMECOUNT) * (*pos)->frameDuration);
+					if ((*pos)->pDLOutput->ScheduleVideoFrame(pDLVideoFrame, n, (*pos)->frameDuration, (*pos)->frameTimescale) != S_OK)
 						goto bail;
 
 // 					Log::writeMessage(LOG_SDI, 1, "ScheduleVideoFrame Êä³öÆðµã=%lld, Duration=%lld, Timescale=%lld!", ((*pos)->uiTotalFrames * (*pos)->frameDuration), (*pos)->frameDuration, (*pos)->frameTimescale);

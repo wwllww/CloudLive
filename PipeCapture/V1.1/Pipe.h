@@ -1,5 +1,5 @@
 //设置参数参数, 导播音视频数据请求, 主持人音视频数据请求, 视频数据， 音频数据, 主持人模式, 回应
-enum MsgType{ ParamSet = 0, DirectorAVRequest, HostAVRequest, CommandCenterAVRequest, VideoData, AudioData, HostMode, Response, HeartBeat };
+enum MsgType{ ParamSet = 0, DirectorAVRequest, HostAVRequest, CommandCenterAVRequest, VideoData, AudioData, HostMode, Response, HeartBeat, AddPipeVideoCommand, DelPipeVideoCommand, RenamePipeVideoCommand };
 
 struct MSGHeader
 {
@@ -81,6 +81,7 @@ struct strHostMode
 {
 	char ChannelNumber[24];      //客户视讯号
 	char Nickname[64];           //客户昵称
+	char InteractionName[128];   //要绑定的互动源名字
 };
 
 //回应码解释

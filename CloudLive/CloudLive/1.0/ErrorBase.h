@@ -2,7 +2,7 @@
 #define ERRORBASE_H
 #include <string>
 #pragma warning(disable:4100)
-class API_EXPORT CErrorBase
+class CErrorBase  
 {
 public:
 	CErrorBase();

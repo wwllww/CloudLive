@@ -2,7 +2,6 @@
 #define BMAP_H
 #include <memory>
 #include "PArry.h"
-#include "OperatNew.h"
 
 #pragma warning(disable:4996)
 
@@ -25,25 +24,21 @@ public:
 	}
 	~CBMap()
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 开始析构", __FUNCTION__);
 		if (m_Data)
 		{
 			if (m_Dynamic)
 			{
-				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 开始动态删除 size = %d", __FUNCTION__,m_Data->GetSize());
 				for (int i = 0; i < m_Data->GetSize(); ++i)
 				{
-					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 找到并删除", __FUNCTION__);
 					Data *TemDate = (Data*)m_Data->GetAt(i);
-					if (((CBMap<CPObject*>::Data*)TemDate)->ExeFun)
-						delete ((CBMap<CPObject*>::Data*)TemDate)->ExeFun;
-					((CBMap<CPObject*>::Data*)TemDate)->ExeFun = NULL;
+					if (((CBMap<COPject*>::Data*)TemDate)->ExeFun)
+						delete ((CBMap<COPject*>::Data*)TemDate)->ExeFun;
+					((CBMap<COPject*>::Data*)TemDate)->ExeFun = NULL;
 					
 				}
 			}
 			delete m_Data;
 		}
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 析构完成", __FUNCTION__);
 	}
 	T &operator [] (const char * pszStr)
 	{
@@ -135,7 +130,7 @@ public:
 
 			if (m_Dynamic)
 			{
-				delete ((CBMap<CPObject*>::Data*)Tem)->ExeFun;
+				delete ((CBMap<COPject*>::Data*)Tem)->ExeFun;
 
 			}
 			delete Tem;
@@ -170,7 +165,7 @@ public:
 		return false;
 	}
 
-	struct Data : public CPObject
+	struct Data : public COPject
 	{
 		char Name[100];
 		T ExeFun;
@@ -194,7 +189,7 @@ private:
 		TemData->ExeFun = Value;
 		m_Data->Add(TemData);
 	}
-	void insert(const char *pszStr, CPObject *data)
+	void insert(const char *pszStr, COPject *data)
 	{
 		if (!pszStr || strcmp(pszStr, "") == 0 || !data)
 			return;

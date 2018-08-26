@@ -108,6 +108,7 @@ VideoLiveSource::VideoLiveSource(Value& data)
 	StartMonitor();
 	D3DRender = GetD3DRender();
 	videoSize = Vect2(640,360);
+	ZeroMemory(&audioFormat, sizeof WAVEFORMATEX);
 }
 
 VideoLiveSource::VideoLiveSource()
@@ -361,9 +362,9 @@ void VideoLiveSource::GlobalSourceLeaveScene()
 		return;
 	if (--enteredSceneCount)
 		return;
-	EnterCriticalSection(&TextureDataLock);
-	//É¾³ýÊÓÆµÒôÆµäÖÈ¾
-	LeaveCriticalSection(&TextureDataLock);
+// 	EnterCriticalSection(&TextureDataLock);
+// 	//É¾³ýÊÓÆµÒôÆµäÖÈ¾
+// 	LeaveCriticalSection(&TextureDataLock);
 }
 
 void VideoLiveSource::Preprocess()
@@ -475,7 +476,7 @@ void VideoLiveSource::Render(const Vect2 &pos, const Vect2 &size, Texture *Filte
 				}
 			}
 
-			D3DRender->DrawSprite(FilterTexture, 0xFFFFFFFF, pos.x + mediaOffset.x, pos.y + mediaOffset.y, pos.x + mediaSize.x, pos.y + mediaSize.y);
+			D3DRender->DrawSprite(FilterTexture, (opacity255 << 24) | 0xFFFFFF, pos.x + mediaOffset.x, pos.y + mediaOffset.y, pos.x + mediaSize.x, pos.y + mediaSize.y);
 
 			if (bIsFieldSignal && mediaSize != videoSize)
 			{
@@ -498,8 +499,7 @@ void VideoLiveSource::Render(const Vect2 &pos, const Vect2 &size, Texture *Filte
 				D3DRender->LoadPixelShader(colorFieldConvertShader);
 				colorFieldConvertShader->SetFloat(colorFieldConvertShader->GetParameterByName(TEXT("gamma")), 1.0f);
 			}
-			float fOpacity = float(100)*0.01f;
-			DWORD opacity255 = DWORD(fOpacity*255.0f);
+
 			D3DRender->DrawSprite(texture, (opacity255 << 24) | 0xFFFFFF, /*40, 0, 280, 240*/ pos.x + mediaOffset.x, pos.y + mediaOffset.y, pos.x + mediaSize.x, pos.y + mediaSize.y);
 			D3DRender->LoadPixelShader(oldShader);
 		}
@@ -638,6 +638,13 @@ void VideoLiveSource::UpdateSettings(Value &JsonParam)
 	if (m_playPath)
 	{
 		config->Reload();
+
+		if (config->playlist.Num() == 0)
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, ("LINE : %d, FUNC : %s ,PlayList is empty.This =0x%p"), __LINE__, __FUNCTION__, this);
+			return;
+		}
+
 		m_iVolume = config->volume;
 
 		if (bIsFieldSignal != config->bIsScanInterlace)
@@ -1691,6 +1698,9 @@ void VideoLiveSource::PlayCallBackAudio(LPBYTE lpData, UINT len)
 	Audio.bAudio = true;
 	Audio.lpData = lpData;
 	Audio.dataLength = len;
+	
+	m_pDemandMediaAudio->GetDb(Audio.LeftDb, Audio.RightDb);
+
 	WAVEFORMATEX FormatAudio = audioFormat;
 
 	if (FormatAudio.nChannels > 2)
@@ -1710,4 +1720,14 @@ void VideoLiveSource::PlayCallBackAudio(LPBYTE lpData, UINT len)
 	LeaveCriticalSection(&CallBackLock);
 
 	Audio.lpData = NULL;//²»ÊÇ¶¯Ì¬ÉêÇëµÄÖÃNULL
+}
+
+void VideoLiveSource::SetOpacity(DWORD Opacity)
+{
+	if (Opacity > 255)
+		opacity255 = 255;
+	else
+	{
+		opacity255 = Opacity;
+	}
 }

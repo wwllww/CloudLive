@@ -33,7 +33,9 @@ union TripleToLong
 CDemandMediaAudio::CDemandMediaAudio()
 {
 	InitializeCriticalSection(&sampleBufferLock);
+	InitializeCriticalSection(&sampleBufferLock_Local);
 	lastTimestamp = 0;
+	lastTimestamp_Local = 0;
 	fVolume = 1.0f;
 	bLiveInstance = false;
 	bSameDevice = false;
@@ -44,6 +46,7 @@ CDemandMediaAudio::CDemandMediaAudio()
 CDemandMediaAudio::~CDemandMediaAudio()
 {
 	DeleteCriticalSection(&sampleBufferLock);
+	DeleteCriticalSection(&sampleBufferLock_Local);
 	if (m_pAudioWaveOut)
 		delete m_pAudioWaveOut;
 	if (m_pSecWaveOut)
@@ -57,6 +60,7 @@ sAudioParam ：设置音频参数，采样率，采样位，声道
 ***************************************************/
 void CDemandMediaAudio::ResetAudioParam(const AudioParam & sAudioParam)
 {
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke begin!",__FUNCTION__);
 	EnterCriticalSection(&sampleBufferLock);
 	m_sAudioParam = sAudioParam;
 	m_bisFloat = false;
@@ -69,70 +73,75 @@ void CDemandMediaAudio::ResetAudioParam(const AudioParam & sAudioParam)
 	}
 
 	String strReanderName = GetDirectorMonitorDevices();
-	if (NULL == m_pAudioWaveOut)
-	{
-		if (!strReanderName.Compare(TEXT("停用")) && !m_pAudioWaveOut)
-		{
-			m_pAudioWaveOut = new AudioWaveOut;
-		}
-	}
-	else
-	{
-		if ((strReanderName.Compare(TEXT("Disable")) || strReanderName.Compare(TEXT("停用"))))
-		{
-			delete m_pAudioWaveOut;
-			m_pAudioWaveOut = NULL;
-		}
-	}
-
-	if (NULL != m_pAudioWaveOut)
-	{
-		if (sAudioParam.iChannel > 2)
-		{
-			m_bisFloat = true;
-			m_pAudioWaveOut->Initialize(strReanderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample * 2);
-		}
-		else
-		{
-			m_pAudioWaveOut->Initialize(strReanderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample);
-		}
-	}
+// 	if (NULL == m_pAudioWaveOut)
+// 	{
+// 		if (!strReanderName.Compare(TEXT("停用")) && !m_pAudioWaveOut)
+// 		{
+// 			m_pAudioWaveOut = new AudioWaveOut;
+// 		}
+// 	}
+// 	else
+// 	{
+// 		if ((strReanderName.Compare(TEXT("Disable")) || strReanderName.Compare(TEXT("停用"))))
+// 		{
+// 			delete m_pAudioWaveOut;
+// 			m_pAudioWaveOut = NULL;
+// 		}
+// 	}
+// 	if (NULL != m_pAudioWaveOut)
+// 	{
+// 		if (sAudioParam.iChannel > 2)
+// 		{
+// 			m_bisFloat = true;
+// 			m_pAudioWaveOut->Initialize(strReanderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample * 2);
+// 		}
+// 		else
+// 		{
+// 			m_pAudioWaveOut->Initialize(strReanderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample);
+// 		}
+// 	}
 
 	String SecRenderName = GetSecMonitorDevices();
 
 
-	if (m_pSecWaveOut)
-	{
-		m_pSecWaveOut->Uninitialize();
-	}
+// 	if (m_pSecWaveOut)
+// 	{
+// 		m_pSecWaveOut->Uninitialize();
+// 	}
 
 	if (SecRenderName.CompareI(strReanderName.Array()) && (!SecRenderName.Compare(TEXT("Disable")) || !SecRenderName.Compare(TEXT("停用"))))
 	{
 		bSameDevice = true;
 	}
-	else if (!SecRenderName.Compare(TEXT("停用")) && !m_pSecWaveOut)
+// 	else if (!SecRenderName.Compare(TEXT("停用")) && !m_pSecWaveOut)
+// 	{
+// 		m_pSecWaveOut = new AudioWaveOut;
+// 	}
+// 	else if (m_pSecWaveOut)
+// 	{
+// 		if ((SecRenderName.Compare(TEXT("Disable")) || SecRenderName.Compare(TEXT("停用"))))
+// 		{
+// 			delete m_pSecWaveOut;
+// 			m_pSecWaveOut = NULL;
+// 		}
+// 	}
+
+// 	if (m_pSecWaveOut)
+// 	{
+// 		if (sAudioParam.iChannel > 2)
+// 		{
+// 			m_bisFloat = true;
+// 			m_pSecWaveOut->Initialize(SecRenderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample * 2);
+// 		}
+// 		else
+// 		{
+// 			m_pSecWaveOut->Initialize(SecRenderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample);
+// 		}
+// 	}
+
+	if (sAudioParam.iChannel > 2)
 	{
-		m_pSecWaveOut = new AudioWaveOut;
-	}
-	else if (m_pSecWaveOut)
-	{
-		if ((SecRenderName.Compare(TEXT("Disable")) || SecRenderName.Compare(TEXT("停用"))))
-		{
-			delete m_pSecWaveOut;
-			m_pSecWaveOut = NULL;
-		}
-	}
-	if (m_pSecWaveOut)
-	{
-		if (sAudioParam.iChannel > 2)
-		{
-			m_bisFloat = true;
-			m_pSecWaveOut->Initialize(SecRenderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample * 2);
-		}
-		else
-		{
-			m_pSecWaveOut->Initialize(SecRenderName.Array(), 2, sAudioParam.iSamplesPerSec, sAudioParam.iBitPerSample);
-		}
+		m_bisFloat = true;
 	}
 
 	sampleFrameCount = m_sAudioParam.iSamplesPerSec / 100;
@@ -149,13 +158,16 @@ void CDemandMediaAudio::ResetAudioParam(const AudioParam & sAudioParam)
 
 
 	outputBuffer.SetSize(sampleSegmentSize);
-	
+	outputBuffer_Local.SetSize(sampleSegmentSize);
+
 	if (!sampleSegmentSize)
 	{
 		sampleBuffer.RemoveRange(0, sampleBuffer.Num());
+		outputBuffer_Local.RemoveRange(0, outputBuffer_Local.Num());
 	}
 
 	LeaveCriticalSection(&sampleBufferLock);
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!",__FUNCTION__);
 }
 
 /**************************************************
@@ -165,12 +177,13 @@ buffer ：输出数据的内存
 numFrames：输出数据的长度
 timestamp：输出数据的时间戳
 ***************************************************/
-bool CDemandMediaAudio::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp)
+bool CDemandMediaAudio::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *timestamp, bool bLiveGet)
 {
-	
-	if (sampleBuffer.Num() >= sampleSegmentSize && sampleSegmentSize)
+	if (bLiveGet)
 	{
-		EnterCriticalSection(&sampleBufferLock);
+		if (sampleBuffer.Num() >= sampleSegmentSize && sampleSegmentSize)
+		{
+			EnterCriticalSection(&sampleBufferLock);
 
 		if (!sampleBuffer.Num())
 		{
@@ -178,7 +191,7 @@ bool CDemandMediaAudio::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *tim
 			return false;
 		}
 
-// 		int64_t pts; 
+// 		int64_t pts;
 // 		int samplesProcessed = 0;
 // 		while (samplesProcessed != sampleFrameCount) {
 // 			int remaining = sampleFrameCount - samplesProcessed;
@@ -191,24 +204,55 @@ bool CDemandMediaAudio::GetNextBuffer(void **buffer, UINT *numFrames, QWORD *tim
 // 			}
 // 		}
 
-		mcpy(outputBuffer.Array(), sampleBuffer.Array(), sampleSegmentSize);
-		sampleBuffer.RemoveRange(0, sampleSegmentSize);
+			mcpy(outputBuffer.Array(), sampleBuffer.Array(), sampleSegmentSize);
+			sampleBuffer.RemoveRange(0, sampleSegmentSize);
 
-		LeaveCriticalSection(&sampleBufferLock);
+			LeaveCriticalSection(&sampleBufferLock);
 
-		*buffer = outputBuffer.Array();
-		*numFrames = sampleFrameCount;
-		*timestamp = 0;//赋值时间戳
-		if (!lastTimestamp || LastTimeTimeStamp > lastTimestamp + 10) {
-			*timestamp = LastTimeTimeStamp;
+			*buffer = outputBuffer.Array();
+			*numFrames = sampleFrameCount;
+			*timestamp = 0;//赋值时间戳
+			if (!lastTimestamp || LastTimeTimeStamp > lastTimestamp + 10) {
+				*timestamp = LastTimeTimeStamp;
+			}
+			else {
+				*timestamp = lastTimestamp + 10;
+			}
+			//Log(TEXT("hhhhhhhBLiveGetAudioTime() = %llu,*timestamp = %llu"), BLiveGetAudioTime(), *timestamp);
+			lastTimestamp = *timestamp;
+			//Log::writeMessage(LOG_RTSPSERV, 1, "audioDataNum = %d ", sampleBuffer.Num());
+			return true;
 		}
-		else {
-			*timestamp = lastTimestamp + 10;
+	}
+	else
+	{
+		if (sampleBuffer_Local.Num() >= sampleSegmentSize && sampleSegmentSize)
+		{
+			EnterCriticalSection(&sampleBufferLock_Local);
+
+			if (!sampleBuffer_Local.Num())
+			{
+				LeaveCriticalSection(&sampleBufferLock_Local);
+				return false;
+			}
+
+			mcpy(outputBuffer_Local.Array(), sampleBuffer_Local.Array(), sampleSegmentSize);
+			sampleBuffer_Local.RemoveRange(0, sampleSegmentSize);
+
+			LeaveCriticalSection(&sampleBufferLock_Local);
+
+			*buffer = outputBuffer_Local.Array();
+			*numFrames = sampleFrameCount;
+			*timestamp = 0;//赋值时间戳
+			if (!lastTimestamp_Local || LastTimeTimeStamp_Local > lastTimestamp_Local + 10) {
+				*timestamp = LastTimeTimeStamp_Local;
+			}
+			else {
+				*timestamp = lastTimestamp_Local + 10;
+			}
+			lastTimestamp_Local = *timestamp;
+			return true;
 		}
-		//Log(TEXT("hhhhhhhBLiveGetAudioTime() = %llu,*timestamp = %llu"), BLiveGetAudioTime(), *timestamp);
-		lastTimestamp = *timestamp;
-		//Log::writeMessage(LOG_RTSPSERV, 1, "audioDataNum = %d ", sampleBuffer.Num());
-		return true;
 	}
 
 	return false;
@@ -438,107 +482,160 @@ void CDemandMediaAudio::PushAudio(const void *lpData, unsigned int size, int64_t
 		if (fVolume != 1.0f)
 			MultiplyAudioBuffer(OutputconvertBuffer.Array(), OutputconvertBuffer.Num(),fVolume);
 
+
 		Source->PlayCallBackAudio((LPBYTE)OutputconvertBuffer.Array(), OutputconvertBuffer.Num() * 4);
 
-		if (bCanPlay)
+		//if (bCanPlay)
 		{
 			bool bPlayLive = false;
-
+			EnterCriticalSection(&sampleBufferLock);
 			if (bLiveInstance)
 			{
-				EnterCriticalSection(&sampleBufferLock);
+				AudioTimestamp audioTimestamp;
 				sampleBuffer.AppendArray((BYTE *)(OutputconvertBuffer.Array()), OutputconvertBuffer.Num() * 4);
-				LeaveCriticalSection(&sampleBufferLock);
+				audioTimestamp.count = size / m_uBlockSize;
+				audioTimestamp.pts = pts;
+				//sampleBufferPts.push_back(audioTimestamp);
 				bPlayLive = m_bPlayPcmLive;
 			}
 			else
 			{
 				sampleBuffer.RemoveRange(0, sampleBuffer.Num());
 			}
-
-			int Len = OutputconvertBuffer.Num();
-			char *OutBuffer;
-			CaculateVolume((LPVOID)OutputconvertBuffer.Array(), Len, (void**)&OutBuffer);
-
-			EnterCriticalSection(&sampleBufferLock);
-
-			if (m_pAudioWaveOut && (m_bPlayPcmLocal || bPlayLive))
-			{
-				m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
-
-				if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
-					m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
-
-			}
-			else if (bProjector && bLiveInstance)
-			{
-				if (bSameDevice && m_pAudioWaveOut)
-				{
-					m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
-				}
-				else if (m_pSecWaveOut)
-				{
-					m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len * 4);
-				}
-			}
 			LeaveCriticalSection(&sampleBufferLock);
-		}
-		else
-		{
+
+			//一定要在CaculateVolume之前
+			EnterCriticalSection(&sampleBufferLock_Local);
+			if ((bPlayLive && bLiveInstance) || m_bPlayPre)
+			{
+				if (m_bPlayPre)
+					sampleBuffer_Local.AppendArray((BYTE*)OutputconvertBuffer.Array(), OutputconvertBuffer.Num() * 4);
+			}
+			else
+			{
+				sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+			}
+			LeaveCriticalSection(&sampleBufferLock_Local);
+
+
+
 			int Len = OutputconvertBuffer.Num();
 			char *OutBuffer;
 			CaculateVolume((LPVOID)OutputconvertBuffer.Array(), Len, (void**)&OutBuffer);
+
+			EnterCriticalSection(&sampleBufferLock_Local);
+			if ((bPlayLive && bLiveInstance) || m_bPlayPre)
+			{
+				if (bPlayLive && bLiveInstance && !m_bPlayPre)
+				{
+					sampleBuffer_Local.AppendArray((BYTE*)OutBuffer, Len * 4);
+				}
+			}
+			else
+			{
+				sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+			}
+			LeaveCriticalSection(&sampleBufferLock_Local);
+
+			
+
 		}
+// 		else
+// 		{
+// 			int Len = OutputconvertBuffer.Num();
+// 			char *OutBuffer;
+// 			//CaculateVolume((LPVOID)OutputconvertBuffer.Array(), Len, (void**)&OutBuffer, true);
+// 			CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer);
+// 
+// 			EnterCriticalSection(&sampleBufferLock_Local);
+// 			if (m_bPlayPre)
+// 			{
+// 				sampleBuffer_Local.AppendArray((BYTE*)OutBuffer, Len);
+// 			}
+// 			else
+// 			{
+// 				sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+// 			}
+// 			LeaveCriticalSection(&sampleBufferLock_Local);
+// 		}
+		
+		
 		return;
 	}
 
-	if (bCanPlay)
+//	if (bCanPlay)
 	{
 		bool bPlayLive = false;
 		size = size / m_uBlockSize;
+		EnterCriticalSection(&sampleBufferLock);
 		if (bLiveInstance)
 		{
-			EnterCriticalSection(&sampleBufferLock);
+			AudioTimestamp audioTimestamp;
 			sampleBuffer.AppendArray(static_cast<const BYTE *>(lpData), size * m_uBlockSize);
-			LeaveCriticalSection(&sampleBufferLock);
+			audioTimestamp.count = size;
+			audioTimestamp.pts = pts;
+			//sampleBufferPts.push_back(audioTimestamp);
 			bPlayLive = m_bPlayPcmLive;
 		}
 		else
 		{
 			sampleBuffer.RemoveRange(0, sampleBuffer.Num());
 		}
+		LeaveCriticalSection(&sampleBufferLock);
+
+		EnterCriticalSection(&sampleBufferLock_Local);
+		if ((bPlayLive && bLiveInstance) || m_bPlayPre)
+		{
+			if (m_bPlayPre)
+				sampleBuffer_Local.AppendArray(static_cast<const BYTE *>(lpData), size * m_uBlockSize);
+		}
+		else
+		{
+			sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+		}
+		LeaveCriticalSection(&sampleBufferLock_Local);
+
 		int Len = size  * m_uBlockSize;
 		char *OutBuffer;
 		CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer);
-		EnterCriticalSection(&sampleBufferLock);
+
+		EnterCriticalSection(&sampleBufferLock_Local);
+		if ((bPlayLive && bLiveInstance) || m_bPlayPre)
+		{
+			if (bPlayLive && bLiveInstance && !m_bPlayPre)
+			{
+				sampleBuffer_Local.AppendArray((BYTE*)OutBuffer, Len);
+			}
+		}
+		else
+		{
+			sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+		}
+		LeaveCriticalSection(&sampleBufferLock_Local);
+
 		
-		if (m_pAudioWaveOut && (m_bPlayPcmLocal || bPlayLive))
-		{
-			m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
 
-			if (!bSameDevice && bProjector && m_pSecWaveOut && bLiveInstance)
-				m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
-
-		}
-		else if (bProjector && bLiveInstance)
-		{
-			if (bSameDevice && m_pAudioWaveOut)
-			{
-				m_pAudioWaveOut->push_pcm_data((char*)OutBuffer, Len);
-			}
-			else if (m_pSecWaveOut)
-			{
-				m_pSecWaveOut->push_pcm_data((char*)OutBuffer, Len);
-			}
-		}
-		LeaveCriticalSection(&sampleBufferLock);
 	}
-	else
-	{
-		int Len = size;
-		char *OutBuffer;
-		CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer, true);
-	}
+// 	else
+// 	{
+// 		int Len = size;
+// 		char *OutBuffer;
+// 		//CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer,true);//true 没有得到真正的数据
+// 		CaculateVolume((LPVOID)lpData, Len, (void**)&OutBuffer);
+// 
+// 		if (m_bPlayPre)
+// 		{
+// 			EnterCriticalSection(&sampleBufferLock_Local);
+// 			sampleBuffer_Local.AppendArray((BYTE*)OutBuffer, Len);
+// 			LeaveCriticalSection(&sampleBufferLock_Local);
+// 		}
+// 		else
+// 		{
+// 			EnterCriticalSection(&sampleBufferLock_Local);
+// 			sampleBuffer_Local.RemoveRange(0, sampleBuffer_Local.Num());
+// 			LeaveCriticalSection(&sampleBufferLock_Local);
+// 		}
+// 	}
 }
 
 void CDemandMediaAudio::UpdateSettings(Value &JsonParam)
@@ -554,7 +651,7 @@ void CDemandMediaAudio::SetVolumef(float Volume)
 void CDemandMediaAudio::SetLiveInstance(bool bLiveInstance)
 {
 	this->bLiveInstance = bLiveInstance;
-
+	IBaseAudio::SetLiveInstance(bLiveInstance);
 // 	if (!bLiveInstance)
 // 	{
 // 		EnterCriticalSection(&sampleBufferLock);
@@ -656,4 +753,9 @@ void CDemandMediaAudio::OnAudioDeviceChanged(const String &MonitorDevices, const
 	this->SecMonitor = SecMonitor;
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
+}
+
+bool CDemandMediaAudio::IsLiveInstance() const
+{
+	return bLiveInstance;
 }

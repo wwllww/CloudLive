@@ -134,14 +134,22 @@ struct CSampleData {
 	bool bFieldSignal;
 	Json::Value *UserData;
 	uint64_t CheckNum;
+	float LeftDb;
+	float RightDb;
 
-	inline CSampleData() { lpData = NULL; UserData = NULL; refs = 1; bDisableAudio = false; SampleData = NULL; bFieldSignal = false; }
+	inline CSampleData() { lpData = NULL; UserData = NULL; refs = 1; bDisableAudio = false; 
+	SampleData = NULL; bFieldSignal = false; 
+	LeftDb = -96;
+	RightDb = -96;
+	}
 	inline CSampleData(IMediaSample *Sample) :SampleData(Sample)
 	{
 		lpData = NULL;
 		refs = 1;
 		SampleData->AddRef();
 		bDisableAudio = false;
+		LeftDb = -96;
+		RightDb = -96;
 	}
 	inline virtual ~CSampleData() 
 	{

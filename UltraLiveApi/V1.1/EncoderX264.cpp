@@ -110,12 +110,12 @@ public:
 		zero(&paramData, sizeof(paramData));
 
 		LPSTR lpPreset = curPreset.CreateUTF8String();
-		LPSTR lpTune = curTune.CreateUTF8String();
+		LPSTR lpTune = "zerolatency";// curTune.CreateUTF8String();
 
 		if (x264_param_default_preset(&paramData, lpPreset, lpTune))
-			Log::writeError(LOG_RTSPSERV,1,"LiveSDK_Log:Failed to set x264 defaults: %s/%s", curPreset.Array(), curTune.Array());
+			Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:Failed to set x264 defaults: %s/%s", curPreset.Array(), lpTune);
 
-		Free(lpTune);
+		//Free(lpTune);
 		Free(lpPreset);
 
 		this->width = width;

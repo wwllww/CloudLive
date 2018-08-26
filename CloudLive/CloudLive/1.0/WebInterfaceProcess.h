@@ -43,6 +43,7 @@ typedef struct __ImgSource
 	std::string ImgUrl;
 	float   x, y, width, height;
 	int transparent;
+	std::string RealName;
 }TagImgSource;
 
 typedef struct __TextSource
@@ -120,15 +121,17 @@ protected:
 	void CloudStopAudioMonitor(CRequse &Req, CRespond &Res);
 	void CloudSetAudioMix(CRequse &Req, CRespond &Res);
 
-
-
-
+	//26-30
+	void CloudEmergencySwitch(CRequse &Req, CRespond &Res);
+	void CloudSetAudioFollow(CRequse &Req, CRespond &Res);
 
 
 	//自己内部调用函数
 	void CheckCloudIdAndToken(const char* Param,Json::Value &JsonParam,bool bGet = false);
 	void AddText(TagInstance &Text,Json::Value &JParam);
-	void AddImage(TagInstance &Img, Json::Value &JParam);
+	void AddImage(TagInstance &Img, Json::Value &JParam, bool bUpdate = false);
+
+	static void DownLoadComplete(void *Context, const std::string& name, bool bSucess);
 
 protected:
 	WebInterFaceProcess();

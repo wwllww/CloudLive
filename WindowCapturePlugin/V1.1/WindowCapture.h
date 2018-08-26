@@ -110,6 +110,8 @@ public:
 
 	virtual void SetHasPreProcess(bool bHasPre);;
 	virtual bool GetHasPreProcess() const;
+
+	virtual void SetD3DRender(D3DAPI *D3DRender);
 };
 
 class WindowCaptureSource : public DesktopImageSource

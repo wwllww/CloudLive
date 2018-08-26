@@ -6,6 +6,738 @@
 #pragma message("new(__FILE__,__LINE__)")
 #endif
 
+
+void ImgResizeYV12(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	unsigned char *VSrcImg = pSrcImg + srcW*srcH;
+	unsigned char *UDstImg = pDstImg + dstW*dstH;
+
+	int UsrcW = srcW / 2;
+	int UdstW = dstW / 2;
+	int UsrcH = srcH / 2;
+	int UdstH = dstH / 2;
+
+	unsigned char *USrcImg = pSrcImg + srcW*srcH + srcW*srcH / 4;
+	unsigned char *VDstImg = pDstImg + dstW*dstH + dstW*dstH / 4;
+
+	int VsrcW = srcW / 2;
+	int VdstW = dstW / 2;
+	int VsrcH = srcH / 2;
+	int VdstH = dstH / 2;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+
+	bool bUseCrop = false;
+	int UseCropH = 0;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+
+		if (((float)(srcW / srcH) != (float)(dstW / dstH)) && srcW == dstW)
+		{
+			if (srcH > dstH)
+			{
+				UseCropH = (srcH - dstH) / 2;
+				bUseCrop = true;
+			}
+		}
+
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+	int tSrcH, tSrcW;
+	if (!bUseCrop)
+	{
+		for (int i = 0; i < dstH; i++)
+		{
+			tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+			for (int j = 0; j < dstW; j++)
+			{
+				tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+				pDstImg[i*dstW + j] = pSrcImg[tSrcH*srcW + tSrcW];
+			}
+		}
+
+		for (int i = 0; i < UdstH; i++)
+		{
+			tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+			for (int j = 0; j < UdstW; j++)
+			{
+				tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+				UDstImg[i*UdstW + j] = USrcImg[tSrcH*UsrcW + tSrcW];
+			}
+		}
+
+		for (int i = 0; i < VdstH; i++)
+		{
+			tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+			for (int j = 0; j < VdstW; j++)
+			{
+				tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+				VDstImg[i*VdstW + j] = VSrcImg[tSrcH*VsrcW + tSrcW];
+			}
+		}
+
+	}
+	else
+	{
+		memcpy(pDstImg, pDstImg + UseCropH * srcW, dstW * dstH);
+		memcpy(UDstImg, USrcImg + UseCropH * srcW / 4, dstW * dstH / 4);
+		memcpy(VDstImg, VSrcImg + UseCropH * srcW / 4, dstW * dstH / 4);
+	}
+
+
+}
+
+void ImgResizeRGB32(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	// 	if (3 * srcW > 4 * srcH)
+	// 	{
+	// 		CorrectSrcW = srcH * 4 / 3;
+	// 		CorrectSrcH = srcH;
+	// 		CropW = (srcW - CorrectSrcW) / 2;
+	// 	}
+	// 	else
+	// 	{
+	// 		CorrectSrcW = srcW;
+	// 		CorrectSrcH = srcW * 3 / 4;
+	// 		CropH = (srcH - CorrectSrcH) / 2;
+	// 	}
+	// 
+	// 	double rateH = (double)CorrectSrcH / (double)dstH;
+	// 	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+	int32_t Y, U, V, R, G, B;
+
+	unsigned char*bufY = pDstImg;
+	unsigned char*bufU = bufY + dstW * dstH;
+	unsigned char*bufV = bufU + (dstW* dstH / 4);
+
+	int tSrcH, tSrcW;
+	for (int i = dstH - 1; i >= 0; i--)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			B = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4];
+			G = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4 + 1];
+			R = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4 + 2];
+
+			Y = (int)(19595 * R + 38467 * G + 7471 * B) >> 16;
+			U = ((int)((B - Y) * 37028) >> 16) + 128;
+			V = ((int)((R - Y) * 56727) >> 16) + 128;
+
+			Y = min(255, max(0, Y));
+			*(bufY++) = Y;
+
+			if (j % 2 == 0 && i % 2 == 0)
+			{
+				if (U > 255)
+				{
+					U = 255;
+				}
+				if (U < 0)
+				{
+					U = 0;
+				}
+				*(bufU++) = U;
+				if (V > 255)
+				{
+					V = 255;
+				}
+				if (V < 0)
+				{
+					V = 0;
+				}
+				*(bufV++) = V;
+			}
+		}
+	}
+}
+
+void ImgResizeRGB32R(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	// 	if (3 * srcW > 4 * srcH)
+	// 	{
+	// 		CorrectSrcW = srcH * 4 / 3;
+	// 		CorrectSrcH = srcH;
+	// 		CropW = (srcW - CorrectSrcW) / 2;
+	// 	}
+	// 	else
+	// 	{
+	// 		CorrectSrcW = srcW;
+	// 		CorrectSrcH = srcW * 3 / 4;
+	// 		CropH = (srcH - CorrectSrcH) / 2;
+	// 	}
+	// 
+	// 	double rateH = (double)CorrectSrcH / (double)dstH;
+	// 	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	int32_t Y, U, V, R, G, B;
+
+	unsigned char*bufY = pDstImg;
+	unsigned char*bufU = bufY + dstW * dstH;
+	unsigned char*bufV = bufU + (dstW* dstH / 4);
+
+	int tSrcH, tSrcW;
+	for (int i = dstH - 1; i >= 0; i--)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			B = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4 + 1];
+			G = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4 + 2];
+			R = pSrcImg[tSrcH*srcW * 4 + tSrcW * 4 + 3];
+			//pDstImg[i*dstW + j + 3] = pSrcImg[tSrcH*srcW + tSrcW + 3];
+			/*Y = (int32_t)(0.299f * R + 0.587f * G + 0.114f * B);
+			U = (int32_t)((B - Y) * 0.565f + 128);
+			V = (int32_t)((R - Y) * 0.713f + 128);*/
+			Y = (int)(19595 * R + 38467 * G + 7471 * B) >> 16;
+			U = ((int)((B - Y) * 37028) >> 16) + 128;
+			V = ((int)((R - Y) * 56727) >> 16) + 128;
+
+
+			Y = min(255, max(0, Y));
+			*(bufY++) = Y;
+
+			if (j % 2 == 0 && i % 2 == 0)
+			{
+				if (U > 255)
+				{
+					U = 255;
+				}
+				if (U < 0)
+				{
+					U = 0;
+				}
+				*(bufU++) = U;
+				if (V > 255)
+				{
+					V = 255;
+				}
+				if (V < 0)
+				{
+					V = 0;
+				}
+				*(bufV++) = V;
+			}
+		}
+	}
+}
+
+void ImgResizeRGB24(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	// 	if (3 * srcW > 4 * srcH)
+	// 	{
+	// 		CorrectSrcW = srcH * 4 / 3;
+	// 		CorrectSrcH = srcH;
+	// 		CropW = (srcW - CorrectSrcW) / 2;
+	// 	}
+	// 	else
+	// 	{
+	// 		CorrectSrcW = srcW;
+	// 		CorrectSrcH = srcW * 3 / 4;
+	// 		CropH = (srcH - CorrectSrcH) / 2;
+	// 	}
+	// 
+	// 	double rateH = (double)CorrectSrcH / (double)dstH;
+	// 	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+	int32_t Y, U, V, R, G, B;
+
+	unsigned char*bufY = pDstImg;
+	unsigned char*bufU = bufY + dstW * dstH;
+	unsigned char*bufV = bufU + (dstW* dstH / 4);
+
+	int tSrcH, tSrcW;
+	for (int i = dstH - 1; i >= 0; i--)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			B = pSrcImg[tSrcH*srcW * 3 + tSrcW * 3 + 0];
+			G = pSrcImg[tSrcH*srcW * 3 + tSrcW * 3 + 1];
+			R = pSrcImg[tSrcH*srcW * 3 + tSrcW * 3 + 2];
+			//pDstImg[i*dstW + j + 3] = pSrcImg[tSrcH*srcW + tSrcW + 3];
+			/*Y = (int32_t)(0.299f * R + 0.587f * G + 0.114f * B);
+			U = (int32_t)((B - Y) * 0.565f + 128);
+			V = (int32_t)((R - Y) * 0.713f + 128);*/
+			Y = (int)(19595 * R + 38467 * G + 7471 * B) >> 16;
+			U = ((int)((B - Y) * 37028) >> 16) + 128;
+			V = ((int)((R - Y) * 56727) >> 16) + 128;
+
+
+			Y = min(255, max(0, Y));
+			*(bufY++) = Y;
+
+			if (j % 2 == 0 && i % 2 == 0)
+			{
+				if (U > 255)
+				{
+					U = 255;
+				}
+				if (U < 0)
+				{
+					U = 0;
+				}
+				*(bufU++) = U;
+				if (V > 255)
+				{
+					V = 255;
+				}
+				if (V < 0)
+				{
+					V = 0;
+				}
+				*(bufV++) = V;
+			}
+		}
+	}
+}
+
+void ImgResizeYUV422(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	unsigned char *USrcImg = pSrcImg + srcW*srcH;
+	unsigned char *UDstImg = pDstImg + dstW*dstH;
+
+	int UsrcW = srcW;
+	int UdstW = dstW / 2;
+	int UsrcH = srcH / 2;
+	int UdstH = dstH / 2;
+
+	unsigned char *VSrcImg = pSrcImg + srcW*srcH + srcW*srcH / 2;
+	unsigned char *VDstImg = pDstImg + dstW*dstH + dstW*dstH / 4;
+
+	int VsrcW = srcW;
+	int VdstW = dstW / 2;
+	int VsrcH = srcH / 2;
+	int VdstH = dstH / 2;
+
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	// 	if (3 * srcW > 4 * srcH)
+	// 	{
+	// 		CorrectSrcW = srcH * 4 / 3;
+	// 		CorrectSrcH = srcH;
+	// 		CropW = (srcW - CorrectSrcW) / 2;
+	// 	}
+	// 	else
+	// 	{
+	// 		CorrectSrcW = srcW;
+	// 		CorrectSrcH = srcW * 3 / 4;
+	// 		CropH = (srcH - CorrectSrcH) / 2;
+	// 	}
+	// 
+	// 	double rateH = (double)CorrectSrcH / (double)dstH;
+	// 	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	int tSrcH, tSrcW;
+	for (int i = 0; i < dstH; i++)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			pDstImg[i*dstW + j] = pSrcImg[tSrcH*srcW + tSrcW];
+		}
+	}
+
+	for (int i = 0; i < UdstH; i++)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < UdstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			UDstImg[i*UdstW + j] = USrcImg[tSrcH*UsrcW * 2 + tSrcW];
+		}
+	}
+
+	for (int i = 0; i < VdstH; i++)
+	{
+		tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < VdstW; j++)
+		{
+			tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			VDstImg[i*VdstW + j] = VSrcImg[tSrcH*VsrcW * 2 + tSrcW];
+		}
+	}
+}
+
+
+void ImgResizeUYVY(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	unsigned char *YSrcImg = pSrcImg + 1;
+	unsigned char *USrcImg = pSrcImg;
+	unsigned char *UDstImg = pDstImg + dstW*dstH;
+
+	int UsrcW = srcW;
+	int UdstW = dstW / 2;
+	int UsrcH = srcH / 2;
+	int UdstH = dstH / 2;
+
+
+	unsigned char *VSrcImg = pSrcImg + 2;
+	unsigned char *VDstImg = pDstImg + dstW*dstH + dstW*dstH / 4;
+
+	int VsrcW = srcW;
+	int VdstW = dstW / 2;
+	int VsrcH = srcH / 2;
+	int VdstH = dstH / 2;
+
+
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	// 	if (3 * srcW > 4 * srcH)
+	// 	{
+	// 		CorrectSrcW = srcH * 4 / 3;
+	// 		CorrectSrcH = srcH;
+	// 		CropW = (srcW - CorrectSrcW) / 2;
+	// 	}
+	// 	else
+	// 	{
+	// 		CorrectSrcW = srcW;
+	// 		CorrectSrcH = srcW * 3 / 4;
+	// 		CropH = (srcH - CorrectSrcH) / 2;
+	// 	}
+	// 
+	// 	double rateH = (double)CorrectSrcH / (double)dstH;
+	// 	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+
+
+	for (int i = 0; i < dstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			pDstImg[i*dstW + j] = YSrcImg[(tSrcH*srcW + tSrcW) * 2];
+		}
+	}
+
+	for (int i = 0; i < UdstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < UdstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			UDstImg[i*UdstW + j] = USrcImg[(tSrcH*UsrcW + tSrcW) * 4];
+		}
+	}
+
+
+	for (int i = 0; i < VdstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < VdstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			VDstImg[i*VdstW + j] = VSrcImg[(tSrcH*VsrcW + tSrcW) * 4];
+		}
+	}
+
+	return;
+}
+
+void ImgResizeYUY2(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH)
+{
+	unsigned char *YSrcImg = pSrcImg;
+	unsigned char *USrcImg = pSrcImg + 1;
+	unsigned char *UDstImg = pDstImg + dstW*dstH;
+
+	int UsrcW = srcW;
+	int UdstW = dstW / 2;
+	int UsrcH = srcH / 2;
+	int UdstH = dstH / 2;
+
+	unsigned char *VSrcImg = pSrcImg + 3;
+	unsigned char *VDstImg = pDstImg + dstW*dstH + dstW*dstH / 4;
+
+	int VsrcW = srcW;
+	int VdstW = dstW / 2;
+	int VsrcH = srcH / 2;
+	int VdstH = dstH / 2;
+
+	//double rateH = (double)srcH / (double)dstH;
+	//double rateW = (double)srcW / (double)dstW;
+
+	int CorrectSrcW, CorrectSrcH;
+	int CropW = 0;
+	int CropH = 0;
+
+	if (srcW > srcH)
+	{
+		CorrectSrcW = srcW;
+		CorrectSrcH = srcW * 9 / 16;
+		CropH = (srcH - CorrectSrcH) / 2;
+		if (CropH < 0)
+		{
+			CropH = 0;
+			CorrectSrcW = srcH * 16 / 9;
+			CorrectSrcH = srcH;
+			CropW = (srcW - CorrectSrcW) / 2;
+		}
+	}
+	else
+	{
+		CorrectSrcW = srcH * 16 / 9;
+		CorrectSrcH = srcH;
+		CropW = (srcW - CorrectSrcW) / 2;
+		if (CropW < 0)
+		{
+			CropW = 0;
+			CorrectSrcW = srcW;
+			CorrectSrcH = srcW * 9 / 16;
+			CropH = (srcH - CorrectSrcH) / 2;
+		}
+	}
+
+	double rateH = (double)CorrectSrcH / (double)dstH;
+	double rateW = (double)CorrectSrcW / (double)dstW;
+
+	for (int i = 0; i < dstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH + 0.5);
+		for (int j = 0; j < dstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW + 0.5);
+			pDstImg[i*dstW + j] = YSrcImg[(tSrcH*srcW + tSrcW) * 2];
+		}
+	}
+
+	for (int i = 0; i < UdstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < UdstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			UDstImg[i*UdstW + j] = USrcImg[(tSrcH*UsrcW + tSrcW) * 4];
+		}
+	}
+
+
+	for (int i = 0; i < VdstH; i++)
+	{
+		int tSrcH = (int)(rateH*double(i) + CropH / 2 + 0.5);
+		for (int j = 0; j < VdstW; j++)
+		{
+			int tSrcW = (int)(rateW * double(j) + CropW / 2 + 0.5);
+			VDstImg[i*VdstW + j] = VSrcImg[(tSrcH*VsrcW + tSrcW) * 4];
+		}
+	}
+
+	return;
+}
+
 void ResizeRGB(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW, int srcH, int dstW, int dstH, int pixformat)
 {
 	double rateH = (double)srcH / (double)dstH;
@@ -204,11 +936,41 @@ void ResizeUYVYToYUV420(unsigned char* pSrcImg, unsigned char* pDstImg, int srcW
 	}
 }
 
-void CopyDataI420(unsigned char *DstImg, unsigned char *SrcImg, int srcW, int srcH, int dstW, int dstH, int NewW, unsigned char* pTemImg)
+void CopyDataI420(unsigned char *DstImg, unsigned char *SrcImg, int srcW, int srcH, int dstW, int dstH, int NewW, unsigned char* pTemImg, TColorType ColorType)
 {
 	//int NewW = srcW * dstH / srcH;
 
-	ResizeYUV420(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+
+	if (ColorType == ColorType_I420)
+		ResizeYUV420(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	else if (ColorType == ColorType_YUY2)
+	{
+		ImgResizeYUY2(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_YV12)
+	{
+		ImgResizeYV12(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_RGB)
+	{
+		ImgResizeRGB32(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_RGB24)
+	{
+		ImgResizeRGB24(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_RGBA32REVERSE)
+	{
+		ImgResizeRGB32R(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_UYVY)
+	{
+		ImgResizeUYVY(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
+	else if (ColorType == ColorType_YVYU)
+	{
+		ImgResizeYUV422(SrcImg, pTemImg, srcW, srcH, NewW, dstH);
+	}
 
 	unsigned char *USrcImg = pTemImg + NewW*dstH;
 	unsigned char *UDstImg = DstImg + dstW*dstH;
@@ -253,8 +1015,8 @@ CMultimediaRender::CMultimediaRender() :CanAudio(false), Width(0), Height(0), Pi
 	SwapRender = NULL;
 	m_bInteraction = false;
 	bReadyToDraw = false;
-	SDID3DResize = new CD3DReszie(CSLiveManager::GetInstance()->BSParam.DeviceSetting.AdpterID);//CSLiveManager::GetInstance()->GetD3DLittleRender();
-	D3DRender = SDID3DResize->GetD3DRender();
+	SDID3DResize = NULL;// new CD3DReszie(CSLiveManager::GetInstance()->BSParam.DeviceSetting.AdpterID);//CSLiveManager::GetInstance()->GetD3DLittleRender();
+	D3DRender = GetD3DRender();
 	String strShader = ChooseShader(DeviceOutputType_I420);
 	colorConvertShader = NULL;
 
@@ -292,14 +1054,14 @@ CMultimediaRender::~CMultimediaRender()
 	m_lock.UnLock();
 }
 
-bool CMultimediaRender::SetVideoRender(HWND Hwnd,const Vect2 &pos, const Vect2 &size)
+bool CMultimediaRender::SetVideoRender(const Vect2 &pos, const Vect2 &size)
 {
 	m_lock.Lock();
 	m_pos = pos;
 	m_size = size;
 	m_lock.UnLock();
-	m_hwnd = Hwnd;
-	bReadyToDraw = Hwnd != NULL;
+	//m_hwnd = Hwnd;
+	bReadyToDraw = true;
 	return true;
 }
 
@@ -309,9 +1071,9 @@ bool CMultimediaRender::SetAudioRender(int channels, int samplerate, int samplep
 	m_lock.Lock();
 	AudioDestroy();
 
+	AudioOut = new AudioWaveOut();
 	if (!MonitorDevice.Compare(TEXT("停用")) && !MonitorDevice.Compare(TEXT("Disable")))
 	{
-		AudioOut = new AudioWaveOut();
 		AudioOut->Initialize(MonitorDevice.Array(), channels, samplerate, sampleperbits);
 	}
 	m_lock.UnLock();
@@ -345,11 +1107,12 @@ void CMultimediaRender::VideoDestroy()
 
 void CMultimediaRender::Render(CSampleData* data, bool bAudioDisabled)
 {
+
 	m_lock.Lock();
 	data->AddRef();
 
 	bool bNeedConvert = false;
-	if (m_bInteraction && data->cx < data->cy && data->colorType == ColorType_I420 && !data->bAudio)
+	if (/*m_bInteraction && */data->cx < data->cy && !data->bAudio)
 	{
 		bNeedConvert = true;
 		if (Width != data->cx || Height != data->cy)
@@ -365,14 +1128,17 @@ void CMultimediaRender::Render(CSampleData* data, bool bAudioDisabled)
 
 			if (LpTemData)
 				delete[] LpTemData;
-
-			LpTemData = new unsigned char[data->cx * data->cx  * data->cx / data->cy * 3 / 2];
+		
+			LpTemData = new unsigned char[data->cx * data->cx  * data->cx / data->cy * 3 / 2];//以data->cy : data->cx = data->cx : NewWidth -> NewWidth = data->cx * data->cx / data->cy
 
 			Width = data->cx;
 			Height = data->cy;
 		}
 
-		CopyDataI420(LpConverData, data->lpData, data->cx, data->cy, data->cy, data->cx, data->cx * data->cx / data->cy, LpTemData);
+		//各种格式的统一转成I420
+		CopyDataI420(LpConverData, data->lpData, data->cx, data->cy, data->cy, data->cx, data->cx * data->cx / data->cy, LpTemData, (TColorType)data->colorType);
+
+		data->colorType = ColorType_I420;
 	}
 
 	int DesWidth, DesHeight;
@@ -480,7 +1246,7 @@ void CMultimediaRender::Render(CSampleData* data, bool bAudioDisabled)
 		{
 			SetAudioRender(pAudioFormat->nChannels, pAudioFormat->nSamplesPerSec, pAudioFormat->wBitsPerSample);
 			WaveFormat = *pAudioFormat;
-			Log::writeMessage(LOG_RTSPSERV, 1, "WaveFormat 成功！");
+			//Log::writeMessage(LOG_RTSPSERV, 1, "WaveFormat 成功！");
 		}	
 
 		AudioRender(data->lpData, data->dataLength);
@@ -888,29 +1654,29 @@ void CMultimediaRender::InitD3DReSize()
 	}
 }
 
-void CMultimediaRender::RenderTexture()
+void CMultimediaRender::RenderTexture(Shader *VertShader, Shader *PixShader)
 {
 	if (!bReadyToDraw)
 		return;
 
-	if (!SwapRender)
-		SwapRender = D3DRender->CreateRenderTargetSwapChain((HWND)m_hwnd, m_size.x, m_size.y);
+// 	if (!SwapRender)
+// 		SwapRender = D3DRender->CreateRenderTargetSwapChain((HWND)m_hwnd, m_size.x, m_size.y);
 
-	Shader *MainVertShader = SDID3DResize->GetMainVertexShader();
-	Shader* MainPixShader = SDID3DResize->GetMainPixelShader();
-	Texture *SDITexture = SDID3DResize->GetSDITexture();
+// 	Shader *MainVertShader = SDID3DResize->GetMainVertexShader();
+// 	Shader* MainPixShader = SDID3DResize->GetMainPixelShader();
+// 	Texture *SDITexture = SDID3DResize->GetSDITexture();
 
 	m_previewlock.Lock(); //保护D3DRender因为在SDIOut中也用到D3DRender
 
-	D3DRender->SetRenderTarget(SwapRender);
+	//D3DRender->SetRenderTarget(SwapRender);
 
 	if (texture)
 	{
-		D3DRender->Ortho(0.0f, m_size.x, m_size.y, 0.0f, -100.0f, 100.0f);
-		D3DRender->SetViewport(0.0f, 0.0f, m_size.x, m_size.y);
-		D3DRender->ClearRenderTarget(0xFF000000);
+// 		D3DRender->Ortho(0.0f, m_size.x, m_size.y, 0.0f, -100.0f, 100.0f);
+// 		D3DRender->SetViewport(0.0f, 0.0f, m_size.x, m_size.y);
+// 		D3DRender->ClearRenderTarget(0xFF000000);
 
-		D3DRender->LoadVertexShader(MainVertShader);
+		D3DRender->LoadVertexShader(VertShader);
 		if (Pixformat == ColorType_I420 || Pixformat == ColorType_YV12
 			|| Pixformat == ColorType_YUY2 || Pixformat == ColorType_UYVY)
 		{
@@ -926,26 +1692,26 @@ void CMultimediaRender::RenderTexture()
 		{
 			bUseYV12 = false;
 			bUseI420 = false;
-			D3DRender->LoadPixelShader(MainPixShader);
+			D3DRender->LoadPixelShader(PixShader);
 		}
 
 		UpLoad();
-		D3DRender->DrawSprite(texture, 0xFFFFFFFF, 0, 0, m_size.x, m_size.y);
+		D3DRender->DrawSprite(texture, 0xFFFFFFFF, m_pos.x, m_pos.y, m_pos.x + m_size.x, m_pos.y + m_size.y);
 
-		if (HaveSDIOut() && SDITexture)
-		{
-			D3DRender->LoadPixelShader(MainPixShader);
-			DWORD Width, Height;
-			D3DRender->GetTextureWH(SDITexture, Width, Height);
-			D3DRender->EnableBlending(TRUE);
-			D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
-			D3DRender->DrawSprite(SDITexture, 0xFFFFFFFF, m_size.x - Width, 0, m_size.x, Height);
-			D3DRender->EnableBlending(FALSE);
-		}
+// 		if (HaveSDIOut() && SDITexture)
+// 		{
+// 			D3DRender->LoadPixelShader(MainPixShader);
+// 			DWORD Width, Height;
+// 			D3DRender->GetTextureWH(SDITexture, Width, Height);
+// 			D3DRender->EnableBlending(TRUE);
+// 			D3DRender->BlendFunction(GS_BLEND_SRCALPHA, GS_BLEND_INVSRCALPHA, 1.0f);
+// 			D3DRender->DrawSprite(SDITexture, 0xFFFFFFFF, m_size.x - Width, 0, m_size.x, Height);
+// 			D3DRender->EnableBlending(FALSE);
+// 		}
 
 	}
-	D3DRender->Present(SwapRender);
-	D3DRender->Flush();
+	//D3DRender->Present(SwapRender);
+	//D3DRender->Flush();
 
 	m_previewlock.UnLock();
 }

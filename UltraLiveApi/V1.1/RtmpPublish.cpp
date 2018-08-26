@@ -41,7 +41,7 @@ std::wstring Utf82WChar(char *pUtf8, int nLen)
 		pwszDst[i] = pwszDst[i + 1];
 
 	std::wstring wcharString(pwszDst);
-	delete pwszDst;
+	delete [] pwszDst;
 	return wcharString;
 }
 
@@ -79,7 +79,7 @@ std::wstring Utf82WChar(std::string str)
 		pwszDst[i] = pwszDst[i + 1];
 
 	std::wstring wcharString(pwszDst);
-	delete pwszDst;
+	delete [] pwszDst;
 	return wcharString;
 }
 
@@ -92,7 +92,7 @@ void rtmp_log_output(int level, const char *format, va_list vl)
 	// OSDebugOut(TEXT("%S\r\n"), lpTemp);
 	//Log(TEXT("%S\r\n"), lpTemp);
 
-	delete lpTemp;
+	delete [] lpTemp;
 }
 
 void RTMPPublisher::librtmpErrorCallback(int level, const char *format, va_list vl)
@@ -1358,7 +1358,7 @@ DWORD WINAPI RTMPPublisher::CreateConnectionThread(RTMPPublisher *publisher)
 
 	RTMP *rtmp = nullptr;
 
-	String failReason;
+	String failReason = L"Unkown Error";
 	String strBindIP;
 	//String OrgURL;
 

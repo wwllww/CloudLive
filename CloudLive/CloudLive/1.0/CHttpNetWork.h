@@ -7,18 +7,19 @@
 #include "SLiveApi.h"
 #include "json.h"
 
+//std::cout << "__Call  " << #Ret  << "  Failed!!  " << SLiveGetLastError() << std::endl;
+//std::cout << "__Call  " << #Ret << "  Success!!__" << std::endl;
 #ifndef FunCall
 #define FunCall(Ret) \
 {\
 if (Ret < 0)\
 {\
-	std::cout << "__Call  " << #Ret  << "  Failed!!  " << SLiveGetLastError() << std::endl; \
 }else\
 {\
-std::cout << "__Call  " << #Ret << "  Success!!__" << std::endl; \
 }\
 }
 #endif
+typedef void (*DownLoadCompleteCb)(void *Context, const std::string& name,bool bSucess);
 
 struct hash_compare_socket {
 	static size_t hash( SOCKET a ) { return a;}
@@ -52,6 +53,9 @@ public:
 	void SendCommandToManager(const Json::Value &Param, const char* Command);
 	void ReportSwitcherStatus();
 	Json::Value GetDefaultSences() const;
+	std::string GetLocalCachePath() const;
+	void DoAsnycDownLoadFile(std::string& url, std::string& FileName, DownLoadCompleteCb DCCb, void *context, const std::string& Name);
+	bool HTTPGetFile(const char* url, FILE *wFile);
 
 	int HttpMsgLoop();
 	UINT GetMediaPort() const;
@@ -76,6 +80,7 @@ private:
 	UINT        ServerPort;
 	std::string ServerId;
 	std::string CloudId;
+	std::string LocalCachePath;
 	
 	UINT uListenPort;
 	UINT MediaPort;

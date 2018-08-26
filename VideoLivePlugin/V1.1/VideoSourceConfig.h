@@ -191,14 +191,30 @@ public:
 			playlistFlv[i] = Asic2WChar(ArryList[i]["flv"].asString().c_str()).c_str();
 		}
 
-		const char *JList = element.toStyledString().c_str();
 		Json::Value &ArryPlayList = element["playlist"];
 
 		playlist.SetSize(ArryPlayList.size());
+
+		int RealSize = 0;
 		for (int i = 0; i < ArryPlayList.size(); ++i)
 		{
-			playlist[i] = Asic2WChar(ArryPlayList[i].asString().c_str()).c_str();
+			if (!ArryPlayList[i].asString().empty())
+			{
+				playlist[i] = Asic2WChar(ArryPlayList[i].asString().c_str()).c_str();
+				RealSize++;
+			}
 		}
+
+		if (RealSize == 0)
+		{
+			playlist.Clear();
+		}
+		else
+		{
+			playlist.SetSize(RealSize);
+		}
+
+
 		//deinterlacing = Asic2WChar(element["deinterlacing"].asCString().c_str()).c_str();
 		isApplyingVideoFilter = element["isApplyingVideoFilter"].asUInt() == 1;
 		videoGamma = element["videoGamma"].asUInt();

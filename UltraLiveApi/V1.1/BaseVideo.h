@@ -41,6 +41,7 @@ public:
 	virtual void SwitchSences() {}
 	virtual void SetCanEnterScene(bool bCanEnter){}
 	virtual bool CanEnterScene() const { return false; }
+	virtual void SetD3DRender(D3DAPI *D3DRender) { }
 
 
 	virtual void RegisterDataCallBack(void *Context, DataCallBack pCb){}
@@ -48,6 +49,8 @@ public:
 
 	virtual bool IsFieldSignal() const { return false; }
 	virtual void RenameSource(const char *NewName) {}
+
+	virtual void SetOpacity(DWORD Opacity) {}
 
 
 	virtual void SetFloat(CTSTR lpName, float fValue) {}

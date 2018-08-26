@@ -345,9 +345,13 @@ void DesktopImageSource::Preprocess()
 
 		HDC hCaptureDC;
 		if (hwndCapture && captureType == 1 && !bClientCapture)
+		{
 			hCaptureDC = GetWindowDC(hwndCapture);
+		}
 		else
+		{
 			hCaptureDC = GetDC(hwndCapture);
+		}
 
 		RECT rc = { 0, 0, width, height };
 		FillRect(hDC, &rc, (HBRUSH)GetStockObject(BLACK_BRUSH));
@@ -408,11 +412,36 @@ void DesktopImageSource::Preprocess()
 		}
 		else
 		{
+
+// 			BITMAPINFO bi;
+// 			zero(&bi, sizeof(bi));
+// 			void* lpBits;
+// 
+// 			BITMAPINFOHEADER &bih = bi.bmiHeader;
+// 			bih.biSize = sizeof(bih);
+// 			bih.biBitCount = 32;
+// 			bih.biWidth = width;
+// 			bih.biHeight = height;
+// 			bih.biPlanes = 1;
+// 
+// 			HBITMAP hBitmap = CreateDIBSection(hDC, &bi, DIB_RGB_COLORS, &lpBits, NULL, 0);
+// 
+// 			if (hBitmap)
+// 			{
+// 				SelectObject(hDC, hBitmap);
+// 			}
+
+			
+
 			//CAPTUREBLT causes mouse flicker, so make capturing layered optional
 			if (!BitBlt(hDC, 0, 0, width, height, hCaptureDC, captureRect.left, captureRect.top, bCaptureLayered ? SRCCOPY | CAPTUREBLT : SRCCOPY))
 			{
 				RUNONCE AppWarning(TEXT("Capture BitBlt failed (%d)..  just so you know"), GetLastError());
 			}
+// 
+// 			if (hBitmap)
+// 				DeleteObject(hBitmap);
+
 		}
 
 		ReleaseDC(hwndCapture, hCaptureDC);
@@ -751,8 +780,8 @@ void DesktopImageSource::GetWindowList(StringList &classList)
 
 				DWORD processID;
 				GetWindowThreadProcessId(hwndCurrent, &processID);
-				if (processID == GetCurrentProcessId())
-					continue;
+// 				if (processID == GetCurrentProcessId())
+// 					continue;
 
 				TCHAR fileName[MAX_PATH + 1];
 				scpy(fileName, TEXT("unknown"));
@@ -1043,6 +1072,23 @@ bool DesktopImageSource::GetHasPreProcess() const
 	return bHasPreprocess;
 }
 
+void DesktopImageSource::SetD3DRender(D3DAPI *D3DRender)
+{
+	this->D3DRender = D3DRender;
+
+
+	if (colorKeyShader)
+		delete colorKeyShader;
+	colorKeyShader = NULL;
+
+	if (alphaIgnoreShader)
+		delete alphaIgnoreShader;
+	alphaIgnoreShader = NULL;
+	
+	colorKeyShader = D3DRender->CreatePixelShaderFromFile(TEXT("shaders\\ColorKey_RGB.pShader"));
+	alphaIgnoreShader = D3DRender->CreatePixelShaderFromFile(TEXT("shaders\\AlphaIgnore.pShader"));
+}
+
 
 
 void RefreshWindowList(HWND hwndCombobox, StringList &classList,const String &OldName,bool &bFind)
@@ -1075,8 +1121,8 @@ void RefreshWindowList(HWND hwndCombobox, StringList &classList,const String &Ol
 
 				DWORD processID;
 				GetWindowThreadProcessId(hwndCurrent, &processID);
-				if (processID == GetCurrentProcessId())
-					continue;
+// 				if (processID == GetCurrentProcessId())
+// 					continue;
 
 				TCHAR fileName[MAX_PATH + 1];
 				scpy(fileName, TEXT("unknown"));

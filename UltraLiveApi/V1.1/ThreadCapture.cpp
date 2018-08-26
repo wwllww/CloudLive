@@ -135,12 +135,17 @@ void CSLiveManager::MainVideoLoop()
 
 	x264_picture_t* outPics[2] = { NULL };
 	x264_picture_t* outPics_back[2] = { NULL };
+	x264_picture_t* MixoutPics[2] = { NULL };
 
 	for (int i = 0; i < 2; ++i)
 	{
 		outPics[i] = new x264_picture_t;
 		x264_picture_init(outPics[i]);
 		x264_picture_alloc(outPics[i], X264_CSP_NV12, outputCX, outputCY);
+
+		MixoutPics[i] = new x264_picture_t;
+		x264_picture_init(MixoutPics[i]);
+		x264_picture_alloc(MixoutPics[i], X264_CSP_NV12, BSParam.PreviewWidth,BSParam.PreviewHeight);
 
 		if (bUseBack)
 		{
@@ -225,18 +230,20 @@ void CSLiveManager::MainVideoLoop()
 				if (Process->bReBulid)
 				{
 					EnterCriticalSection(&Process->NetWorkSection);
-					Process->BulidD3D();
+					if (!Process->bNewD3DSelf)
+						Process->BulidD3D();
+
 					Process->bReBulid = false;
 					LeaveCriticalSection(&Process->NetWorkSection);
 					bReBulid = true;
 				}
 
 
-				if (Process->bResizeRenderView)
-				{
-					m_D3DRender->ResizeView(Process->SwapRender);
-					Process->bResizeRenderView = false;
-				}
+// 				if (Process->bResizeRenderView)
+// 				{
+// 					m_D3DRender->ResizeView(Process->SwapRender);
+// 					Process->bResizeRenderView = false;
+// 				}
 
 				EnterCriticalSection(&Process->VideoSection);
 				Process->SetHasPreProcess(false);
@@ -325,6 +332,9 @@ void CSLiveManager::MainVideoLoop()
 				}
 
 			}
+
+			m_D3DRender->SetRenderTarget(MixRenderTarget.get());
+			m_D3DRender->ClearRenderTarget(0xFF000000); //在这里做一下清屏处理
 
 			//EnterCriticalSection(&MapInstanceSec);
 
@@ -502,6 +512,7 @@ void CSLiveManager::MainVideoLoop()
 							Process->ClearVideo(false,false,false);
 							Process->CopyNewToVideoList();
 							Process->ClearVideoTransForm();
+							Process->RemoveMixOpenFollowoOpenAndNoInSences();
 						}
 					}
 
@@ -521,7 +532,6 @@ void CSLiveManager::MainVideoLoop()
 					Process->DrawRender(RenderTexture, mainVertexShader, mainPixelShader, true);
 				}
 
-
 				m_D3DRender->EnableBlending(FALSE);
 
 				//做场信号处理
@@ -540,10 +550,24 @@ void CSLiveManager::MainVideoLoop()
 				}
 
 
-				//profileIn("MainVideoLoop DrawPreview")
-				if (RenderTexture)
-					Process->DrawPreview(RenderTexture, Process->renderFrameSize, Process->renderFrameOffset, Process->renderFrameCtrlSize, solidVertexShader, solidPixelShader, SDITexture, HaveSDIOut(),bStartView);
-				//profileOut
+// 				if (RenderTexture)
+// 					Process->DrawPreview(RenderTexture, Process->renderFrameSize, Process->renderFrameOffset, Process->renderFrameCtrlSize, solidVertexShader, solidPixelShader, SDITexture, HaveSDIOut(),bStartView);
+			
+				//在这里把PGM和PVW混在一块
+				{
+					m_D3DRender->SetRenderTarget(MixRenderTarget.get());
+
+					m_D3DRender->Ortho(0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight, 0.0f, -100.0f, 100.0f);
+					m_D3DRender->SetViewport(0.0f, 0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight);
+
+					m_D3DRender->DrawSprite(RenderTexture, 0xFFFFFFFF,
+						Process->PreviewArea.left, Process->PreviewArea.top,
+						Process->PreviewArea.left + Process->PreviewArea.width, Process->PreviewArea.top + Process->PreviewArea.height);
+
+					//在这里画音量跳表
+					Process->DrawDb(mainPixelShader);
+				}
+
 
 				if (m_bProject && Process->IsLiveInstance)
 				{
@@ -573,6 +597,103 @@ void CSLiveManager::MainVideoLoop()
 			}
 
 			//LeaveCriticalSection(&MapInstanceSec);
+
+
+          //在这里把小预览混上并Map输出
+			if (PreviewInstance && PreviewInstance->bStartLive)
+			{
+				m_D3DRender->SetRenderTarget(MixRenderTarget.get());
+
+				m_D3DRender->Ortho(0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight, 0.0f, -100.0f, 100.0f);
+				m_D3DRender->SetViewport(0.0f, 0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight);
+
+				EnterCriticalSection(&MapInstanceSec);
+				for (int i = 0; i < m_InstanceList.GetSize(); ++i)
+				{
+					CInstanceProcess *Process = m_InstanceList.GetAt(i);
+					if (Process && Process->bLittlePre && !Process->bNoPreView)
+					{
+						Process->DrawLittlePreview(mainVertexShader, mainPixelShader);
+						Process->DrawDb(mainPixelShader);
+					}
+				}
+				LeaveCriticalSection(&MapInstanceSec);
+
+
+				m_D3DRender->LoadVertexShader(mainVertexShader);
+				m_D3DRender->LoadPixelShader(yuvScalePixelShader);
+
+				m_D3DRender->SetRenderTarget(MixyuvRenderTexture.get());
+
+				yuvScalePixelShader->SetMatrix(hMatrix, (float*)yuvMat[5]);
+				yuvScalePixelShader->SetVector2(hScaleVal, 1.0f / baseSize);
+
+
+// 				m_D3DRender->Ortho(0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight, 0.0f, -100.0f, 100.0f);
+// 				m_D3DRender->SetViewport(0.0f, 0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight);
+
+				m_D3DRender->DrawSprite(MixRenderTarget.get(), 0xFFFFFFFF, 0.0f, 0.0f, BSParam.PreviewWidth, BSParam.PreviewHeight);
+
+
+
+				BYTE *lpData;
+				UINT Pitch;
+				//profileIn("video thread copyTextures");
+				m_D3DRender->CopyTexture(MixCopyTexture.get(), MixyuvRenderTexture.get());
+				//profileOut
+
+				HRESULT res;
+				try
+				{
+					if (FAILED(res = m_D3DRender->Map(MixCopyTexture.get(), lpData, Pitch)))
+					{
+						BUTEL_THORWERROR("Map MixCopyTexture失败");
+					}
+
+					//profileIn("MainVideoLoop Convert444toNV12")
+					Convert444toNV12((LPBYTE)lpData, BSParam.PreviewWidth, Pitch, BSParam.PreviewWidth, BSParam.PreviewHeight, 0, BSParam.PreviewHeight, MixoutPics[swapIndex]->img.plane);
+					//profileOut
+					m_D3DRender->Unmap(MixCopyTexture.get());
+
+					InterlockedExchangePointer((volatile PVOID*)&MixOutpic, MixoutPics[swapIndex]);
+
+				}
+				catch (CErrorBase &e)
+				{
+					if (res == DXGI_ERROR_DEVICE_REMOVED)
+					{
+						String message;
+
+						HRESULT reason = m_D3DRender->GetDeviceRemovedReason();
+
+						switch (reason)
+						{
+						case DXGI_ERROR_DEVICE_RESET:
+						case DXGI_ERROR_DEVICE_HUNG:
+							message = TEXT("Your video card or driver froze and was reset. Please check for possible hardware / driver issues.");
+							break;
+						case DXGI_ERROR_DEVICE_REMOVED:
+							message = TEXT("Your video card disappeared from the system. Please check for possible hardware / driver issues.");
+							break;
+						case DXGI_ERROR_DRIVER_INTERNAL_ERROR:
+							message = TEXT("Your video driver reported an internal error. Please check for possible hardware / driver issues.");
+							break;
+						case DXGI_ERROR_INVALID_CALL:
+							message = TEXT("Your video driver reported an invalid call. Please check for possible driver issues.");
+							break;
+						default:
+							message = TEXT("DXGI_ERROR_DEVICE_REMOVED");
+							break;
+						}
+
+						message << TEXT(" This error can also occur if you have enabled opencl in x264 custom settings.");
+
+						Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:Texture->Map failed: 0x%08x 0x%08x\r\n\r\n%s -- %s", res, reason, WcharToAnsi(message.Array()).c_str(), e.m_Error.c_str());
+					}
+				}
+				
+			}
+
 
 			bpsTime += fSeconds;
 
@@ -767,7 +888,7 @@ void CSLiveManager::MainVideoLoop()
 				}
 			}
 
-			RenderSDI(swapIndex);//输出SDI
+			//RenderSDI(swapIndex);//输出SDI
 
 			HRESULT result;
 			try{
@@ -1097,20 +1218,6 @@ void CSLiveManager::MainVideoLoop()
 
 			++swapIndex %= 2;
 
-// 			EnterCriticalSection(&MapInstanceSec);
-// 			//profileIn("MainVideoLoop DrawLittlePreview");
-// 			for (int i = 0; i < m_InstanceList.GetSize(); ++i)
-// 			{
-// 				CInstanceProcess *Process = m_InstanceList.GetAt(i);
-// 				if (Process && Process->bLittlePre && !Process->bNoPreView)
-// 				{
-// 					//Process->DrawLittlePreview(mainVertexShader, mainPixelShader,SDITexture);
-// 					Process->DrawLittlePreview(mainLittleVertexShader, mainLittlePixelShader, SDILittleTexture);
-// 				}
-// 			}
-// 			//profileOut
-// 			LeaveCriticalSection(&MapInstanceSec);
-
 			if (bFirst)
 			{
 				bFirst = false;
@@ -1136,33 +1243,43 @@ void CSLiveManager::MainVideoLoop()
 		//profileOut
 	}
 
-	EnterCriticalSection(&LiveInstance->NetWorkSection);
-	bOutPicDel = true;
-	for (int i = 0; i < 2; ++i)
+	if (LiveInstance)
 	{
-		if (outPics[i])
-		{
-			delete outPics[i];
-			outPics[i] = NULL;
-		}
-	}
-	LeaveCriticalSection(&LiveInstance->NetWorkSection);
-
-	if (bUseBack)
-	{
-		EnterCriticalSection(&LiveInstance->NetWorkSection_back);
-		bOutPicDel_Back = true;
+		EnterCriticalSection(&PreviewInstance->NetWorkSection);
+		EnterCriticalSection(&LiveInstance->NetWorkSection);
+		bOutPicDel = true;
 		for (int i = 0; i < 2; ++i)
 		{
-			if (outPics_back[i])
+			if (outPics[i])
 			{
-				delete outPics_back[i];
-				outPics_back[i] = NULL;
+				delete outPics[i];
+				outPics[i] = NULL;
+			}
+
+			if (MixoutPics[i])
+			{
+				delete MixoutPics[i];
+				MixoutPics[i] = NULL;
 			}
 		}
-		LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
+		LeaveCriticalSection(&LiveInstance->NetWorkSection);
+		LeaveCriticalSection(&PreviewInstance->NetWorkSection);
+
+		if (bUseBack)
+		{
+			EnterCriticalSection(&LiveInstance->NetWorkSection_back);
+			bOutPicDel_Back = true;
+			for (int i = 0; i < 2; ++i)
+			{
+				if (outPics_back[i])
+				{
+					delete outPics_back[i];
+					outPics_back[i] = NULL;
+				}
+			}
+			LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
+		}
 	}
-	
 }
 
 static void VolumeCaculate(float *buffer, int totalFloats, float mulVal) {
@@ -1265,7 +1382,7 @@ inline float toDB(float RMS)
 	return db;
 }
 
-void CSLiveManager::MainAudioLoop()
+void CSLiveManager::MainAudioLoop(bool bLiveInstance)
 {
 	unsigned int audioSamplesPerSec = BSParam.LiveSetting.AudioSampleRate;
 	unsigned int audioSampleSize = audioSamplesPerSec / 100;
@@ -1283,62 +1400,24 @@ void CSLiveManager::MainAudioLoop()
 	UINT audioFramesSinceMeterUpdate = 0;
 	QWORD StartAudio = GetQPCMS();
 	int AudioCount = 0;
+
+	CInstanceProcess *IntanceProcess = NULL;
+
 	while (bRunning)
 	{
-		//profileIn("MainAudioLoop")
-		if (LocalInstance)
+
+		if (bLiveInstance)
 		{
-			vector<IBaseAudio *> AudioList;
-			EnterCriticalSection(&LocalInstance->AudioSection);
-			for (UINT i = 0; i < LocalInstance->m_AudioList.Num(); ++i) {
-
-				AudioList.push_back(LocalInstance->m_AudioList[i].AudioStream.get());
-				
-			}
-			LeaveCriticalSection(&LocalInstance->AudioSection);
-
-			if (AudioList.size())
-			{
-				for (IBaseAudio *Audio : AudioList)
-				{
-					if (FindVideoInLiveIntance(Audio))
-					{
-						EnterCriticalSection(&LocalInstance->AudioSection);
-						for (UINT i = 0; i < LocalInstance->m_AudioList.Num(); ++i) {
-
-							if (LocalInstance->m_AudioList[i].AudioStream.get() == Audio)
-							{
-								LocalInstance->m_AudioList[i].AudioStream->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, m_bPlayPcmLocal, m_bPlayPcmLive, m_quotietyVolume, m_bProject);
-								break;
-							}
-
-						}
-						LeaveCriticalSection(&LocalInstance->AudioSection);
-						
-					}
-					else
-					{
-						EnterCriticalSection(&LocalInstance->AudioSection);
-						for (UINT i = 0; i < LocalInstance->m_AudioList.Num(); ++i) {
-
-							if (LocalInstance->m_AudioList[i].AudioStream.get() == Audio)
-							{
-								LocalInstance->m_AudioList[i].AudioStream->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, m_bPlayPcmLocal, false, m_quotietyVolume, m_bProject);
-								break;
-							}
-
-						}
-						LeaveCriticalSection(&LocalInstance->AudioSection);
-						
-					}
-				}
-			}
-
+			IntanceProcess = LiveInstance;
+		}
+		else
+		{
+			IntanceProcess = PreviewInstance;
 		}
 
-		if (LiveInstance)
+		if (IntanceProcess)
 		{
-			if (LiveInstance->bReBulidAudio && !bStartLive)//在直播中不允许更改
+			if (IntanceProcess->bReBulidAudio && !bStartLive && IntanceProcess->IsLiveInstance)//在直播中不允许更改
 			{
 				audioSamplesPerSec = BSParam.LiveSetting.AudioSampleRate;
 				audioSampleSize = audioSamplesPerSec / 100;
@@ -1347,34 +1426,31 @@ void CSLiveManager::MainAudioLoop()
 
 				leftaudioData.SetSize(audioSampleSize);
 				rightaudioData.SetSize(audioSampleSize);
-				LiveInstance->bReBulidAudio = false;
+				IntanceProcess->bReBulidAudio = false;
 
+				EnterCriticalSection(&IntanceProcess->AudioSection);
+				for (UINT i = 0; i < IntanceProcess->m_AudioList.Num(); ++i) {
 
-				if (LocalInstance)
-				{
-					EnterCriticalSection(&LocalInstance->AudioSection);
-					for (UINT i = 0; i < LocalInstance->m_AudioList.Num(); ++i) {
-
-						LocalInstance->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
-
-					}
-					LeaveCriticalSection(&LocalInstance->AudioSection);
-				}
-
-				EnterCriticalSection(&LiveInstance->AudioSection);
-				for (UINT i = 0; i < LiveInstance->m_AudioList.Num(); ++i) {
-
-					LiveInstance->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
+					IntanceProcess->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
 
 				}
-				LeaveCriticalSection(&LiveInstance->AudioSection);
+				LeaveCriticalSection(&IntanceProcess->AudioSection);
+				
+
+				EnterCriticalSection(&IntanceProcess->AudioSection);
+				for (UINT i = 0; i < IntanceProcess->m_AudioList.Num(); ++i) {
+
+					IntanceProcess->m_AudioList[i].AudioStream->SetSampleRateHz(audioSamplesPerSec);
+
+				}
+				LeaveCriticalSection(&IntanceProcess->AudioSection);
 
 			}
 
-			if (LiveInstance->QueryNewAudio())
+			if (IntanceProcess->QueryNewAudio())
 			{
-				QWORD timestamp = LiveInstance->bufferedAudioTimes[0];
-				LiveInstance->bufferedAudioTimes.Remove(0);
+				QWORD timestamp = IntanceProcess->bufferedAudioTimes[0];
+				IntanceProcess->bufferedAudioTimes.Remove(0);
 
 
 				zero(mixBuffer.Array(), audioSampleSize * 2 * sizeof(float));
@@ -1385,187 +1461,156 @@ void CSLiveManager::MainAudioLoop()
 
 				//profileIn("MainAudioLoop MixAudio")
 
-				vector<IBaseAudio *> AudioListLive;
-				EnterCriticalSection(&LiveInstance->AudioSection);
 
-				for (UINT i = 0; i < LiveInstance->m_AudioList.Num(); ++i) {
+				EnterCriticalSection(&IntanceProcess->AudioSection);
+
+				for (UINT i = 0; i < IntanceProcess->m_AudioList.Num(); ++i) {
 					float *auxBuffer;
-					AudioListLive.push_back(LiveInstance->m_AudioList[i].AudioStream.get());
-					if (LiveInstance->m_AudioList[i].AudioStream->GetBuffer(&auxBuffer, timestamp))
+
+					if (bLiveInstance)
 					{
-						LiveInstance->MixAudio(mixBuffer.Array(), auxBuffer, audioSampleSize * 2, false);
-						bHasMix = true;
-					}
-				}
-
-				LeaveCriticalSection(&LiveInstance->AudioSection);
-
-				//防止死锁
-				if (AudioListLive.size())
-				{
-					for (IBaseAudio *Audio : AudioListLive)
-					{
-						if (FindVideoInLocalIntance(Audio))
+						IntanceProcess->m_AudioList[i].AudioStream->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, m_bPlayPcmLocal, m_bPlayPcmLive, m_quotietyVolume, m_bProject);
+						if (IntanceProcess->m_AudioList[i].AudioStream->GetBuffer(&auxBuffer, timestamp, bLiveInstance))
 						{
-							EnterCriticalSection(&LiveInstance->AudioSection);
-							for (UINT i = 0; i < LiveInstance->m_AudioList.Num(); ++i) {
-
-								if (LiveInstance->m_AudioList[i].AudioStream.get() == Audio)
-								{
-									LiveInstance->m_AudioList[i].AudioStream->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, m_bPlayPcmLocal, m_bPlayPcmLive, m_quotietyVolume, m_bProject);
-									break;
-								}
-
-							}
-							LeaveCriticalSection(&LiveInstance->AudioSection);
-
-						}
-						else
-						{
-							EnterCriticalSection(&LiveInstance->AudioSection);
-							for (UINT i = 0; i < LiveInstance->m_AudioList.Num(); ++i) {
-
-								if (LiveInstance->m_AudioList[i].AudioStream.get() == Audio)
-								{
-									LiveInstance->m_AudioList[i].AudioStream->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, false, m_bPlayPcmLive, m_quotietyVolume, m_bProject);
-									break;
-								}
-
-							}
-							LeaveCriticalSection(&LiveInstance->AudioSection);
-
+							IntanceProcess->MixAudio(mixBuffer.Array(), auxBuffer, audioSampleSize * 2, false);
+							bHasMix = true;
 						}
 					}
+					else if (IntanceProcess->m_AudioList[i].PreviewAudio)
+					{
+						IntanceProcess->m_AudioList[i].PreviewAudio->SetAudioParam(leftdesktopVol, rightdesktopVol, desktopVol, m_bPlayPcmLocal, m_bPlayPcmLive, m_quotietyVolume, m_bProject);
+						if (IntanceProcess->m_AudioList[i].PreviewAudio->GetBuffer(&auxBuffer, timestamp, bLiveInstance))
+						{
+							IntanceProcess->MixAudio(mixBuffer.Array(), auxBuffer, audioSampleSize * 2, false);
+							bHasMix = true;
+						}
+					}
+					
 				}
+
+				LeaveCriticalSection(&IntanceProcess->AudioSection);
+
 				//profileOut;
 
-				float rightdesktopRMS = 0, rightdesktopMx = 0;
-				float leftdesktopRMS = 0, leftdesktopMx = 0;
-				float desktopVolGain = 0, leftdesktopVolGain = 0, rightdesktopVolGain = 0;
-				//profileIn("MainAudioLoop CalculateVolumeLevels")
-				if (bHasMix) {
-					if (desktopVol > 1.0)
-					{
-						desktopVolGain = desktopVol - 1.0;
-					}
-
-					if (leftdesktopVol > 1.0)
-					{
-						leftdesktopVolGain = leftdesktopVol - 1.0;
-					}
-
-					if (rightdesktopVol > 1.0)
-					{
-						rightdesktopVolGain = rightdesktopVol - 1.0;
-					}
-
-					if (desktopVol + desktopVolGain*m_quotietyVolume != 1.0f)
-						VolumeCaculate(mixBuffer.Array(), audioSampleSize * 2, desktopVol + desktopVolGain*m_quotietyVolume);
-				}
-				//----------------------------------------------------------------------------
-				// convert RMS and Max of samples to dB 
-				audioFramesSinceMeterUpdate += audioSampleSize;
-				if (audioFramesSinceMeterUpdate >= (audioSampleSize * 10)) {
-
-					for (int iIndex = 0, iCount = 0; iIndex < audioSampleSize * 2; iIndex += 2, ++iCount)
-					{
-						leftaudioData[iCount] = mixBuffer[iIndex];
-						rightaudioData[iCount] = mixBuffer[iIndex + 1];
-					}
-
-// 					if (1.f != leftdesktopVol + leftdesktopVolGain*m_quotietyVolume)
-// 						VolumeCaculate(leftaudioData.Array(), audioSampleSize, leftdesktopVol + leftdesktopVolGain*m_quotietyVolume);
-// 
-// 					if (1.f != rightdesktopVol + rightdesktopVolGain*m_quotietyVolume)
-// 						VolumeCaculate(rightaudioData.Array(), audioSampleSize, rightdesktopVol + rightdesktopVolGain*m_quotietyVolume);
-// 
-// 					for (int iIndex = 0, iCount = 0; iIndex < audioSampleSize * 2; iIndex += 2, ++iCount){
-// 
-// 						mixBuffer[iIndex] = leftaudioData[iCount];
-// 						mixBuffer[iIndex + 1] = rightaudioData[iCount];
-// 					}
-
-					CalculateVolumeLevels(rightaudioData.Array(), audioSampleSize, 1.0f, rightdesktopRMS, rightdesktopMx);
-					CalculateVolumeLevels(leftaudioData.Array(), audioSampleSize, 1.0f, leftdesktopRMS, leftdesktopMx);
-
-					if (desktopVol >= 1.0f && desktopVol < 1.8f)
-					{
-						leftdesktopRMS = leftdesktopRMS / m_quotietyVolume;
-						rightdesktopRMS = rightdesktopRMS / m_quotietyVolume;
-					}
-					else if (desktopVol < 1.0)
-					{
-						leftdesktopRMS = leftdesktopRMS / 10.0f;
-						rightdesktopRMS = rightdesktopRMS / 10.0f;
-					}
-
-					leftdesktopRMS = toDB(leftdesktopRMS);
-					rightdesktopRMS = toDB(rightdesktopRMS);
-
-					
-					if (BSParam.LiveAudioCb)
-						BSParam.LiveAudioCb(leftdesktopRMS, rightdesktopRMS);
-
-					audioFramesSinceMeterUpdate = 0;
-
-					
-				}
-				//profileOut
-				WAVEFORMATEX  audioFormat;
-				audioFormat.nSamplesPerSec = audioSamplesPerSec;
-				audioFormat.nChannels = 2;
-				audioFormat.wBitsPerSample = 32;
-
-				BlackMagic* blackMagic = BlackMagic::Instance();
-				OSEnterMutex(SDIMutex);
-				if (SIDIDs.size() && bHasMix)
+				if (bLiveInstance)
 				{
-					for (auto& id : SIDIDs)
-					{
-						if (id.enable)
-							blackMagic->SDI_RenderDevice(id, mixBuffer.Array(), 0, 0, ColorFormat_RGBA32REVERSE, true, &audioFormat, mixBuffer.Num() * 4, true);
+					float rightdesktopRMS = 0, rightdesktopMx = 0;
+					float leftdesktopRMS = 0, leftdesktopMx = 0;
+					float desktopVolGain = 0, leftdesktopVolGain = 0, rightdesktopVolGain = 0;
+					//profileIn("MainAudioLoop CalculateVolumeLevels")
+					if (bHasMix) {
+						if (desktopVol > 1.0)
+						{
+							desktopVolGain = desktopVol - 1.0;
+						}
+
+						if (leftdesktopVol > 1.0)
+						{
+							leftdesktopVolGain = leftdesktopVol - 1.0;
+						}
+
+						if (rightdesktopVol > 1.0)
+						{
+							rightdesktopVolGain = rightdesktopVol - 1.0;
+						}
+
+						if (desktopVol + desktopVolGain*m_quotietyVolume != 1.0f)
+							VolumeCaculate(mixBuffer.Array(), audioSampleSize * 2, desktopVol + desktopVolGain*m_quotietyVolume);
+					}
+					//----------------------------------------------------------------------------
+					// convert RMS and Max of samples to dB 
+					audioFramesSinceMeterUpdate += audioSampleSize;
+					if (audioFramesSinceMeterUpdate >= (audioSampleSize * 5)) {
+
+						for (int iIndex = 0, iCount = 0; iIndex < audioSampleSize * 2; iIndex += 2, ++iCount)
+						{
+							leftaudioData[iCount] = mixBuffer[iIndex];
+							rightaudioData[iCount] = mixBuffer[iIndex + 1];
+						}
+
+						// 					if (1.f != leftdesktopVol + leftdesktopVolGain*m_quotietyVolume)
+						// 						VolumeCaculate(leftaudioData.Array(), audioSampleSize, leftdesktopVol + leftdesktopVolGain*m_quotietyVolume);
+						// 
+						// 					if (1.f != rightdesktopVol + rightdesktopVolGain*m_quotietyVolume)
+						// 						VolumeCaculate(rightaudioData.Array(), audioSampleSize, rightdesktopVol + rightdesktopVolGain*m_quotietyVolume);
+						// 
+						// 					for (int iIndex = 0, iCount = 0; iIndex < audioSampleSize * 2; iIndex += 2, ++iCount){
+						// 
+						// 						mixBuffer[iIndex] = leftaudioData[iCount];
+						// 						mixBuffer[iIndex + 1] = rightaudioData[iCount];
+						// 					}
+
+						CalculateVolumeLevels(rightaudioData.Array(), audioSampleSize, 1.0f, rightdesktopRMS, rightdesktopMx);
+						CalculateVolumeLevels(leftaudioData.Array(), audioSampleSize, 1.0f, leftdesktopRMS, leftdesktopMx);
+
+						if (desktopVol >= 1.0f && desktopVol < 1.8f)
+						{
+							leftdesktopRMS = leftdesktopRMS / m_quotietyVolume;
+							rightdesktopRMS = rightdesktopRMS / m_quotietyVolume;
+						}
+						else if (desktopVol < 1.0)
+						{
+							leftdesktopRMS = leftdesktopRMS / 10.0f;
+							rightdesktopRMS = rightdesktopRMS / 10.0f;
+						}
+
+						leftdesktopRMS = toDB(leftdesktopRMS);
+						rightdesktopRMS = toDB(rightdesktopRMS);
+
+
+						// 					if (BSParam.LiveAudioCb)
+						// 						BSParam.LiveAudioCb(leftdesktopRMS, rightdesktopRMS);
+
+						IntanceProcess->LeftDb = leftdesktopRMS;
+						IntanceProcess->RightDb = rightdesktopRMS;
+
+						audioFramesSinceMeterUpdate = 0;
+
+
 					}
 				}
-				OSLeaveMutex(SDIMutex);
 
-				if (LiveInstance->bStartLive)
+				if (IntanceProcess->bStartLive)
 				{
 					//profileIn("MainAudioLoop EncodeAudioSegment")
-					LiveInstance->EncodeAudioSegment(mixBuffer.Array(), audioSampleSize, timestamp);
+					IntanceProcess->EncodeAudioSegment(mixBuffer.Array(), audioSampleSize, timestamp);
 					//profileOut
 
-					if (LiveInstance->bFristAudioEncode)
+					if (IntanceProcess->bFristAudioEncode)
 					{
-						LiveInstance->bFristAudioEncode = false;
+						IntanceProcess->bFristAudioEncode = false;
 						Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个音频时间戳 %llu", timestamp);
 					}
 				}
 				else
 				{
-					EnterCriticalSection(&LiveInstance->SoundDataMutex);
-					for (UINT i = 0; i < LiveInstance->pendingAudioFrames.Num(); ++i)
-						LiveInstance->pendingAudioFrames[i].audioData.Clear();
-					LiveInstance->pendingAudioFrames.Clear();
-					LeaveCriticalSection(&LiveInstance->SoundDataMutex);
+					EnterCriticalSection(&IntanceProcess->SoundDataMutex);
+					for (UINT i = 0; i < IntanceProcess->pendingAudioFrames.Num(); ++i)
+						IntanceProcess->pendingAudioFrames[i].audioData.Clear();
+					IntanceProcess->pendingAudioFrames.Clear();
+					LeaveCriticalSection(&IntanceProcess->SoundDataMutex);
 
-					if (bUseBack)
+					if (bUseBack && bLiveInstance)
 					{
-						EnterCriticalSection(&LiveInstance->SoundDataMutex_back);
-						for (UINT i = 0; i < LiveInstance->pendingAudioFrames_back.Num(); ++i)
-							LiveInstance->pendingAudioFrames_back[i].audioData.Clear();
-						LiveInstance->pendingAudioFrames_back.Clear();
-						LeaveCriticalSection(&LiveInstance->SoundDataMutex_back);
+						EnterCriticalSection(&IntanceProcess->SoundDataMutex_back);
+						for (UINT i = 0; i < IntanceProcess->pendingAudioFrames_back.Num(); ++i)
+							IntanceProcess->pendingAudioFrames_back[i].audioData.Clear();
+						IntanceProcess->pendingAudioFrames_back.Clear();
+						LeaveCriticalSection(&IntanceProcess->SoundDataMutex_back);
 					}
 				}
 
-				++AudioCount;
-				if (GetQPCMS() - StartAudio >= m_CheckTime)
+				if (bLiveInstance)
 				{
-					m_EncodeAudioCount = AudioCount;
+					++AudioCount;
+					if (GetQPCMS() - StartAudio >= m_CheckTime)
+					{
+						m_EncodeAudioCount = AudioCount;
 
-					m_RealAudioFrameTime = (float)(GetQPCMS() - StartAudio) / m_EncodeAudioCount;
-					AudioCount = 0;
-					StartAudio = GetQPCMS();
+						m_RealAudioFrameTime = (float)(GetQPCMS() - StartAudio) / m_EncodeAudioCount;
+						AudioCount = 0;
+						StartAudio = GetQPCMS();
+					}
 				}
 			}
 			else
@@ -1577,29 +1622,29 @@ void CSLiveManager::MainAudioLoop()
 		//profileOut
 	}
 
-	if (LiveInstance)
+	if (IntanceProcess)
 	{
-		EnterCriticalSection(&LiveInstance->SoundDataMutex);
-		for (UINT i = 0; i < LiveInstance->pendingAudioFrames.Num(); ++i)
-			LiveInstance->pendingAudioFrames[i].audioData.Clear();
-		LiveInstance->pendingAudioFrames.Clear();
-		LeaveCriticalSection(&LiveInstance->SoundDataMutex);
+		EnterCriticalSection(&IntanceProcess->SoundDataMutex);
+		for (UINT i = 0; i < IntanceProcess->pendingAudioFrames.Num(); ++i)
+			IntanceProcess->pendingAudioFrames[i].audioData.Clear();
+		IntanceProcess->pendingAudioFrames.Clear();
+		LeaveCriticalSection(&IntanceProcess->SoundDataMutex);
 
-		if (bUseBack)
+		if (bUseBack && bLiveInstance)
 		{
-			EnterCriticalSection(&LiveInstance->SoundDataMutex_back);
-			for (UINT i = 0; i < LiveInstance->pendingAudioFrames_back.Num(); ++i)
-				LiveInstance->pendingAudioFrames_back[i].audioData.Clear();
-			LiveInstance->pendingAudioFrames_back.Clear();
-			LeaveCriticalSection(&LiveInstance->SoundDataMutex_back);
+			EnterCriticalSection(&IntanceProcess->SoundDataMutex_back);
+			for (UINT i = 0; i < IntanceProcess->pendingAudioFrames_back.Num(); ++i)
+				IntanceProcess->pendingAudioFrames_back[i].audioData.Clear();
+			IntanceProcess->pendingAudioFrames_back.Clear();
+			LeaveCriticalSection(&IntanceProcess->SoundDataMutex_back);
 		}
 	}
 }
 
 
-void CSLiveManager::VideoEncoderLoop()
+void CSLiveManager::VideoEncoderLoop(bool bLiveInstance)
 {
-	sleepTargetTime = GetQPCNS();
+	QWORD LoaclTargetTime = GetQPCNS();
 	bfirstTimeStamp = true;
 	bool bufferedFrames = false;
 	//bool bFirst = true;
@@ -1612,137 +1657,164 @@ void CSLiveManager::VideoEncoderLoop()
 	bool bMainLive = true;
 	int EncodeFrameCount = 0;
 	bool bCanCheck = true;
-	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:VideoEncoderLoop 开始时间 %llu", sleepTargetTime / 1000000);
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:VideoEncoderLoop 开始时间 %llu", LoaclTargetTime / 1000000);
 	while (bRunning)
 	{
 		//QWORD StartTime = GetQPCNS();
 		QWORD frameTimeNS = 1000000000 / BSParam.LiveSetting.FPS;
-		SetEvent(hVideoEvent);
-		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
 
-		//profileIn("VideoEncoderLoop")
-		if ((bStartLive && Outpic)/* || bufferedFrames*/)
+		if (bLiveInstance)
+			SetEvent(hVideoEvent);
+
+		Sleep2NS(LoaclTargetTime += frameTimeNS / 2);
+
+
+		if (bLiveInstance)
 		{
-			//bFirst = false;
-			if (LiveInstance->bfirstTimeStamp)
-			{
-				CurrentVideoTime = 0;
-				StartVideoTime = GetQPCNS();
-				LiveInstance->bfirstTimeStamp = false;
-				bNewStart = true;
-				bCanCheck = true;
-				bCanSecondCheck = true;
-				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个视频时间戳 %llu", StartVideoTime / 1000000);
-			}
-			else
-			{
-				CurrentVideoTime = (GetQPCNS() - StartVideoTime) / 1000000;
-			}
+			sleepTargetTime = LoaclTargetTime;
+		}
 
-			ProcessInfo.firstFrameTime = StartVideoTime / 1000000;
-			ProcessInfo.frameTimestamp = CurrentVideoTime;
-			if (bStartLive)
+		if (bLiveInstance)
+		{
+			if ((bStartLive && Outpic)/* || bufferedFrames*/)
 			{
-				ProcessInfo.pic = Outpic;
-				ProcessInfo.pic->i_pts = CurrentVideoTime;
-			}
-			else
-			{
-				ProcessInfo.pic = NULL;
-			}
-
-			bool bSetEvent = false;
-			if (bUseBack && Outpic_back)
-			{
-				SetEvent(hVideoEvent_back);
-				bSetEvent = true;
-			}
-			//profileIn("VideoEncoderLoop ProcessFrame")
-			
-			
-			if (bUseBack && (BSParam.LiveSetting.Width < BSParam.LiveSetting.WidthSec || BSParam.LiveSetting.Height < BSParam.LiveSetting.HeightSec))
-			{
-				bMainLive = false;
-				EnterCriticalSection(&LiveInstance->NetWorkSection_back);
-				if (!bOutPicDel_Back && LiveInstance)
+				//bFirst = false;
+				if (LiveInstance->bfirstTimeStamp)
 				{
-					bHasEncoder = LiveInstance->ProcessFrame_back(ProcessInfo);
+					CurrentVideoTime = 0;
+					StartVideoTime = GetQPCNS();
+					LiveInstance->bfirstTimeStamp = false;
+					bNewStart = true;
+					bCanCheck = true;
+					bCanSecondCheck = true;
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个视频时间戳 %llu", StartVideoTime / 1000000);
 				}
-				LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
-			}
-			else
-			{
-				bMainLive = true;
-				EnterCriticalSection(&LiveInstance->NetWorkSection);
-				if (!bOutPicDel && LiveInstance)
+				else
 				{
-					bHasEncoder = LiveInstance->ProcessFrame(ProcessInfo);
-
+					CurrentVideoTime = (GetQPCNS() - StartVideoTime) / 1000000;
 				}
-				LeaveCriticalSection(&LiveInstance->NetWorkSection);
-			}
 
-			if (bHasEncoder)
-				bCanCheck = false;
-			
-			if (!bHasEncoder && bNewStart && bCanCheck)
-			{
-				if ((GetQPCNS() - StartVideoTime) / 1000000 >= (bMainLive ? 3000 : 3500))
+				ProcessInfo.firstFrameTime = StartVideoTime / 1000000;
+				ProcessInfo.frameTimestamp = CurrentVideoTime;
+				if (bStartLive)
 				{
-					bNewStart = false;
-					
-					if (LiveInstance->LiveParam.TipsCb)
+					ProcessInfo.pic = Outpic;
+					ProcessInfo.pic->i_pts = CurrentVideoTime;
+				}
+				else
+				{
+					ProcessInfo.pic = NULL;
+				}
+
+				bool bSetEvent = false;
+				if (bUseBack && Outpic_back)
+				{
+					SetEvent(hVideoEvent_back);
+					bSetEvent = true;
+				}
+				//profileIn("VideoEncoderLoop ProcessFrame")
+
+
+				if (bUseBack && (BSParam.LiveSetting.Width < BSParam.LiveSetting.WidthSec || BSParam.LiveSetting.Height < BSParam.LiveSetting.HeightSec))
+				{
+					bMainLive = false;
+					EnterCriticalSection(&LiveInstance->NetWorkSection_back);
+					if (!bOutPicDel_Back && LiveInstance)
 					{
-						LiveInstance->LiveParam.TipsCb(-101, bMainLive ? "主直播硬编码不出数据,请换用软编码！": "次直播硬编码不出数据,请换用软编码！");
+						bHasEncoder = LiveInstance->ProcessFrame_back(ProcessInfo);
+					}
+					LeaveCriticalSection(&LiveInstance->NetWorkSection_back);
+				}
+				else
+				{
+					bMainLive = true;
+					EnterCriticalSection(&LiveInstance->NetWorkSection);
+					if (!bOutPicDel && LiveInstance)
+					{
+						bHasEncoder = LiveInstance->ProcessFrame(ProcessInfo);
+
+					}
+					LeaveCriticalSection(&LiveInstance->NetWorkSection);
+				}
+
+				if (bHasEncoder)
+					bCanCheck = false;
+
+				if (!bHasEncoder && bNewStart && bCanCheck)
+				{
+					if ((GetQPCNS() - StartVideoTime) / 1000000 >= (bMainLive ? 3000 : 3500))
+					{
+						bNewStart = false;
+
+						if (LiveInstance->LiveParam.TipsCb)
+						{
+							LiveInstance->LiveParam.TipsCb(-101, bMainLive ? "主直播硬编码不出数据,请换用软编码！" : "次直播硬编码不出数据,请换用软编码！");
+						}
 					}
 				}
-			}
-			
-			//profileOut
-			if (bSetEvent)
-				WaitForSingleObject(hVideoComplete, INFINITE);
 
+				//profileOut
+				if (bSetEvent)
+					WaitForSingleObject(hVideoComplete, INFINITE);
+
+			}
+			else
+			{
+				bNewStart = false;
+			}
 		}
 		else
 		{
-			bNewStart = false;
+
+			if (PreviewInstance && PreviewInstance->bStartLive && MixOutpic)
+			{
+				if (PreviewInstance->bfirstTimeStamp)
+				{
+					PreviewInstance->CurrentVideoTime = 0;
+					PreviewInstance->StartVideoTime = GetQPCNS();
+					PreviewInstance->bfirstTimeStamp = false;
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个视频时间戳 %llu", PreviewInstance->StartVideoTime / 1000000);
+				}
+				else
+				{
+					PreviewInstance->CurrentVideoTime = (GetQPCNS() - PreviewInstance->StartVideoTime) / 1000000;
+				}
+
+				ProcessInfo.firstFrameTime = PreviewInstance->StartVideoTime / 1000000;
+				ProcessInfo.frameTimestamp = PreviewInstance->CurrentVideoTime;
+ 				
+				EnterCriticalSection(&PreviewInstance->NetWorkSection);
+				if (!bOutPicDel && PreviewInstance)
+				{
+					ProcessInfo.pic = MixOutpic;
+					ProcessInfo.pic->i_pts = PreviewInstance->CurrentVideoTime;
+
+					PreviewInstance->ProcessFrame(ProcessInfo);
+				}
+				LeaveCriticalSection(&PreviewInstance->NetWorkSection);
+			}
+
+		}
+		
+
+		Sleep2NS(LoaclTargetTime += frameTimeNS / 2);
+
+		if (bLiveInstance)
+		{
+			sleepTargetTime = LoaclTargetTime;
 		}
 
-		//这里不会进入
-// 		if (!bStartLive && LiveInstance)
-// 		{
-// 			//快速开始直播崩溃
-// 			bufferedFrames = false;//LiveInstance->videoEncoder ? LiveInstance->videoEncoder->HasBufferedFrames() : false;
-// 			if (bUseBack){
-// 				bufferedFrames = false;//bufferedFrames || LiveInstance->videoEncoder_back ? LiveInstance->videoEncoder_back->HasBufferedFrames() : false;
-// 			}
-// 
-// 			if (!bufferedFrames && !bFirst)
-// 			{
-// 				if (LiveInstance->videoEncoder)
-// 					delete LiveInstance->videoEncoder;
-// 				LiveInstance->videoEncoder = NULL;
-// 
-// 				if (LiveInstance->videoEncoder_back)
-// 					delete LiveInstance->videoEncoder_back;
-// 				LiveInstance->videoEncoder_back = NULL;
-// 				bFirst = true;
-// 
-// 				LiveInstance->StopLive(false);
-// 			}
-// 		}
-
-		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
-
-		//profileOut
-		++EncodeFrameCount;
-
-		if (GetQPCMS() - StartEncodeTime >= m_CheckTime)
+		if (bLiveInstance)
 		{
-			m_EncodeVideoCount = EncodeFrameCount;
-			m_RealFrameTime = (float)(GetQPCMS() - StartEncodeTime) / m_EncodeVideoCount;
-			StartEncodeTime = GetQPCMS();
-			EncodeFrameCount = 0;
+			++EncodeFrameCount;
+
+			if (GetQPCMS() - StartEncodeTime >= m_CheckTime)
+			{
+				m_EncodeVideoCount = EncodeFrameCount;
+				m_RealFrameTime = (float)(GetQPCMS() - StartEncodeTime) / m_EncodeVideoCount;
+				StartEncodeTime = GetQPCMS();
+				EncodeFrameCount = 0;
+			}
 		}
 	}
 
@@ -1837,7 +1909,7 @@ void CSLiveManager::RenderLittlePreview()
 			CInstanceProcess *Process = m_InstanceList.GetAt(i);
 			if (Process && Process->bLittlePre && !Process->bNoPreView)
 			{
-				Process->DrawLittlePreview();
+				//Process->DrawLittlePreview();
 			}
 		}
 		//profileOut

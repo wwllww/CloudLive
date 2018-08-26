@@ -5,12 +5,79 @@
 #include "RTMPStuff.h"
 #include "RTMPPublisherVector.h"
 #include "FileStream.h"
+#include "HttpLive.h"
 
 #ifdef OPERATOR_NEW
 #define new OPERATOR_NEW
 #pragma message("new(__FILE__,__LINE__)")
 #endif
 
+const float yuvFullMat[][16] = {
+	{ 0.000000f, 1.000000f, 0.000000f, 0.000000f,
+	0.000000f, 0.000000f, 1.000000f, 0.000000f,
+	1.000000f, 0.000000f, 0.000000f, 0.000000f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.250000f, 0.500000f, 0.250000f, 0.000000f,
+	-0.249020f, 0.498039f, -0.249020f, 0.501961f,
+	0.498039f, 0.000000f, -0.498039f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.262700f, 0.678000f, 0.059300f, 0.000000f,
+	-0.139082f, -0.358957f, 0.498039f, 0.501961f,
+	0.498039f, -0.457983f, -0.040057f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.212600f, 0.715200f, 0.072200f, 0.000000f,
+	-0.114123f, -0.383916f, 0.498039f, 0.501961f,
+	0.498039f, -0.452372f, -0.045667f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.212200f, 0.701300f, 0.086500f, 0.000000f,
+	-0.115691f, -0.382348f, 0.498039f, 0.501961f,
+	0.498039f, -0.443355f, -0.054684f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.299000f, 0.587000f, 0.114000f, 0.000000f,
+	-0.168074f, -0.329965f, 0.498039f, 0.501961f,
+	0.498039f, -0.417046f, -0.080994f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+};
+
+const float yuvMat[][16] = {
+	{ 0.000000f, 0.858824f, 0.000000f, 0.062745f,
+	0.000000f, 0.000000f, 0.858824f, 0.062745f,
+	0.858824f, 0.000000f, 0.000000f, 0.062745f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.214706f, 0.429412f, 0.214706f, 0.062745f,
+	-0.219608f, 0.439216f, -0.219608f, 0.501961f,
+	0.439216f, 0.000000f, -0.439216f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.225613f, 0.582282f, 0.050928f, 0.062745f,
+	-0.122655f, -0.316560f, 0.439216f, 0.501961f,
+	0.439216f, -0.403890f, -0.035325f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.182586f, 0.614231f, 0.062007f, 0.062745f,
+	-0.100644f, -0.338572f, 0.439216f, 0.501961f,
+	0.439216f, -0.398942f, -0.040274f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.182242f, 0.602293f, 0.074288f, 0.062745f,
+	-0.102027f, -0.337189f, 0.439216f, 0.501961f,
+	0.439216f, -0.390990f, -0.048226f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+
+	{ 0.256788f, 0.504129f, 0.097906f, 0.062745f,
+	-0.148223f, -0.290993f, 0.439216f, 0.501961f,
+	0.439216f, -0.367788f, -0.071427f, 0.501961f,
+	0.000000f, 0.000000f, 0.000000f, 1.000000f },
+};
+
+
+extern void Convert444toNV12(LPBYTE input, int width, int inPitch, int outPitch, int height, int startY, int endY, LPBYTE *output);
 extern CSectionLock DelaySection;
 CInstanceProcess::CInstanceProcess(const SLiveParam *Param)
 {
@@ -56,7 +123,20 @@ CInstanceProcess::CInstanceProcess(const SLiveParam *Param)
 	m_hEncodeThread = NULL;
 	m_firstFrameTimestamp = -1;
 	bHasAudio = false;
+	bNewD3DSelf = false;
+	HVideoCapture = HAudioCapture = NULL;
 	D3DRender = CSLiveManager::GetInstance()->GetD3DRender();
+
+	__HttpLive = NULL;
+
+	LeftDb = -96;
+	RightDb = -96;
+	DbWidth = 10;
+
+	bNeedPGM = true;
+	bNeedPVW = false;
+
+	ZeroMemory(&PreviewArea,sizeof VideoArea);
 }
 
 CInstanceProcess::~CInstanceProcess()
@@ -70,18 +150,6 @@ CInstanceProcess::~CInstanceProcess()
 	for (UINT i = 0; i < m_VideoList.Num();++i)
 	{
 		VideoStruct &Video = m_VideoList[i];
-
-		
-		if (Video.Config)
-		{
-			if ((bLittlePre || (!IsLiveInstance && !Video.bGlobalStream)) && ConfigCB)
-			{
-				std::string StrConfig = Video.Config->toStyledString();
-				if (!StrConfig.empty())
-					ConfigCB((uint64_t)this, (uint64_t)Video.VideoStream.get(), StrConfig.c_str());
-			}
-			Video.Config.reset();
-		}
 
 		if (Video.VideoStream)
 		{
@@ -153,6 +221,11 @@ CInstanceProcess::~CInstanceProcess()
 		{
 			Video.VideoDevice->UnRegisterDataCallBack(this);
 			Video.VideoDevice.reset();
+		}
+
+		if (Video.Config)
+		{
+			Video.Config.reset();
 		}
 	}
 
@@ -246,6 +319,14 @@ CInstanceProcess::~CInstanceProcess()
 
 	if (MultiRender)
 		delete MultiRender;
+
+	if (bNewD3DSelf && D3DRender)
+	{
+		delete D3DRender;
+	}
+
+	if (__HttpLive)
+		delete __HttpLive;
 
 	OSCloseMutex(m_hMutexRawA);
 	OSCloseMutex(m_hMutexRawV);
@@ -375,7 +456,7 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 						RECT Rect;
 						GetClientRect(RenderHwnd, &Rect);
 						MultiRender = new CMultimediaRender;
-						MultiRender->SetVideoRender(RenderHwnd,Vect2(0, 0), Vect2(Rect.right, Rect.bottom));
+						MultiRender->SetVideoRender(Vect2(PreviewArea.left, PreviewArea.top), Vect2(PreviewArea.width, PreviewArea.height));
 					}
 					InVideoStruct.bGlobalStream = true;
 					OneVideo.VideoStream->BeginScene();
@@ -492,7 +573,7 @@ void CInstanceProcess::CreateStream(const Value& Jvalue, VideoArea *Area, uint64
 				if (MultiRender)
 					MultiRender->InitD3DReSize();
 
-				MultiRender->SetVideoRender(RenderHwnd, Vect2(0, 0), Vect2(Rect.right, Rect.bottom));
+				MultiRender->SetVideoRender(Vect2(PreviewArea.left, PreviewArea.top), Vect2(PreviewArea.width, PreviewArea.height));
 			}
 
 
@@ -1041,6 +1122,33 @@ void CInstanceProcess::DrawRender(Texture *PreTexture, Shader *VertexShader, Sha
 	}
 }
 
+void CInstanceProcess::DrawDb(Shader *PixShader)
+{
+
+	if (RightDb != -96 || LeftDb != -96)
+	{
+		D3DRender->LoadPixelShader(PixShader);
+
+
+		if (RightDb > -96 && RightDb <= 0)
+		{
+			UINT Height = PreviewArea.height / 96 * RightDb + PreviewArea.height;
+
+			D3DRender->DrawSpriteEx(DbTexture.get(), 0xFFFFFFFF, PreviewArea.left + PreviewArea.width - DbWidth, PreviewArea.top + PreviewArea.height - Height, PreviewArea.left + PreviewArea.width, PreviewArea.top + PreviewArea.height, 0.0f, 1.0f - (float)Height / PreviewArea.height, 1.0f, 1.0f);
+		}
+
+
+		if (LeftDb > -96 && LeftDb <= 0)
+		{
+			UINT Height = PreviewArea.height / 96 * LeftDb + PreviewArea.height;
+			UINT Width = DbWidth * 2 + 1;
+
+			D3DRender->DrawSpriteEx(DbTexture.get(), 0xFFFFFFFF, PreviewArea.left + PreviewArea.width - Width, PreviewArea.top + PreviewArea.height - Height, PreviewArea.left + PreviewArea.width - Width + DbWidth, PreviewArea.top + PreviewArea.height, 0.0f, 1.0f - (float)Height / PreviewArea.height, 1.0f, 1.0f);
+		}
+	}
+
+}
+
 void CInstanceProcess::ResizeRenderFrame(bool bRedrawRenderFrame)
 {
 	int curCX, curCY;
@@ -1090,6 +1198,37 @@ void CInstanceProcess::ResizeRenderFrame(bool bRedrawRenderFrame)
 	}
 }
 
+
+void GradualChangeColor(void *pDest,UINT Picth,UINT size)
+{
+	if (!pDest)
+		return;
+
+	DWORD StartColor = 0;
+	UINT Height = size / Picth;
+
+	DWORD *destQW = (DWORD*)pDest;
+	for (int j = 0; j < Height; ++j)
+	{
+		if (j <= Height / 2)
+		{
+			StartColor = (0xFF << 24) | (0xFF << 16) | ((BYTE)(255 * j * 2 / Height) << 8);
+		}
+		else
+		{
+			int Red = Height - j;
+			StartColor = (0xFF << 24) | ((255 * Red * 2 / Height ) << 16) | (0xFF << 8);
+		}
+		
+
+		for (int i = 0; i < Picth; i += 4)
+		{
+			*(destQW++) = StartColor;
+		}
+
+	}
+}
+
 void CInstanceProcess::BulidD3D()
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
@@ -1132,6 +1271,23 @@ void CInstanceProcess::BulidD3D()
 	outputCX_back &= 0xFFFFFFFC;
 	outputCY_back &= 0xFFFFFFFE;
 
+
+	if (!bLittlePre || (bLittlePre && !bNoPreView)) //只有PGM和PVW有Db
+	{
+		if (!bLittlePre)
+		{
+			DbWidth = 10;
+		}
+		else
+		{
+			DbWidth = 5;
+		}
+		LPBYTE pData = new BYTE[DbWidth * (int)PreviewArea.height * 4];
+		//生成渐变色
+		GradualChangeColor(pData, DbWidth * 4, DbWidth * (int)PreviewArea.height * 4);
+		DbTexture.reset(D3DRender->CreateTexture(DbWidth, (int)PreviewArea.height, GS_BGRA, pData, FALSE, FALSE));
+		delete [] pData;
+	}
 
 	ResizeRenderFrame(true);
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
@@ -1745,7 +1901,31 @@ void CInstanceProcess::BulidRtmpNetWork()
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 }
 
-void CInstanceProcess::StartLive(bool bRecordOnly)
+void CInstanceProcess::BulidThread()
+{
+	if (!bNewD3DSelf)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "%s 不是自己创建的D3D不能创建线程",__FUNCTION__);
+		return;
+	}
+
+	HVideoCapture = CreateThread(NULL, 0, VideoCapture, this, 0, NULL);
+
+	if (!HVideoCapture)
+	{
+		BUTEL_THORWERROR("%s HVideoCapture 线程创建失败", __FUNCTION__);
+	}
+
+	HAudioCapture = CreateThread(NULL, 0, AudioCapture, this, 0, NULL);
+
+	if (!HAudioCapture)
+	{
+		BUTEL_THORWERROR("%s HAudioCapture 线程创建失败", __FUNCTION__);
+	}
+
+}
+
+void CInstanceProcess::StartLive(bool bRecordOnly, bool bCreatRtmp)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
 
@@ -1758,7 +1938,7 @@ void CInstanceProcess::StartLive(bool bRecordOnly)
 	ListPublisher.clear();
 
 
-	if (!bLiveInstanceRecordOnly)
+	if (!bLiveInstanceRecordOnly && !bNewD3DSelf && bCreatRtmp) //不是自创建的D3DRender才推流
 	{
 		String URL = Asic2WChar(LiveParam.LiveSetting.LivePushUrl).c_str();
 
@@ -1951,6 +2131,10 @@ void CInstanceProcess::StopLive(bool bUI)
 	{
 		LiveParam.TipsCb(-100, " ");
 	}
+
+
+	bFristIn = true;
+	bFristOut = true;
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 }
@@ -2283,35 +2467,32 @@ void CInstanceProcess::SetParam(const SLiveParam *Param)
 
 		if (bChange)
 		{
-
-			if (IsLiveInstance)
+			int MaxWidth = LiveParam.LiveSetting.Width;
+			int MaxHeight = LiveParam.LiveSetting.Height;
+			if (LiveParam.LiveSetting.bUseLiveSec && (LiveParam.LiveSetting.WidthSec > LiveParam.LiveSetting.Width))
 			{
-				int MaxWidth = LiveParam.LiveSetting.Width;
-				int MaxHeight = LiveParam.LiveSetting.Height;
-				if (LiveParam.LiveSetting.bUseLiveSec && (LiveParam.LiveSetting.WidthSec > LiveParam.LiveSetting.Width))
-				{
-					MaxWidth = LiveParam.LiveSetting.WidthSec;
-					MaxHeight = LiveParam.LiveSetting.HeightSec;
-				}
-
-				EnterCriticalSection(&VideoSection);
-
-				for (int i = 0; i < m_VideoList.Num(); ++i)
-				{
-					VideoStruct &OneVideo = m_VideoList[i];
-
-					if (0 == strcmp(OneVideo.VideoStream->GainClassName(), "AgentSource"))
-					{
-						OneVideo.pos.x = MaxWidth * OneVideo.pos.x / baseCX;
-						OneVideo.pos.y = MaxHeight * OneVideo.pos.y / baseCY;
-						OneVideo.size.x = MaxWidth * OneVideo.size.x / baseCX;
-						OneVideo.size.y = MaxHeight * OneVideo.size.y / baseCY;
-					}
-				}
-
-				LeaveCriticalSection(&VideoSection);
-
+				MaxWidth = LiveParam.LiveSetting.WidthSec;
+				MaxHeight = LiveParam.LiveSetting.HeightSec;
 			}
+
+			EnterCriticalSection(&VideoSection);
+
+			for (int i = 0; i < m_VideoList.Num(); ++i)
+			{
+				VideoStruct &OneVideo = m_VideoList[i];
+
+				//if (0 == strcmp(OneVideo.VideoStream->GainClassName(), "AgentSource"))
+				{
+					OneVideo.pos.x = MaxWidth * OneVideo.pos.x / baseCX;
+					OneVideo.pos.y = MaxHeight * OneVideo.pos.y / baseCY;
+					OneVideo.size.x = MaxWidth * OneVideo.size.x / baseCX;
+					OneVideo.size.y = MaxHeight * OneVideo.size.y / baseCY;
+				}
+			}
+
+			LeaveCriticalSection(&VideoSection);
+
+			
 
 			bReBulid = true;
 		}
@@ -2325,14 +2506,20 @@ void CInstanceProcess::SetHwnd(uint64_t hwnd)
 	RenderHwnd = (HWND)hwnd;
 }
 
-void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgent)
+void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgent, bool bRemoveTop)
 {
 	std::vector<IBaseVideo *> vAgentListLocal;
 	std::vector<shared_ptr<IBaseVideo>> vAgentList;
 	EnterCriticalSection(&VideoSection);
-	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	for (UINT i = 0; i < m_VideoList.Num();)
 	{
 		VideoStruct &Video = m_VideoList[i];
+
+		if (!bRemoveTop && Video.bTop)
+		{
+			++i;
+			continue;
+		}
 
 		//在ClearAudio时已经SetLiveInstance设置
 // 		if (m_VideoList[i].AudioStream)
@@ -2455,8 +2642,10 @@ void CInstanceProcess::ClearVideo(bool bRemoveDelay, bool bCut, bool bCanAddAgen
 		}
 		if (Video.VideoDevice)
 			Video.VideoDevice.reset();
+
+		m_VideoList.Remove(i);
 	}
-	m_VideoList.Clear();
+	//m_VideoList.Clear();
 	LeaveCriticalSection(&VideoSection);
 
 	//要在m_VideoList.Clear()之后进行
@@ -2663,11 +2852,11 @@ void CInstanceProcess::CreateLittleRenderTarget()
 	//LittleRenderTarget = D3DRender->CreateRenderTarget(Rect.right, Rect.bottom, GS_RGBA, FALSE);
 }
 
-void CInstanceProcess::DrawLittlePreview()
+void CInstanceProcess::DrawLittlePreview(Shader *VertShader, Shader *PixShader)
 {
 	if (MultiRender /*&& MultiRender->texture*/)
 	{
-		MultiRender->RenderTexture();
+		MultiRender->RenderTexture(VertShader,PixShader);
 	}
 }
 
@@ -3782,5 +3971,521 @@ void CInstanceProcess::ClearVideoTop()
 		
 	}
 	LeaveCriticalSection(&VideoSection);
+}
+
+bool CInstanceProcess::CreateD3DRender()
+{
+	D3DRender = new D3DAPI(LiveParam.DeviceSetting.AdpterID);
+
+	if (!D3DRender)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "%s new D3DApi failed!", __FUNCTION__);
+		return false;
+	}
+
+
+	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	{
+		m_VideoList[i].VideoStream->SetD3DRender(D3DRender);
+	}
+
+	mainVertexShader.reset(D3DRender->CreateVertexShaderFromFile(TEXT("shaders/DrawTexture.vShader")));
+
+	if (!mainVertexShader)
+	{
+		BUTEL_THORWERROR("加载mainVertexShader失败");
+	}
+
+
+	mainPixelShader.reset(D3DRender->CreatePixelShaderFromFile(TEXT("shaders/DrawTexture.pShader")));
+
+	if (!mainPixelShader)
+	{
+		BUTEL_THORWERROR("加载mainPixelShader失败");
+	}
+
+	yuvScalePixelShader.reset(D3DRender->CreatePixelShaderFromFile(TEXT("shaders/DownscaleBilinear1YUV.pShader")));
+	if (!yuvScalePixelShader)
+	{
+		BUTEL_THORWERROR("加载yuvScalePixelShader失败");
+	}
+
+
+	for (int i = 0; i < 2; ++i)
+	{
+		mainRenderTextures[i].reset(D3DRender->CreateRenderTarget(baseCX, baseCY, GS_BGRA, FALSE));
+	}
+
+	yuvRenderTextures.reset(D3DRender->CreateRenderTarget(outputCX, outputCY, GS_BGRA, FALSE));
+
+
+	copyTextures.reset(D3DRender->CreateTextureRead(outputCX, outputCY));
+
+	bNewD3DSelf = true;
+
+	return true;
+}
+
+DWORD WINAPI CInstanceProcess::VideoCapture(LPVOID Param)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s 线程invode begin!",__FUNCTION__);
+
+	CInstanceProcess *pThis = (CInstanceProcess *)(Param);
+
+	pThis->VideoCaptureLoop();
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s 线程invode end!", __FUNCTION__);
+	return 0;
+}
+
+DWORD WINAPI CInstanceProcess::AudioCapture(LPVOID Param)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s 线程invode begin!", __FUNCTION__);
+	CInstanceProcess *pThis = (CInstanceProcess *)(Param);
+	pThis->AudioCaptureLoop();
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s 线程invode end!", __FUNCTION__);
+	return 0;
+}
+
+void CInstanceProcess::VideoCaptureLoop()
+{
+	QWORD frameTimeNS = 1000000000 / LiveParam.LiveSetting.FPS;
+
+	HANDLE hMatrix = yuvScalePixelShader->GetParameterByName(TEXT("yuvMat"));
+	HANDLE hScaleVal = yuvScalePixelShader->GetParameterByName(TEXT("baseDimensionI"));
+
+	int CopyI = 0;
+	Vect2 baseSize = Vect2(float(baseCX), float(baseCY));
+	x264_picture_t* outPics[2] = { NULL };
+
+	for (int i = 0; i < 2; ++i)
+	{
+		outPics[i] = new x264_picture_t;
+		x264_picture_init(outPics[i]);
+		x264_picture_alloc(outPics[i], X264_CSP_NV12, outputCX, outputCY);
+
+	}
+
+
+	int FrameCount = 0;
+
+	QWORD LastVideoTimeNS = 0;
+	QWORD lastStreamTime = 0;
+	double bpsTime = 0.0;
+	int swapIndex = 0;
+	QWORD StartStreamTime = GetQPCMS();
+	QWORD sleepTargetTime = GetQPCNS();
+	QWORD CurrentVideoTime = 0;
+	QWORD StartVideoTime = 0;
+	int FPSCount = 0;
+
+
+	bool bFirst = true;
+	while (bRunning)
+	{
+		frameTimeNS = 1000000000 / LiveParam.LiveSetting.FPS;
+		if (!bRunning)
+			break;
+
+		QWORD StartTime = GetQPCMS();
+
+		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
+
+		LastVideoTimeNS = sleepTargetTime;
+
+		QWORD curStreamTime = LastVideoTimeNS;
+		if (!lastStreamTime)
+			lastStreamTime = curStreamTime - frameTimeNS;
+
+		QWORD frameDelta = curStreamTime - lastStreamTime;
+
+		double fSeconds = double(frameDelta)*0.000000001;
+
+
+		EnterCriticalSection(&VideoSection);
+		//------------------------------------
+		// render the mini render texture
+
+		SetHasPreProcess(false);
+
+		DrawPreProcess(fSeconds);
+		//profileOut
+
+		D3DRender->LoadVertexShader(mainVertexShader.get());
+		D3DRender->LoadPixelShader(mainPixelShader.get());
+
+		D3DRender->Ortho(0.0f, baseCX, baseCY, 0.0f, -100.0f, 100.0f);
+		D3DRender->SetViewport(0, 0, baseCX, baseCY);// 一定要在PreProcess之后
+
+		D3DRender->SetRenderTarget(mainRenderTextures[swapIndex].get());
+		DrawRender(mainRenderTextures[swapIndex].get(), mainVertexShader.get(), mainPixelShader.get());
+
+		LeaveCriticalSection(&VideoSection);
+
+
+		bpsTime += fSeconds;
+
+		if (bpsTime >= 1.0f)
+		{
+			//FPS = FrameCount;
+			FrameCount = 0;
+
+			//LastVideoTimeNS = 0;
+			if (bpsTime > 2.0f)
+			{
+				bpsTime = 0.0f;
+			}
+			else
+			{
+				bpsTime -= 1.0f;
+			}
+		}
+
+		++FrameCount;
+		//++FPSCount;
+
+		HRESULT result;
+		try{
+
+			if (bStartLive)
+			{
+				//profileIn("MainVideoLoop bStartLive")
+				D3DRender->LoadVertexShader(mainVertexShader.get());
+				D3DRender->LoadPixelShader(yuvScalePixelShader.get());
+
+				D3DRender->SetRenderTarget(yuvRenderTextures.get());
+
+		
+				yuvScalePixelShader->SetMatrix(hMatrix, (float*)yuvMat[5]);
+				
+				yuvScalePixelShader->SetVector2(hScaleVal, 1.0f / baseSize);
+
+
+				D3DRender->Ortho(0.0f, outputCX, outputCY, 0.0f, -100.0f, 100.0f);
+				D3DRender->SetViewport(0.0f, 0.0f, outputCX, outputCY);
+
+				D3DRender->DrawSprite(mainRenderTextures[swapIndex].get(), 0xFFFFFFFF, 0.0f, 0.0f, outputCX, outputCY);
+
+
+				BYTE *lpData;
+				UINT Pitch;
+				D3DRender->CopyTexture(copyTextures.get(), yuvRenderTextures.get());
+
+				if (FAILED(result = D3DRender->Map(copyTextures.get(), lpData, Pitch)))
+				{
+					BUTEL_THORWERROR("Map Failed! ");
+				}
+
+				Convert444toNV12((LPBYTE)lpData, outputCX, Pitch, outputCX, outputCY, 0, outputCY, outPics[swapIndex]->img.plane);
+				D3DRender->Unmap(copyTextures.get());
+
+				//InterlockedExchangePointer((volatile PVOID*)&Outpic, outPics[swapIndex]);
+
+
+				FrameProcessInfo ProcessInfo;
+
+				if (bfirstTimeStamp)
+				{
+					CurrentVideoTime = 0;
+					StartVideoTime = GetQPCNS();
+					bfirstTimeStamp = false;
+
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个视频时间戳1111 %llu", StartVideoTime / 1000000);
+				}
+				else
+				{
+					CurrentVideoTime = (GetQPCNS() - StartVideoTime) / 1000000;
+				}
+
+				ProcessInfo.firstFrameTime = StartVideoTime / 1000000;
+				ProcessInfo.frameTimestamp = CurrentVideoTime;
+				if (bStartLive)
+				{
+					ProcessInfo.pic = outPics[swapIndex];
+					ProcessInfo.pic->i_pts = CurrentVideoTime;
+				}
+				else
+				{
+					ProcessInfo.pic = NULL;
+				}
+
+
+				EnterCriticalSection(&NetWorkSection);
+				ProcessFrame(ProcessInfo);
+				LeaveCriticalSection(&NetWorkSection);
+
+			}
+		}
+		catch (...)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "Map Failed!");
+		}
+
+
+		D3DRender->Flush();
+
+		lastStreamTime = curStreamTime;
+
+		++swapIndex %= 2;
+
+		Sleep2NS(sleepTargetTime += frameTimeNS / 2);
+
+	}
+
+	EnterCriticalSection(&NetWorkSection);
+	bOutPicDel = true;
+	for (int i = 0; i < 2; ++i)
+	{
+		if (outPics[i])
+		{
+			delete outPics[i];
+			outPics[i] = NULL;
+		}
+	}
+	LeaveCriticalSection(&NetWorkSection);
+
+}
+
+void CInstanceProcess::AudioCaptureLoop()
+{
+	unsigned int audioSamplesPerSec = LiveParam.LiveSetting.AudioSampleRate;
+	unsigned int audioSampleSize = audioSamplesPerSec / 100;
+
+
+	List<float> mixBuffer;
+	mixBuffer.SetSize(audioSampleSize * 2);
+
+	List<float> leftaudioData;
+	List<float> rightaudioData;
+	leftaudioData.SetSize(audioSampleSize);
+	rightaudioData.SetSize(audioSampleSize);
+
+
+	UINT audioFramesSinceMeterUpdate = 0;
+	QWORD StartAudio = GetQPCMS();
+	int AudioCount = 0;
+	while (bRunning)
+	{
+		if (QueryNewAudio())
+		{
+			QWORD &timestamp = bufferedAudioTimes[0];
+			bufferedAudioTimes.Remove(0);
+
+
+			zero(mixBuffer.Array(), audioSampleSize * 2 * sizeof(float));
+			zero(rightaudioData.Array(), audioSampleSize * sizeof (float));
+			zero(leftaudioData.Array(), audioSampleSize * sizeof (float));
+
+			//profileIn("MainAudioLoop MixAudio")
+
+			EnterCriticalSection(&AudioSection);
+
+			for (UINT i = 0; i < m_AudioList.Num(); ++i) {
+				float *auxBuffer;
+				if (m_AudioList[i].PreviewAudio && m_AudioList[i].PreviewAudio->GetBuffer(&auxBuffer, timestamp, IsLiveInstance))
+				{
+					MixAudio(mixBuffer.Array(), auxBuffer, audioSampleSize * 2, false);
+				}
+			}
+
+			LeaveCriticalSection(&AudioSection);
+
+			if (bStartLive)
+			{
+				EncodeAudioSegment(mixBuffer.Array(), audioSampleSize, timestamp);
+				if (bFristAudioEncode)
+				{
+					bFristAudioEncode = false;
+					Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:第一个音频时间戳1111 %llu", timestamp);
+				}
+			}
+			else
+			{
+				EnterCriticalSection(&SoundDataMutex);
+				for (UINT i = 0; i < pendingAudioFrames.Num(); ++i)
+					pendingAudioFrames[i].audioData.Clear();
+				pendingAudioFrames.Clear();
+				LeaveCriticalSection(&SoundDataMutex);
+			}
+		}
+		else
+		{
+			Sleep(5);
+		}
+
+	}
+
+
+		EnterCriticalSection(&SoundDataMutex);
+		for (UINT i = 0; i < pendingAudioFrames.Num(); ++i)
+			pendingAudioFrames[i].audioData.Clear();
+		pendingAudioFrames.Clear();
+		LeaveCriticalSection(&SoundDataMutex);
+	
+}
+
+void CInstanceProcess::StopThread()
+{
+	if (HVideoCapture)
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待窗口视频采集线程退出!");
+		if (WAIT_TIMEOUT == WaitForSingleObject(HVideoCapture, 5000))
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:窗口视频采集线程等待退出超过5000,强杀!");
+			TerminateThread(HVideoCapture, 0);
+		}
+		CloseHandle(HVideoCapture);
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:窗口视频采集线程退出!");
+	}
+
+	if (HAudioCapture)
+	{
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待窗口音频采集线程退出!");
+		if (WAIT_TIMEOUT == WaitForSingleObject(HAudioCapture, 5000))
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:窗口音频采集线程等待退出超过5000,强杀!");
+			TerminateThread(HAudioCapture, 0);
+		}
+		CloseHandle(HAudioCapture);
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:窗口音频采集线程退出!");
+	}
+}
+
+void CInstanceProcess::SetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio)
+{
+	bNeedPVW = bNeedPVMAudio;
+	bNeedPGM = bNeedPGMAudio;
+}
+
+void CInstanceProcess::DoMixOpenAndFollowOpen(AudioStruct& Audio)
+{
+	bool bInSences = false;
+	EnterCriticalSection(&VideoSection);
+	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	{
+		if ((uint64_t)m_VideoList[i].AudioStream == (uint64_t)Audio.AudioStream.get())
+		{
+			bInSences = true;
+			break;
+		}
+	}
+	LeaveCriticalSection(&VideoSection);
+
+	if (bInSences)
+	{
+		//加入音频
+		DoMixOpen(Audio);
+	}
+	else
+	{
+		//去掉音频
+		DoMixClose(Audio);
+	}
+}
+
+void CInstanceProcess::DoMixOpen(AudioStruct& Audio)
+{
+	EnterCriticalSection(&AudioSection);
+	//加入音频
+	bool bFind = false;
+
+	for (UINT j = 0; j < m_AudioList.Num(); ++j)
+	{
+		if ((uint64_t)m_AudioList[j].AudioStream.get() == (uint64_t)Audio.AudioStream.get())
+		{
+			bFind = true;
+			break;
+		}
+	}
+
+	if (!bFind)
+	{
+		m_AudioList.SetSize(m_AudioList.Num() + 1);
+		AudioStruct &AS = m_AudioList[m_AudioList.Num() - 1];
+		AS = Audio;
+
+		if (IsLiveInstance)
+		{
+			AS.AudioStream->SetLiveInstance(true);
+		}
+	}
+	LeaveCriticalSection(&AudioSection);
+}
+
+void CInstanceProcess::DoMixClose(AudioStruct& Audio)
+{
+	EnterCriticalSection(&AudioSection);
+
+	for (UINT j = 0; j < m_AudioList.Num(); ++j)
+	{
+		if ((uint64_t)m_AudioList[j].AudioStream.get() == (uint64_t)Audio.AudioStream.get())
+		{
+
+			if (IsLiveInstance)
+			{
+				m_AudioList[j].AudioStream->SetLiveInstance(false);
+			}
+
+			m_AudioList[j].AudioStream.reset();
+
+			if (m_AudioList[j].Config)
+				m_AudioList[j].Config.reset();
+
+			m_AudioList.Remove(j);
+			break;
+		}
+	}
+
+	LeaveCriticalSection(&AudioSection);
+}
+
+void CInstanceProcess::RemoveMixOpenFollowoOpenAndNoInSences()
+{
+	EnterCriticalSection(&AudioSection);
+
+	for (UINT j = 0; j < m_AudioList.Num();)
+	{
+		AudioStruct &Audio = m_AudioList[j];
+		if (Audio.MixOpen && Audio.FollowOpen)
+		{
+			bool bInSences = false;
+			EnterCriticalSection(&VideoSection);
+			for (UINT i = 0; i < m_VideoList.Num(); ++i)
+			{
+				if ((uint64_t)m_VideoList[i].AudioStream == (uint64_t)Audio.AudioStream.get())
+				{
+					bInSences = true;
+					break;
+				}
+			}
+			LeaveCriticalSection(&VideoSection);
+
+			if (!bInSences)
+			{
+				if (IsLiveInstance)
+				{
+					m_AudioList[j].AudioStream->SetLiveInstance(false);
+				}
+
+				m_AudioList[j].AudioStream.reset();
+
+				if (m_AudioList[j].Config)
+					m_AudioList[j].Config.reset();
+
+				m_AudioList.Remove(j);
+			}
+			else
+			{
+				++j;
+			}
+			
+		}
+		else
+		{
+			++j;
+		}
+	}
+
+	LeaveCriticalSection(&AudioSection);
 }
 

@@ -14,7 +14,6 @@
 #include "Deinterlacer.h"
 #include "D3DResize.h"
 
-
 using namespace Json;
 
 #ifndef LOG_RTSPSERV
@@ -402,4 +401,5 @@ API_EXPORT void LeaveLiveVideoSection();
 API_EXPORT void ChangeLiveInstanceSameAsLocalInstance(IBaseVideo *Video);
 API_EXPORT D3DAPI *GetD3DRender();
 API_EXPORT bool IsSupportRecord(const TCHAR *DisplayName);
+API_EXPORT int GetCurrentFPS();
 #endif

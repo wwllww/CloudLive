@@ -23,6 +23,13 @@ private:
 	friend class MemStack;
 };
 
+typedef struct ThreadParam
+{
+	CSLiveManager *Manger;
+	bool bLiveInstance;
+}ThreadParam;
+
+
 class MemStack {
 private:
 	MemInfo* head;
@@ -43,18 +50,19 @@ class CSLiveManager
 	friend struct SharedDevice;
 	friend class  X264Encoder;
 	friend class DelayedPublisher;
-public:
 	CSLiveManager();
 	~CSLiveManager();
-
+public:
+	
 	static CSLiveManager *GetInstance();
+	static void InitException();
 
 	//接口调用
 	int SLiveInit(const SLiveParam *Param);
 	static void SLiveRelese();
 	void ShutDown();
 	int SLiveSetParam(const SLiveParam *Param);
-	int SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool bLiveIntance, bool bLittlePre);
+	int SLiveCreateInstance(uint64_t *iIntanceID, VideoArea *PreArea, bool bLiveIntance, bool bLittlePre);//把hwnd改成在画布上渲染的位置
 	int SLiveDestroyInstance(uint64_t iIntanceID);
 	int SLiveAddStream(uint64_t iIntanceID, const char* cParamJson, VideoArea *Area, uint64_t *StreamID1, uint64_t *StreamID2 = NULL);
 	int SLiveDelStream(uint64_t iIntanceID, uint64_t iStreamID);
@@ -88,7 +96,7 @@ public:
 	int SLiveSwitchInstance(uint64_t iIntanceID_S, uint64_t iIntanceID_D, TransFormType Type, UINT TransTime);
 	int SLiveAdd2Intance(uint64_t iIntanceID_S, uint64_t iIntanceID_D, VideoArea *Area, bool bRender);
 	int SLiveConfigStream(uint64_t iIntanceID, uint64_t iStreamID, const char *cJson);
-	int SLiveClearIntances(uint64_t iIntanceID);
+	int SLiveClearIntances(uint64_t iIntanceID,bool bRemoveTop);
 	int SLiveReNameStream(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName);
 	int SLiveAdd2Agent(const char *StreamName, bool bAdd2PGM);
 	int SLiveGetStreamSize(uint64_t iIntanceID, uint64_t StreamID, UINT *Width, UINT *Height);
@@ -116,6 +124,9 @@ public:
 	int SLiveSetTopest(uint64_t iInstansID, uint64_t iStreamID, bool bTopest);
 
 	int SLiveQueryHardEncodeSupport();
+	int SLiveSetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio);
+	int SLiveSetAudioMixAndFollow(uint64_t iInstansID, uint64_t iStreamID, int Mix, int Follow, bool bUseMix);
+	int SLiveSetOpacity(uint64_t iInstansID, uint64_t iStreamID, DWORD Opacity);
 
 	int ReNameStreamSec(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName);
 	//内部使用
@@ -142,13 +153,13 @@ public:
 
 	//实现函数
 	void MainVideoLoop();
-	void MainAudioLoop();
-	void VideoEncoderLoop();
+	void MainAudioLoop(bool bLiveInstance);
+	void VideoEncoderLoop(bool bLiveInstance);
 	void VideoEncoderLoop_back();
 	void CheckStatus();
 	void RenderLittlePreview();
 
-	bool ManagerInit(uint64_t hwnd);
+	bool ManagerInit();
 
 	void BulidD3D();
 
@@ -183,6 +194,10 @@ public:
 	bool FindVideoInLiveIntance(IBaseAudio *Audio);
 
 	int GetHardEncoderType() const;
+	int GetCurrentFPS() const;
+	void AddPreviewInstanceAudio(IBaseAudio *Audio);
+	void RemovePreviewInstanceAudio(IBaseAudio *Audio);
+	void SetPreviewLittlePlay(IBaseAudio *Audio,bool bPlay);
 
 public:
 	static MemStack *mem_stack;
@@ -194,6 +209,7 @@ public:
 	UINT    baseCX, baseCY, baseCX_back, baseCY_back;
 
 	CInstanceProcess *LiveInstance;
+	CInstanceProcess *PreviewInstance;
 	ColorDescription colorDesc;
 private:
 	string ErrMsg;
@@ -218,8 +234,8 @@ private:
 	bool bCanSecondCheck;
 
 	HANDLE HVideoCapture;
-	HANDLE HAudioCapture;
-	HANDLE HVideoEncoder, HVideoEncoder_back;
+	HANDLE HAudioCapture[2];
+	HANDLE HVideoEncoder[2], HVideoEncoder_back;
 	HANDLE HLittlePreview;
 	HANDLE hVideoEvent, hVideoEvent_back,hVideoComplete;
 
@@ -234,13 +250,17 @@ private:
 
 	Texture *copyTextures,*copyTextures_back;
 	Texture *mainRenderTextures[2];
-	Texture *PreRenderTexture;
 	Texture *yuvRenderTextures, *yuvRenderTextures_back;
 	Texture *transitionTexture;
-	unique_ptr<Texture> transitionAddress;
 	Texture *transNewTexture;
 	Texture *copyRGBTexture;
 	Texture *SDITexture;
+
+	Texture *PreRenderTexture;
+	unique_ptr<Texture> MixRenderTarget;
+	unique_ptr<Texture> MixCopyTexture;
+	unique_ptr<Texture> MixyuvRenderTexture;
+	unique_ptr<Texture> transitionAddress;
 
 	//timestamp
 	QWORD CurrentVideoTime;
@@ -263,6 +283,7 @@ private:
 
 	x264_picture_t * volatile Outpic;
 	x264_picture_t * volatile Outpic_back;
+	x264_picture_t * volatile MixOutpic;
 
 	bool  bUseBack;
 	
@@ -304,6 +325,8 @@ private:
 	DeinterlacerConfig DeinterConfig;
 	bool bNeedAgentInPGM;
 
+	ThreadParam EncoderThreadParam[2];
+	ThreadParam AudioThreadParam[2];
 };
 
 #endif

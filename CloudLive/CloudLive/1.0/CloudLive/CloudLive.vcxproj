@@ -136,7 +136,7 @@
       <SDLCheck>false</SDLCheck>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StructMemberAlignment>Default</StructMemberAlignment>
-      <AdditionalIncludeDirectories>..\..\..\..\UltraLiveApi\v1.1\;..\json\;Z:\Log_writer;Z:\tbb;Z:\AsynIoControl;Z:\BaseLibrary\GMHelper</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\..\UltraLiveApi\v1.1\;..\json\;Z:\Log_writer;Z:\tbb;Z:\AsynIoControl;Z:\BaseLibrary\GMHelper;Z:\Cur64bit\include\Curl;</AdditionalIncludeDirectories>
       <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
@@ -145,7 +145,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>Z:\rlib_X64</AdditionalLibraryDirectories>
-      <AdditionalDependencies>UltraliveApi.lib;json_vc71_libmt.lib;AsynIoControl.lib;Ws2_32.lib;libcurl.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>UltraliveApi.lib;json_vc71_libmt.lib;libcurl.lib;AsynIoControl.lib;Ws2_32.lib;libcurl.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;Iphlpapi.lib;Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -164,6 +164,7 @@
     <ClInclude Include="..\IAgent.h" />
     <ClInclude Include="..\IExeAgent.h" />
     <ClInclude Include="..\IRealAgent.h" />
+    <ClInclude Include="..\MD5.h" />
     <ClInclude Include="..\OPject.h" />
     <ClInclude Include="..\PArry.h" />
     <ClInclude Include="..\Requse.h" />
@@ -184,6 +185,7 @@
     <ClCompile Include="..\IAgent.cpp" />
     <ClCompile Include="..\IExeAgent.cpp" />
     <ClCompile Include="..\IRealAgent.cpp" />
+    <ClCompile Include="..\MD5.cpp" />
     <ClCompile Include="..\OPject.cpp" />
     <ClCompile Include="..\Parry.cpp" />
     <ClCompile Include="..\Requse.cpp" />

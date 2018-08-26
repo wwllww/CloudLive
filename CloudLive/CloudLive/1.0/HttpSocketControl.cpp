@@ -40,11 +40,11 @@ void CTCPSocketControl::on_tcp_accept(AsynIoErr st, AIOID id, const AioAddrPair 
 
 void CTCPSocketControl::on_tcp_connect(AsynIoErr st, AIOID id, const AioAddrPair &addr, ULL64 ctx1, ULL64 ctx2)
 {
+	__PDATAINFO DataInfo = (__PDATAINFO)ctx2;
+	CHttpNetWork *NetWork = (CHttpNetWork*)ctx1;
+
 	if (st == AIO_SUC)
 	{
-		__PDATAINFO DataInfo = (__PDATAINFO)ctx2;
-		CHttpNetWork *NetWork = (CHttpNetWork*)ctx1;
-
 		NetWork->TcpControl->asyn_write(id, (char*)DataInfo->buf, strlen((char*)DataInfo->buf), (ULL64)NetWork, (ULL64)DataInfo);
 
 		if (addr.m_raddr.m_ip == ntohl(inet_addr(NetWork->ServerIp.c_str())))
@@ -54,6 +54,7 @@ void CTCPSocketControl::on_tcp_connect(AsynIoErr st, AIOID id, const AioAddrPair
 	}
 	else
 	{
+		NetWork->ResetDataBuf(DataInfo);
 		Log::writeMessage(562949953421312, 1, " %s on_tcp_connect Failed! LastError: %d, st = %d", __FUNCTION__, WSAGetLastError(), st);
 	}
 }

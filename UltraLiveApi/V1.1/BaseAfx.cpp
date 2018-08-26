@@ -16,10 +16,10 @@ extern HWND G_MainHwnd;
 #pragma message("new(__FILE__,__LINE__)")
 #endif
 const int Max_Num = 1024;
-static CreateOBJ g_DCreateOBJ[Max_Num] = { 0 };
+CreateOBJ g_DCreateOBJ[Max_Num] = { 0 };
 int CreateOBJ::TotalCount = 0;
 
-static CreateOBJFilter g_DCreateOBJFilter[Max_Num] = { 0 };
+CreateOBJFilter g_DCreateOBJFilter[Max_Num] = { 0 };
 int CreateOBJFilter::TotalCount = 0;
 
 LARGE_INTEGER clockFre;
@@ -347,7 +347,7 @@ std::string WcharToAnsi(const std::wstring& strSrc)
 {
 	if (strSrc.empty())
 	{
-		return 0;
+		return "";
 	}
 
 	int nSize = WideCharToMultiByte(CP_ACP, 0, (LPCWSTR)strSrc.c_str(), strSrc.length(), 0, 0, NULL, NULL);
@@ -1175,7 +1175,6 @@ void LocalizeWindow(HWND hwnd, LocaleStringLookup *lookup)
 		SetWindowText(hwnd, lookup->LookupString(strText));
 
 	//-------------------------------
-
 	RECT rect = { 0 };
 	GetClientRect(hwnd, &rect);
 
@@ -1262,6 +1261,11 @@ bool IsSupportRecord(const TCHAR *DisplayName)
 		}
 	}
 	return bSupport;
+}
+
+int GetCurrentFPS()
+{
+	return CSLiveManager::GetInstance()->GetCurrentFPS();
 }
 
 LocaleStringLookup::LocaleStringLookup()

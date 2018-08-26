@@ -1,12 +1,15 @@
 #include "WebInterfaceProcess.h"
 #include <string>
+#include "MD5.h"
+#include<iphlpapi.h>
+#include <shlwapi.h>
 
 #pragma warning(disable:4244)
 
 #define POSTCONFIGFILE "/bcs/internal/updatesencefile"
 
 IMPLEMENT_DYNIC(WebInterFaceProcess)
-BEGIN_REGIST_CLASS(WebInterFaceProcess, 25)
+BEGIN_REGIST_CLASS(WebInterFaceProcess, 27)
 //1-5
 F1_REGIST_CLASS("initswitcher", WebInterFaceProcess, WebInterFaceProcess::CloudInitSwitcher)
 F1_REGIST_CLASS("closeswitcher", WebInterFaceProcess, WebInterFaceProcess::CloudCloseSwitcher)
@@ -42,7 +45,29 @@ F1_REGIST_CLASS("startaudiomonitor", WebInterFaceProcess, WebInterFaceProcess::C
 F1_REGIST_CLASS("stopaudiomonitor", WebInterFaceProcess, WebInterFaceProcess::CloudStopAudioMonitor)
 F1_REGIST_CLASS("setaudiomix", WebInterFaceProcess, WebInterFaceProcess::CloudSetAudioMix)
 
+//26-30
+F1_REGIST_CLASS("emergencyswitch", WebInterFaceProcess, WebInterFaceProcess::CloudEmergencySwitch)
+F1_REGIST_CLASS("setaudiofollow", WebInterFaceProcess, WebInterFaceProcess::CloudSetAudioFollow)
+
 END_REGIST_CLASS(WebInterFaceProcess)
+
+inline int getFileExtension(char *filename, char **extension)
+{
+	int string_length = (int)strlen(filename);
+
+	while (filename[string_length--] != '.') {
+		if (string_length == 0)
+			break;
+	}
+	if (string_length > 0) string_length += 2;
+
+	if (string_length == 0)
+		*extension = NULL;
+	else
+		*extension = &filename[string_length];
+
+	return string_length;
+}
 
 WebInterFaceProcess::WebInterFaceProcess() :bHasInit(false)
 {
@@ -58,7 +83,7 @@ WebInterFaceProcess::WebInterFaceProcess() :bHasInit(false)
 	EffectType[8] = Clock;
 	BackupIndex = -1;
 	bLiving = false;
-	bPlayPGM = false;
+	bPlayPGM = true;
 	bPlayPVW = false;
 	PGMVolum = 1.0f;
 }
@@ -177,23 +202,35 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 		BUTEL_THORWERROR("Json Parse Failed! %s",pJsonStart + 4);
 	}
 
-	CloudId = jParamValue["cloudswitcherid"].asCString();
+
+	if (jParamValue["cloudswitcherid"].isNull())
+	{
+		BUTEL_THORWERROR("cloudswitcherid is empty %s", pJsonStart + 4);
+	}
+
+	CloudId = jParamValue["cloudswitcherid"].asString();
 
 	if (CloudId.empty())
 	{
 		BUTEL_THORWERROR("cloudswitcherid is empty %s",pJsonStart + 4);
 	}
 
-	Token = jParamValue["token"].asCString();
+
+	if (jParamValue["token"].isNull())
+	{
+		BUTEL_THORWERROR("token is empty %s", pJsonStart + 4);
+	}
+
+	Token = jParamValue["token"].asString();
 
 	if (Token.empty())
 	{
 		BUTEL_THORWERROR("token is empty %s", pJsonStart + 4);
 	}
 	
-	std::string Cofig = jParamValue["sencefile"].asCString();
+	bool IsObject = jParamValue["sencefile"].isObject();
 
-	if (Cofig.empty())
+	if (!IsObject)
 	{
 		//加载默认场景
 		SencesConfig = CHttpNetWork::GetInstance()->GetDefaultSences();
@@ -201,7 +238,68 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 	else
 	{
 		SencesConfig = jParamValue["sencefile"];
+
+		if (SencesConfig["scenes"].isNull())
+		{
+			Log::writeError(LOG_RTSPSERV,1," %s sencefile 中没有 scenes字段,加载默认场景文件",__FUNCTION__);
+
+			SencesConfig = CHttpNetWork::GetInstance()->GetDefaultSences();
+		}
 	}
+
+// 	if (jParamValue["sencefile"].isNull())
+// 	{
+// 		//加载默认场景
+// 		SencesConfig = CHttpNetWork::GetInstance()->GetDefaultSences();
+// 	}
+// 	else
+// 	{
+// 		std::string cSenceFile = jParamValue["sencefile"].asCString();
+// 
+// 		if (cSenceFile.empty())
+// 		{
+// 			//加载默认场景
+// 			SencesConfig = CHttpNetWork::GetInstance()->GetDefaultSences();
+// 		}
+// 		else
+// 		{
+// 
+// 			if (!jReader.parse(cSenceFile.c_str(), SencesConfig))
+// 			{
+// 				BUTEL_THORWERROR("场景文件解析失败 %s", cSenceFile.c_str());
+// 			}
+// 
+// 			if (SencesConfig["scenes"].isNull())
+// 			{
+// 				Log::writeError(LOG_RTSPSERV, 1, " %s sencefile 中没有 scenes字段,加载默认场景文件", __FUNCTION__);
+// 
+// 				SencesConfig = CHttpNetWork::GetInstance()->GetDefaultSences();
+// 			}
+// 		}
+// 	}
+
+	if (jParamValue["layout"].isNull())
+	{
+		BUTEL_THORWERROR("layout字段为空 %s", pJsonStart + 4);
+	}
+
+
+// 	std::string &strLayOut = jParamValue["layout"].asString();
+// 
+// 	if (strLayOut.empty())
+// 	{
+// 		BUTEL_THORWERROR("LayOut 内容为空");
+// 	}
+// 
+// 	std::string JsonLayOut = "{";
+// 	JsonLayOut += strLayOut;
+// 	JsonLayOut += "}";
+// 
+// 	Json::Value vLayout;
+// 	if (!jReader.parse(JsonLayOut.c_str(), vLayout))
+// 	{
+// 		BUTEL_THORWERROR("layout解析失败 %s", JsonLayOut.c_str());
+// 	}
 
 	Json::Value &AudioParam = SencesConfig["encodeparam"]["audioparam"];
 	Json::Value &VideoParam = SencesConfig["encodeparam"]["videoparam"];
@@ -247,7 +345,18 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 	LiveParam.LiveSetting.bUseBackPushSec = false;
 	LiveParam.LiveSetting.bUseCBR = true;
 	LiveParam.LiveSetting.bUseCBRSec = true;
-	LiveParam.LiveSetting.bUseHardEncoder = false;
+
+	int EnodeType = SLiveQueryHardEncodeSupport();
+
+	if (EnodeType == 1 || EnodeType == 3)
+		LiveParam.LiveSetting.bUseHardEncoder = true;
+	else
+	{
+		LiveParam.LiveSetting.bUseHardEncoder = false;
+	}
+
+	LiveParam.HardEncoderType = EnodeType;
+
 	if (LiveStreamParam.size() > 0)
 		LiveParam.LiveSetting.DelayTime = LiveStreamParam[UINT(0)]["livedelaytime"].asInt();
 	else
@@ -311,7 +420,32 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 
 	strcpy_s(LiveParam.DeviceSetting.MonitorDevice, "停用");
 	strcpy_s(LiveParam.DeviceSetting.ScrProDevice, "停用");
+
 	LiveParam.DeviceSetting.AdpterID = 0;
+	//选择显卡
+	char *DisplayDevice = NULL;
+	if (0 == SLiveDisplayDevices(&DisplayDevice))
+	{
+		Json::Reader ReaderDvice;
+		Json::Value ValueDevice;
+
+		if (ReaderDvice.parse(DisplayDevice, ValueDevice))
+		{
+			Json::Value &ArryList = ValueDevice["NameList"];
+
+			for (int i = 0; i < ArryList.size(); ++i)
+			{
+				if (strstr(ArryList[i].asCString(), "NVIDIA"))
+				{
+					LiveParam.DeviceSetting.AdpterID = i;
+					break;
+				}
+			}
+		}
+		SLiveFreeMemory(DisplayDevice);
+	}
+
+
 	LiveParam.SDICount = 0;
 
 	LiveParam.Advanced.BufferTime = 100;
@@ -325,6 +459,7 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 	if (ret == 0)
 	{
 		//说明SLiveInit成功，根据配置文件开始创建信源和场景
+
 		Json::Value &Layout = jParamValue["layout"];
 		Json::Value &InfoSource = SencesConfig["infosource"];
 
@@ -342,32 +477,17 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 			if (OneInstance.InstanceName.compare("PGM") == 0)
 			{
 				//创建直播实例
-				FunCall((ret = SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea, true, false)));
-
-				if (ret == -1)
-				{
-					break;
-				}
+				FunCall(SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea, true, false));
 
 			}
 			else if (OneInstance.InstanceName.compare("PVW") == 0)
 			{
 				//创建预览实例
-				FunCall((ret = SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea)));
-
-				if (ret == -1)
-				{
-					break;
-				}
+				FunCall(SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea));
 			}
 			else
 			{
-				FunCall((ret = SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea, false, true)));
-
-				if (ret == -1)
-				{
-					break;
-				}
+				FunCall(SLiveCreateInstance(&OneInstance.InstanceID, &OneInstance.PreviewArea, false, true));
 
 				//查找小预览中应该添加的信源
 				if (InfoSource.size() > 0)
@@ -453,7 +573,7 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 						InfSource.width = OneSource["width"].asDouble();
 						InfSource.height = OneSource["height"].asDouble();
 						InfSource.layer = OneSource["layer"].asInt();
-						InfSource.Transparent = OneSource["transparent"].asInt();
+						InfSource.Transparent = OneSource["transparence"].asInt();
 
 						_Scenes.SouceList.push_back(InfSource);
 					}
@@ -541,6 +661,14 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 			{
 				Json::Value &OneText = TextSource[i];
 
+				char *OutText = CHttpNetWork::GetInstance()->UTF8ToGB(OneText["text"].asCString());
+
+				if (OutText)
+				{
+					OneText["text"] = OutText;
+					delete[] OutText;
+				}
+
 				TagInstance Text;
 				AddText(Text, OneText);
 
@@ -598,16 +726,88 @@ void WebInterFaceProcess::CloudInitSwitcher(CRequse &Req, CRespond &Res)
 	
 
 	Json::Value jVaule;
-	jVaule["rc"] = ret;
+	jVaule["state"]["rc"] = ret;
 
 	if (ret != 0)
 	{
-		jVaule["msg"] = SLiveGetLastError();
+		jVaule["state"]["msg"] = SLiveGetLastError();
 	}
 	else
 	{
-		jVaule["msg"] = "成功";
+		jVaule["state"]["msg"] = "成功";
 		jVaule["cloudswitcherid"] = CloudId.c_str();
+
+		std::string LocalIp;
+
+		PIP_ADAPTER_INFO pAdapterInfo;
+		PIP_ADAPTER_INFO pAdapter = NULL;
+		DWORD dwRetVal = 0;
+		pAdapterInfo = (IP_ADAPTER_INFO*)malloc(sizeof(IP_ADAPTER_INFO));
+		ULONG ulOutBufLen = sizeof(IP_ADAPTER_INFO);
+		if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) != ERROR_SUCCESS)
+		{
+			free(pAdapterInfo);
+			pAdapterInfo = (IP_ADAPTER_INFO*)malloc(ulOutBufLen);
+		}
+
+		if ((dwRetVal = GetAdaptersInfo(pAdapterInfo, &ulOutBufLen)) == NO_ERROR)
+		{
+			pAdapter = pAdapterInfo;
+			while (pAdapter)
+			{
+				//pAdapter->Description中包含"PCI"为：物理网卡
+				//pAdapter->Type是71为：无线网卡
+				bool PhysicsAdress = StrStrIA(pAdapter->Description, "PCI") && pAdapter->Type == 6;
+				bool WireLessAdress = StrStrIA(pAdapter->Description, "WireLess") && pAdapter->Type == 71;
+				if (PhysicsAdress || WireLessAdress)
+				{
+					std::string localIpTemp = pAdapter->IpAddressList.IpAddress.String;
+					Log::writeMessage(LOG_RTSPSERV, 1, "GetAdaptersInfo LocalIp:%s PhysicsAdress:%d,WireLessAdress:%d", LocalIp.c_str(), PhysicsAdress, WireLessAdress);
+					if (PhysicsAdress)
+					{
+						LocalIp = localIpTemp;
+						break;
+					}
+				}
+				pAdapter = pAdapter->Next;
+			}
+
+			Log::writeMessage(LOG_RTSPSERV, 1, "get LocalIp:[%s]", LocalIp.c_str());
+
+			if (LocalIp.empty())
+			{
+				char HostName[100] = { 0 };
+				gethostname(HostName, sizeof HostName);
+
+				hostent *Htent = gethostbyname(HostName);
+				if (Htent)
+				{
+					LocalIp = inet_ntoa(*(struct in_addr*)(Htent->h_addr_list[0]));
+				}
+
+				Log::writeMessage(LOG_RTSPSERV, 1, "LocalIp为空 取默认IP %s", LocalIp.c_str());
+			}
+		}
+		else
+		{
+			char HostName[100] = { 0 };
+			gethostname(HostName, sizeof HostName);
+
+			hostent *Htent = gethostbyname(HostName);
+			if (Htent)
+			{
+				LocalIp = inet_ntoa(*(struct in_addr*)(Htent->h_addr_list[0]));
+			}
+			Log::writeMessage(LOG_RTSPSERV, 1, "GetAdaptersInfo failed 取默认IP %s", LocalIp.c_str());
+		}
+
+		char PlayUrl[256] = { 0 };
+
+		sprintf_s(PlayUrl, sizeof PlayUrl, "http://%s:%d/1.flv", LocalIp.c_str(), LiveParam.MediaPort);
+
+		jVaule["result"]["playurl"] = PlayUrl;
+
+		Log::writeMessage(LOG_RTSPSERV, 1, "%s PlayURL %s", __FUNCTION__, PlayUrl);
 	}
 	
 	Res.SetRespond(jVaule);
@@ -662,8 +862,8 @@ void WebInterFaceProcess::CloudCloseSwitcher(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	jParamValue["rc"] = 0;
-	jParamValue["msg"] = "成功";
+	jParamValue["state"]["rc"] = 0;
+	jParamValue["state"]["msg"] = "成功";
 	Res.SetRespond(jParamValue);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -686,9 +886,9 @@ void WebInterFaceProcess::CloudGetSenceConfig(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
-	JValueParam["config"] = SencesConfig;
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
+	JValueParam["result"]["config"] = SencesConfig;
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -747,9 +947,19 @@ void WebInterFaceProcess::CloudSetSenceParam(CRequse &Req, CRespond &Res)
 				InfSource.width = OneSource["width"].asDouble();
 				InfSource.height = OneSource["height"].asDouble();
 				InfSource.layer = OneSource["layer"].asInt();
-				InfSource.Transparent = OneSource["transparent"].asInt();
+				InfSource.Transparent = OneSource["transparence"].asInt();
 
 				it->second.SouceList.push_back(InfSource);
+
+				//如果要设置全局的一个透明度在这里设置
+// 				std::map<std::string, TagInstance>::iterator itInstance = InstanceMap.find(InfSource.SourceName);
+// 
+// 				if (itInstance != InstanceMap.end())
+// 				{
+// 					//在这里设置透明度信息
+// 					if (itInstance->second.SouceList.size() > 0)
+// 						FunCall(SLiveSetOpacity(itInstance->second.InstanceID, itInstance->second.SouceList[0].VideoId, 255 * (1.0f - (float)InfSource.Transparent / 100)));
+// 				}
 			}
 		}
 
@@ -763,11 +973,15 @@ void WebInterFaceProcess::CloudSetSenceParam(CRequse &Req, CRespond &Res)
 
 	//更改了配置文件要向管理中心汇报
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig,POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	Res.SetResType(RES_OK);
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -793,7 +1007,7 @@ void WebInterFaceProcess::CloudChangeSence(CRequse &Req, CRespond &Res)
 	if (it != ScenesMap.end())
 	{
 		TagInstance &PVW = InstanceMap["PVW"];
-		FunCall(SLiveClearIntances(PVW.InstanceID));
+		FunCall(SLiveClearIntances(PVW.InstanceID,false));
 
 		for (int i = 0; i < it->second.SouceList.size(); i++)
 		{
@@ -809,7 +1023,10 @@ void WebInterFaceProcess::CloudChangeSence(CRequse &Req, CRespond &Res)
 
 			TagInstance &Instance = InstanceMap[Source.SourceName];
 			FunCall(SLiveAdd2Intance(Instance.InstanceID, PVW.InstanceID, &Area, true));
-			
+
+			//在这里设置每个场景独有的透明度信息
+			if (Instance.SouceList.size() > 0)
+				FunCall(SLiveSetOpacity(Instance.InstanceID, Instance.SouceList[0].VideoId, 255 * (1.0f - (float)Source.Transparent / 100)));
 		}
 	}
 	else
@@ -818,8 +1035,8 @@ void WebInterFaceProcess::CloudChangeSence(CRequse &Req, CRespond &Res)
 	}
 
 	Res.SetResType(RES_OK);
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -857,8 +1074,8 @@ void WebInterFaceProcess::CloudSwitchPVWtoPGM(CRequse &Req, CRespond &Res)
 	JValueParam.clear();
 	Res.SetResType(RES_OK);
 	
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -888,13 +1105,19 @@ void WebInterFaceProcess::CloudSetEmergencySence(CRequse &Req, CRespond &Res)
 		{
 			BUTEL_THORWERROR("该场景索引 %d 不存在", SenceIndex);
 		}
-	}
 
-	BackupIndex = SenceIndex;
+		BackupIndex = SenceIndex;
+	}
 
 	if (SenceIndex == 0)
 	{
 		InputName = JValueParam["inputname"].asCString();
+
+		if (InputName.empty())
+		{
+			BUTEL_THORWERROR("inputname 为空");
+		}
+
 		Log::writeMessage(LOG_RTSPSERV, 1, "%s InputName = %s", __FUNCTION__, InputName.c_str());
 	}
 
@@ -902,8 +1125,8 @@ void WebInterFaceProcess::CloudSetEmergencySence(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1028,15 +1251,19 @@ void WebInterFaceProcess::CloudLiveSetInputParam(CRequse &Req, CRespond &Res)
 
 	//更改了配置文件要向管理中心汇报
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1070,7 +1297,7 @@ void WebInterFaceProcess::CloudChangeInput(CRequse &Req, CRespond &Res)
 
 	TagInstance &PVW = InstanceMap["PVW"];
 
-	SLiveClearIntances(PVW.InstanceID);
+	SLiveClearIntances(PVW.InstanceID,false);
 
 	VideoArea Area = { 0 };
 	Area.width = LiveParam.LiveSetting.Width;
@@ -1082,8 +1309,8 @@ void WebInterFaceProcess::CloudChangeInput(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1134,14 +1361,18 @@ void WebInterFaceProcess::CloudSetLiveEncodeParam(CRequse &Req, CRespond &Res)
 
 	//更改了配置文件要向管理中心汇报
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1180,14 +1411,18 @@ void WebInterFaceProcess::CloudSetLiveStreamParam(CRequse &Req, CRespond &Res)
 	LiveStreamParam[Json::UInt(0)]["livedelaytime"] = LiveParam.LiveSetting.DelayTime;
 
 	//更改了配置文件要向管理中心汇报
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1213,14 +1448,14 @@ void WebInterFaceProcess::CloudStartLive(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = Ret;
+	JValueParam["state"]["rc"] = Ret;
 	if (Ret == -1)
 	{
-		JValueParam["msg"] = SLiveGetLastError();
+		JValueParam["state"]["msg"] = SLiveGetLastError();
 	}
 	else
 	{
-		JValueParam["msg"] = "成功";
+		JValueParam["state"]["msg"] = "成功";
 		bLiving = true;
 	}
 	
@@ -1251,14 +1486,14 @@ void WebInterFaceProcess::CloudStopLive(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = Ret;
+	JValueParam["state"]["rc"] = Ret;
 	if (Ret == -1)
 	{
-		JValueParam["msg"] = SLiveGetLastError();
+		JValueParam["state"]["msg"] = SLiveGetLastError();
 	}
 	else
 	{
-		JValueParam["msg"] = "成功";
+		JValueParam["state"]["msg"] = "成功";
 		bLiving = false;
 	}
 
@@ -1282,7 +1517,7 @@ void WebInterFaceProcess::CloudSetImage(CRequse &Req, CRespond &Res)
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin!", __FUNCTION__);
 
-	std::string &ImgId = JValueParam["imgeid"].asString();
+	std::string &ImgId = JValueParam["imageid"].asString();
 
 	if (ImgId.empty())
 	{
@@ -1300,8 +1535,9 @@ void WebInterFaceProcess::CloudSetImage(CRequse &Req, CRespond &Res)
 		AddVaule["positiony"] = JValueParam["positiony"].asDouble();
 		AddVaule["width"] = JValueParam["width"].asDouble();
 		AddVaule["height"] = JValueParam["height"].asDouble();
-		AddVaule["transparent"] = JValueParam["transparent"].asInt();
+		AddVaule["transparence"] = JValueParam["transparence"].asInt();
 		AddVaule["imageid"] = Img.InstanceName.c_str();
+		AddVaule["name"] = JValueParam["imagename"].asString();
 		AddVaule["brender"] = false;
 
 		ImgInfo.append(AddVaule);
@@ -1319,18 +1555,22 @@ void WebInterFaceProcess::CloudSetImage(CRequse &Req, CRespond &Res)
 			BUTEL_THORWERROR("图片Id %s 不存在",ImgId.c_str());
 		}
 
-		it->second.ImgParam.ImgUrl = JValueParam["imageurl"].asCString();
-		it->second.ImgParam.x = JValueParam["positionx"].asDouble();
-		it->second.ImgParam.y = JValueParam["positiony"].asDouble();
-		it->second.ImgParam.width = JValueParam["width"].asDouble();
-		it->second.ImgParam.height = JValueParam["height"].asDouble();
-		it->second.ImgParam.transparent = JValueParam["transparent"].asInt();
+// 		it->second.ImgParam.ImgUrl = JValueParam["imageurl"].asCString();
+// 		it->second.ImgParam.x = JValueParam["positionx"].asDouble();
+// 		it->second.ImgParam.y = JValueParam["positiony"].asDouble();
+// 		it->second.ImgParam.width = JValueParam["width"].asDouble();
+// 		it->second.ImgParam.height = JValueParam["height"].asDouble();
+// 		it->second.ImgParam.transparent = JValueParam["transparence"].asInt();
+// 
+// 		char TemBuf[1024] = { 0 };
+// 
+// 		sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - it->second.ImgParam.transparent, it->second.ImgParam.ImgUrl.c_str());
+// 
+// 		FunCall(SLiveUpdateStream(it->second.InstanceID, it->second.SouceList[0].VideoId, TemBuf));
 
-		char TemBuf[1024] = { 0 };
+		JValueParam["brender"] = it->second.ImgParam.bRender;
 
-		sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - it->second.ImgParam.transparent, it->second.ImgParam.ImgUrl.c_str());
-
-		FunCall(SLiveUpdateStream(it->second.InstanceID, it->second.SouceList[0].VideoId, TemBuf));
+		AddImage(it->second, JValueParam, true);
 
 		//更新配置文件
 
@@ -1340,14 +1580,15 @@ void WebInterFaceProcess::CloudSetImage(CRequse &Req, CRespond &Res)
 		{
 			Json::Value &OneImg = ImgInfo[i];
 
-			if (!OneImg["imgeid"].asString().compare(ImgId))
+			if (!OneImg["imageid"].asString().compare(ImgId))
 			{
 				OneImg["imageurl"] = JValueParam["imageurl"].asCString();
 				OneImg["positionx"] = JValueParam["positionx"].asDouble();
 				OneImg["positiony"] = JValueParam["positiony"].asDouble();
 				OneImg["width"] = JValueParam["width"].asDouble();
 				OneImg["height"] = JValueParam["height"].asDouble();
-				OneImg["transparent"] = JValueParam["transparent"].asInt();
+				OneImg["transparence"] = JValueParam["transparence"].asInt();
+				OneImg["name"] = JValueParam["imagename"].asString();
 				break;
 			}
 		}
@@ -1355,15 +1596,19 @@ void WebInterFaceProcess::CloudSetImage(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
-	JValueParam["result"] = ImgId.c_str();
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
+	JValueParam["result"]["imageid"] = ImgId.c_str();
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1382,11 +1627,11 @@ void WebInterFaceProcess::CloudDeleteImage(CRequse &Req, CRespond &Res)
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin!", __FUNCTION__);
 
-	std::string &ImgId = JValueParam["imgeid"].asString();
+	std::string &ImgId = JValueParam["imageid"].asString();
 
 	if (ImgId.empty())
 	{
-		BUTEL_THORWERROR("imgeid 为空");
+		BUTEL_THORWERROR("imageid 为空");
 	}
 
 
@@ -1418,7 +1663,8 @@ void WebInterFaceProcess::CloudDeleteImage(CRequse &Req, CRespond &Res)
 		}
 	}
 
-
+	//删除PVW中的该图片
+	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId));
 	FunCall(SLiveDestroyInstance(it->second.InstanceID));
 
 	InstanceMap.erase(it);
@@ -1451,14 +1697,18 @@ void WebInterFaceProcess::CloudDeleteImage(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1478,11 +1728,11 @@ void WebInterFaceProcess::CloudStartImage(CRequse &Req, CRespond &Res)
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin!", __FUNCTION__);
 
 
-	std::string &ImgId = JValueParam["imgeid"].asString();
+	std::string &ImgId = JValueParam["imageid"].asString();
 
 	if (ImgId.empty())
 	{
-		BUTEL_THORWERROR("imgeid 为空");
+		BUTEL_THORWERROR("imageid 为空");
 	}
 
 
@@ -1532,9 +1782,9 @@ void WebInterFaceProcess::CloudStartImage(CRequse &Req, CRespond &Res)
 	VideoArea Area = { 0 };
 
 	Area.left = it->second.ImgParam.x * LiveParam.LiveSetting.Width / 100;
-	Area.top = it->second.ImgParam.y * LiveParam.LiveSetting.Width / 100;
+	Area.top = it->second.ImgParam.y * LiveParam.LiveSetting.Height / 100;
 	Area.width = it->second.ImgParam.width * LiveParam.LiveSetting.Width / 100;
-	Area.height = it->second.ImgParam.height * LiveParam.LiveSetting.Width / 100;
+	Area.height = it->second.ImgParam.height * LiveParam.LiveSetting.Height / 100;
 
 	FunCall(SLiveAdd2Intance(it->second.InstanceID, InstanceMap["PVW"].InstanceID, &Area, true));
 
@@ -1554,14 +1804,18 @@ void WebInterFaceProcess::CloudStartImage(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1614,7 +1868,7 @@ void WebInterFaceProcess::CloudStopImage(CRequse &Req, CRespond &Res)
 	}
 
 	//删除PVW中的该图片
-	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.InstanceID));
+	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId));
 
 	Json::Value &ImageInfo = SencesConfig["imagesource"];
 
@@ -1630,14 +1884,18 @@ void WebInterFaceProcess::CloudStopImage(CRequse &Req, CRespond &Res)
 	}
 
 	//更新配置文件后上报管理中心
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1685,11 +1943,21 @@ void WebInterFaceProcess::CloudAddText(CRequse &Req, CRespond &Res)
 		AddVaule["positionx"] = JValueParam["positionx"].asDouble();
 		AddVaule["positiony"] = JValueParam["positiony"].asDouble();
 		AddVaule["textsize"] = JValueParam["textsize"].asInt();
-		AddVaule["textcolor"] = JValueParam["textcolor"].asUInt();
+		if (JValueParam["textcolor"].isNull())
+		{
+			UINT Color = 16777215;
+			AddVaule["textcolor"] = Color;
+		}
+		else
+		{
+			AddVaule["textcolor"] = JValueParam["textcolor"].asUInt();
+		}
+		
 		AddVaule["texttype"] = JValueParam["texttype"].asCString();
 		AddVaule["enableroll"] = JValueParam["enableroll"].asBool();
 		AddVaule["rollspeed"] = JValueParam["rollspeed"].asInt();
 		AddVaule["rolltype"] = JValueParam["rolltype"].asInt();
+		AddVaule["name"] = JValueParam["textname"].asCString();
 
 		ImgInfo.append(AddVaule);
 
@@ -1703,14 +1971,24 @@ void WebInterFaceProcess::CloudAddText(CRequse &Req, CRespond &Res)
 
 		if (it == InstanceMap.end())
 		{
-			BUTEL_THORWERROR("图片Id %s 不存在", TextId.c_str());
+			BUTEL_THORWERROR("文字Id %s 不存在", TextId.c_str());
 		}
 
 		it->second.TextParam.text = JValueParam["text"].asCString();
 		it->second.TextParam.x = JValueParam["positionx"].asDouble();
 		it->second.TextParam.y = JValueParam["positiony"].asDouble();
 		it->second.TextParam.textSize = JValueParam["textsize"].asInt();
-		it->second.TextParam.textColor = JValueParam["textcolor"].asUInt();
+
+		if (JValueParam["textcolor"].isNull())
+		{
+			UINT Color = 16777215;
+			it->second.TextParam.textColor = Color;
+		}
+		else
+		{
+			it->second.TextParam.textColor = JValueParam["textcolor"].asUInt();
+		}
+
 		it->second.TextParam.textType = JValueParam["texttype"].asCString();
 		it->second.TextParam.enableRoll = JValueParam["enableroll"].asBool();
 		it->second.TextParam.rollSpeed = JValueParam["rollspeed"].asInt();
@@ -1723,6 +2001,26 @@ void WebInterFaceProcess::CloudAddText(CRequse &Req, CRespond &Res)
 			it->second.TextParam.enableRoll);
 
 		FunCall(SLiveUpdateStream(it->second.InstanceID, it->second.SouceList[0].VideoId, TemBuf));
+
+		UINT Width = 0, Height = it->second.TextParam.textSize;
+
+		FunCall(SLiveGetStreamSize(it->second.InstanceID, it->second.SouceList[0].VideoId, &Width, &Height));
+
+		it->second.TextParam.RealWidth = (float)Width / LiveParam.LiveSetting.Width * 100;
+		it->second.TextParam.RealHeight = (float)Height / LiveParam.LiveSetting.Height * 100;
+
+		VideoArea Area = { 0 };
+
+		Area.left = it->second.TextParam.x * LiveParam.LiveSetting.Width / 100;
+		Area.top = it->second.TextParam.y * LiveParam.LiveSetting.Height / 100;
+		Area.width = it->second.TextParam.RealWidth * LiveParam.LiveSetting.Width / 100;
+		Area.height = it->second.TextParam.RealHeight * LiveParam.LiveSetting.Height / 100;
+
+		if (it->second.TextParam.bRender)
+		{
+			FunCall(SLiveUpdateStreamPosition(InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId, &Area));
+			//FunCall(SLiveUpdateStreamPosition(InstanceMap["PGM"].InstanceID, it->second.SouceList[0].VideoId, &Area));
+		}
 
 		//更新配置文件
 
@@ -1743,6 +2041,7 @@ void WebInterFaceProcess::CloudAddText(CRequse &Req, CRespond &Res)
 				OneText["enableroll"] = it->second.TextParam.enableRoll;
 				OneText["rollspeed"] = it->second.TextParam.rollSpeed;
 				OneText["rolltype"] = it->second.TextParam.rollType;
+				OneText["name"] = JValueParam["textname"].asCString();
 				break;
 			}
 		}
@@ -1750,15 +2049,19 @@ void WebInterFaceProcess::CloudAddText(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
-	JValueParam["result"] = TextId.c_str();
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
+	JValueParam["result"]["textid"] = TextId.c_str();
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1789,7 +2092,7 @@ void WebInterFaceProcess::CloudDeleteText(CRequse &Req, CRespond &Res)
 
 	if (it == InstanceMap.end())
 	{
-		BUTEL_THORWERROR("图片Id %s 不存在", TextId.c_str());
+		BUTEL_THORWERROR("文字Id %s 不存在", TextId.c_str());
 	}
 
 	if (it->second.TextParam.bRender)
@@ -1813,7 +2116,8 @@ void WebInterFaceProcess::CloudDeleteText(CRequse &Req, CRespond &Res)
 		}
 	}
 
-
+	//删除PVW中的该图片
+	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId));
 	FunCall(SLiveDestroyInstance(it->second.InstanceID));
 
 	InstanceMap.erase(it);
@@ -1846,14 +2150,18 @@ void WebInterFaceProcess::CloudDeleteText(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -1876,7 +2184,7 @@ void WebInterFaceProcess::CloudStartText(CRequse &Req, CRespond &Res)
 
 	if (TextId.empty())
 	{
-		BUTEL_THORWERROR("imgeid 为空");
+		BUTEL_THORWERROR("textid 为空");
 	}
 
 
@@ -1925,8 +2233,8 @@ void WebInterFaceProcess::CloudStartText(CRequse &Req, CRespond &Res)
 
 	VideoArea Area = { 0 };
 
-	Area.left = it->second.ImgParam.x * LiveParam.LiveSetting.Width / 100;
-	Area.top = it->second.ImgParam.y * LiveParam.LiveSetting.Height / 100;
+	Area.left = it->second.TextParam.x * LiveParam.LiveSetting.Width / 100;
+	Area.top = it->second.TextParam.y * LiveParam.LiveSetting.Height / 100;
 	Area.width = it->second.TextParam.RealWidth * LiveParam.LiveSetting.Width / 100;
 	Area.height = it->second.TextParam.RealHeight * LiveParam.LiveSetting.Height / 100;
 
@@ -1948,14 +2256,18 @@ void WebInterFaceProcess::CloudStartText(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2010,7 +2322,7 @@ void WebInterFaceProcess::CloudStopText(CRequse &Req, CRespond &Res)
 	}
 
 	//删除PVW中的该图片
-	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.InstanceID));
+	FunCall(SLiveDelStream(InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId));
 
 	Json::Value &TextInfo = SencesConfig["textid"];
 
@@ -2027,14 +2339,18 @@ void WebInterFaceProcess::CloudStopText(CRequse &Req, CRespond &Res)
 
 	//更新配置文件后上报管理中心
 
-	CHttpNetWork::GetInstance()->SendCommandToManager(SencesConfig, POSTCONFIGFILE);
+	Json::Value vSencesFile;
+	vSencesFile["cloudswitcherid"] = CloudId.c_str();
+	vSencesFile["sencefile"] = SencesConfig;
+
+	CHttpNetWork::GetInstance()->SendCommandToManager(vSencesFile, POSTCONFIGFILE);
 
 	JValueParam.clear();
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2098,8 +2414,8 @@ void WebInterFaceProcess::CloudSetVolum(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2183,8 +2499,8 @@ void WebInterFaceProcess::CloudStartAudioMonitor(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2268,8 +2584,8 @@ void WebInterFaceProcess::CloudStopAudioMonitor(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2295,7 +2611,6 @@ void WebInterFaceProcess::CloudSetAudioMix(CRequse &Req, CRespond &Res)
 	}
 
 	int Mix = JValueParam["mix"].asInt();
-	int Follow = JValueParam["follow"].asInt();
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin Name = %s!", __FUNCTION__, Name.c_str());
 
@@ -2309,7 +2624,7 @@ void WebInterFaceProcess::CloudSetAudioMix(CRequse &Req, CRespond &Res)
 
 	if (it->second.SouceList.size() > 0)
 	{
-		FunCall(SLiveSetAudioMixAndFollow(it->second.InstanceID, it->second.SouceList[0].AudioId, Mix, Follow));
+		FunCall(SLiveSetAudioMixAndFollow(it->second.InstanceID, it->second.SouceList[0].AudioId, Mix, 0,true));
 	}
 	else
 	{
@@ -2320,8 +2635,8 @@ void WebInterFaceProcess::CloudSetAudioMix(CRequse &Req, CRespond &Res)
 
 	Res.SetResType(RES_OK);
 
-	JValueParam["rc"] = 0;
-	JValueParam["msg"] = "成功";
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
 	Res.SetRespond(JValueParam);
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -2441,8 +2756,21 @@ void WebInterFaceProcess::AddText(TagInstance &Text, Json::Value &JParam)
 	Text.TextParam.x = JParam["positionx"].asDouble();
 	Text.TextParam.y = JParam["positiony"].asDouble();
 	Text.TextParam.textSize = JParam["textsize"].asInt();
-	Text.TextParam.textColor = JParam["textcolor"].asUInt();
+	if (JParam["textcolor"].isNull())
+	{
+		UINT Color = 16777215;//4278190080;
+		Text.TextParam.textColor = Color;
+	}
+	else
+	{
+		Text.TextParam.textColor = JParam["textcolor"].asUInt();
+	}
+
 	Text.TextParam.textType = JParam["texttype"].asCString();
+	if (Text.TextParam.textType.empty())
+	{
+		Text.TextParam.textType = "Arial";
+	}
 	Text.TextParam.enableRoll = JParam["enableroll"].asBool();
 	Text.TextParam.rollSpeed = JParam["rollspeed"].asInt();
 	Text.TextParam.rollType = JParam["rolltype"].asInt();
@@ -2457,7 +2785,7 @@ void WebInterFaceProcess::AddText(TagInstance &Text, Json::Value &JParam)
 
 	char TextIdBuf[20] = { 0 };
 	sprintf_s(TextIdBuf, sizeof TextIdBuf, "%llu", Text.InstanceID);
-	Text.ImgParam.ImgID = TextIdBuf;
+	Text.TextParam.TextID = TextIdBuf;
 	Text.InstanceName = TextIdBuf;
 
 	__InfoID TextInfoId;
@@ -2466,17 +2794,21 @@ void WebInterFaceProcess::AddText(TagInstance &Text, Json::Value &JParam)
 
 	FunCall(SLiveSetTopest(Text.InstanceID, TextInfoId.VideoId, true));
 
-	FunCall(SLiveGetStreamSize(Text.InstanceID, TextInfoId.VideoId, (UINT*)&Text.TextParam.RealWidth, (UINT*)&Text.TextParam.RealHeight));
+	//FunCall(SLiveUpdateStream(Text.InstanceID, TextInfoId.VideoId, TemBuf));
 
-	Text.TextParam.RealWidth = Text.TextParam.RealWidth / LiveParam.LiveSetting.Width * 100;
-	Text.TextParam.RealHeight = Text.TextParam.RealHeight / LiveParam.LiveSetting.Height * 100;
+	UINT Width = 0, Height = Text.TextParam.textSize;
+
+	FunCall(SLiveGetStreamSize(Text.InstanceID, TextInfoId.VideoId, &Width, &Height));
+
+	Text.TextParam.RealWidth = (float)Width / LiveParam.LiveSetting.Width * 100;
+	Text.TextParam.RealHeight = (float)Height / LiveParam.LiveSetting.Height * 100;
 
 	Text.SouceList.push_back(TextInfoId);
 
 	InstanceMap.insert(std::make_pair(Text.InstanceName, Text));
 }
 
-void WebInterFaceProcess::AddImage(TagInstance &Img, Json::Value &JParam)
+void WebInterFaceProcess::AddImage(TagInstance &Img, Json::Value &JParam,bool bUpdate)
 {
 	VideoArea Area = { 0 };
 	Area.width = LiveParam.LiveSetting.Width;
@@ -2488,27 +2820,306 @@ void WebInterFaceProcess::AddImage(TagInstance &Img, Json::Value &JParam)
 	Img.ImgParam.y = JParam["positiony"].asDouble();
 	Img.ImgParam.width = JParam["width"].asDouble();
 	Img.ImgParam.height = JParam["height"].asDouble();
-	Img.ImgParam.transparent = JParam["transparent"].asInt();
+	Img.ImgParam.transparent = JParam["transparence"].asInt();
 
-	char TemBuf[1024] = { 0 };
+	if (!bUpdate)
+	{
+		FunCall(SLiveCreateInstance(&Img.InstanceID, NULL, false, true));
 
-	sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - Img.ImgParam.transparent, Img.ImgParam.ImgUrl.c_str());
+		char imgId[20] = { 0 };
+		sprintf_s(imgId, sizeof imgId, "%llu", Img.InstanceID);
+		Img.ImgParam.ImgID = imgId;
+		Img.InstanceName = imgId;
+	}
 
-	FunCall(SLiveCreateInstance(&Img.InstanceID, NULL, false, true));
+	char TemBuf[4096] = { 0 };
 
-	char imgId[20] = { 0 };
-	sprintf_s(imgId, sizeof imgId, "%llu", Img.InstanceID);
-	Img.ImgParam.ImgID = imgId;
-	Img.InstanceName = imgId;
+	if (!strncmp(Img.ImgParam.ImgUrl.c_str(), "http://", 7) || !strncmp(Img.ImgParam.ImgUrl.c_str(), "https://", 8))
+	{
+		//如果是网络图片
+		MD5 Md5(Img.ImgParam.ImgUrl.c_str(), Img.ImgParam.ImgUrl.length());
 
-	__InfoID ImgInfoId;
-	//这个是异步的不能马上SLiveGetStreamSize
-	FunCall(SLiveAddStream(Img.InstanceID, TemBuf, &Area, &ImgInfoId.VideoId, NULL));
+		std::string strMd5 = Md5.tostring();
+		char* Ext = NULL;
+		getFileExtension((char*)Img.ImgParam.ImgUrl.c_str(), &Ext);
 
-	FunCall(SLiveSetTopest(Img.InstanceID, ImgInfoId.VideoId, true));
+		if (!Ext)
+		{
+			BUTEL_THORWERROR("%s 没有扩展名", Img.ImgParam.ImgUrl.c_str());
+		}
 
-	Img.SouceList.push_back(ImgInfoId);
+		//检查缓存路径下没有该图片
+		std::string &FilePath = CHttpNetWork::GetInstance()->GetLocalCachePath();
 
-	InstanceMap.insert(std::make_pair(Img.InstanceName, Img));
+		FilePath += strMd5;
+		FilePath += --Ext;
+
+		Img.ImgParam.RealName = FilePath;
+
+		DWORD attrib = GetFileAttributesA(FilePath.c_str());
+		bool bExists = attrib != INVALID_FILE_ATTRIBUTES;
+
+		if (bExists)
+		{
+			sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - Img.ImgParam.transparent, FilePath.c_str());
+
+			if (bUpdate)
+			{
+				FunCall(SLiveUpdateStream(Img.InstanceID, Img.SouceList[0].VideoId, TemBuf));
+
+				VideoArea Area = { 0 };
+
+				Area.left = Img.ImgParam.x * LiveParam.LiveSetting.Width / 100;
+				Area.top = Img.ImgParam.y * LiveParam.LiveSetting.Height / 100;
+				Area.width = Img.ImgParam.width * LiveParam.LiveSetting.Width / 100;
+				Area.height = Img.ImgParam.height * LiveParam.LiveSetting.Height / 100;
+
+				if (Img.ImgParam.bRender)
+				{
+					FunCall(SLiveUpdateStreamPosition(InstanceMap["PVW"].InstanceID, Img.SouceList[0].VideoId, &Area));
+				}
+
+				return;
+			}
+
+			__InfoID ImgInfoId;
+			//这个是异步的不能马上SLiveGetStreamSize
+			FunCall(SLiveAddStream(Img.InstanceID, TemBuf, &Area, &ImgInfoId.VideoId, NULL));
+
+			FunCall(SLiveSetTopest(Img.InstanceID, ImgInfoId.VideoId, true));
+
+			Img.SouceList.push_back(ImgInfoId);
+
+			InstanceMap.insert(std::make_pair(Img.InstanceName, Img));
+
+		}
+		else
+		{
+			//加载默认图片
+			if (!bUpdate)
+			{
+				sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - Img.ImgParam.transparent, "./img/DefaultImage.png");
+
+				__InfoID ImgInfoId;
+				//这个是异步的不能马上SLiveGetStreamSize
+				FunCall(SLiveAddStream(Img.InstanceID, TemBuf, &Area, &ImgInfoId.VideoId, NULL));
+
+				FunCall(SLiveSetTopest(Img.InstanceID, ImgInfoId.VideoId, true));
+
+				Img.SouceList.push_back(ImgInfoId);
+
+				InstanceMap.insert(std::make_pair(Img.InstanceName, Img));
+			}
+
+			//不存在图片就要去下载
+
+			CHttpNetWork::GetInstance()->DoAsnycDownLoadFile(Img.ImgParam.ImgUrl, FilePath, DownLoadComplete, this, Img.InstanceName);
+		}
+		
+		
+	}
+	else
+	{
+		sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - Img.ImgParam.transparent, Img.ImgParam.ImgUrl.c_str());
+
+		if (bUpdate)
+		{
+			FunCall(SLiveUpdateStream(Img.InstanceID, Img.SouceList[0].VideoId, TemBuf));
+
+			VideoArea Area = { 0 };
+
+			Area.left = Img.ImgParam.x * LiveParam.LiveSetting.Width / 100;
+			Area.top = Img.ImgParam.y * LiveParam.LiveSetting.Height / 100;
+			Area.width = Img.ImgParam.width * LiveParam.LiveSetting.Width / 100;
+			Area.height = Img.ImgParam.height * LiveParam.LiveSetting.Height / 100;
+
+			if (Img.ImgParam.bRender)
+			{
+				FunCall(SLiveUpdateStreamPosition(InstanceMap["PVW"].InstanceID, Img.SouceList[0].VideoId, &Area));
+			}
+
+			return;
+		}
+
+		__InfoID ImgInfoId;
+		//这个是异步的不能马上SLiveGetStreamSize
+		FunCall(SLiveAddStream(Img.InstanceID, TemBuf, &Area, &ImgInfoId.VideoId, NULL));
+
+		FunCall(SLiveSetTopest(Img.InstanceID, ImgInfoId.VideoId, true));
+
+		Img.SouceList.push_back(ImgInfoId);
+
+		InstanceMap.insert(std::make_pair(Img.InstanceName, Img));
+	}
+
+	
 }
+
+void WebInterFaceProcess::DownLoadComplete(void *Context, const std::string& name, bool bSucess)
+{
+	WebInterFaceProcess *_this = (WebInterFaceProcess*)Context;
+
+	std::map<std::string, TagInstance>::iterator it = _this->InstanceMap.find(name);
+
+	if (it == _this->InstanceMap.end())
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "%s 图片Id %s 不存在",__FUNCTION__, name.c_str());
+		return;
+	}
+
+	char TemBuf[4096] = { 0 };
+
+	if (bSucess)
+	{
+		sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - it->second.ImgParam.transparent, it->second.ImgParam.RealName.c_str());
+	}
+	else
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "%s 下载图片失败 url = %s,加载默认图片", __FUNCTION__,it->second.ImgParam.ImgUrl.c_str());
+
+		sprintf_s(TemBuf, sizeof TemBuf, ImgStream, 100 - it->second.ImgParam.transparent, "./img/DefaultImage.png");
+	}
+
+	FunCall(SLiveUpdateStream(it->second.InstanceID, it->second.SouceList[0].VideoId, TemBuf));           
+
+	VideoArea Area = { 0 };
+
+	Area.left = it->second.ImgParam.x * _this->LiveParam.LiveSetting.Width / 100;
+	Area.top = it->second.ImgParam.y * _this->LiveParam.LiveSetting.Height / 100;
+	Area.width = it->second.ImgParam.width * _this->LiveParam.LiveSetting.Width / 100;
+	Area.height = it->second.ImgParam.height * _this->LiveParam.LiveSetting.Height / 100;
+
+	if (it->second.ImgParam.bRender)
+	{
+		FunCall(SLiveUpdateStreamPosition(_this->InstanceMap["PVW"].InstanceID, it->second.SouceList[0].VideoId, &Area));
+	}
+}
+
+void WebInterFaceProcess::CloudEmergencySwitch(CRequse &Req, CRespond &Res)
+{
+	if (!bHasInit)
+	{
+		BUTEL_THORWERROR("请先调用initswitcher进行初始化");
+	}
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s CheckCloudIdAndToken", __FUNCTION__);
+	Json::Value JValueParam;
+	CheckCloudIdAndToken(Req.GetParam(), JValueParam);
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin!", __FUNCTION__);
+
+
+	if (-1 == BackupIndex && InputName.empty())
+	{
+		BUTEL_THORWERROR("还未设置备用场景");
+	}
+
+	if (BackupIndex > 0)
+	{
+		std::map<int, TagScenes>::iterator it = ScenesMap.find(BackupIndex);
+
+		if (it != ScenesMap.end())
+		{
+			TagInstance &PVW = InstanceMap["PVW"];
+			FunCall(SLiveClearIntances(PVW.InstanceID, false));
+			FunCall(SLiveSetSenceToBackUp());
+
+			for (int i = 0; i < it->second.SouceList.size(); i++)
+			{
+				VideoArea Area = { 0 };
+				TagInfoSource &Source = it->second.SouceList[i];
+
+				Area.left = Source.x * LiveParam.LiveSetting.Width / 100;
+				Area.top = Source.y * LiveParam.LiveSetting.Height / 100;
+				Area.width = Source.width * LiveParam.LiveSetting.Width / 100;
+				Area.height = Source.height * LiveParam.LiveSetting.Height / 100;
+
+
+
+				TagInstance &Instance = InstanceMap[Source.SourceName];
+				FunCall(SLiveAdd2Intance(Instance.InstanceID, PVW.InstanceID, &Area, true));
+
+			}
+
+			FunCall(SLiveSwitchInstance(PVW.InstanceID, InstanceMap["PGM"].InstanceID, Cut));
+		}
+		else
+		{
+			BUTEL_THORWERROR("该场景索引 %d 不存在", BackupIndex);
+		}
+	}
+	else
+	{
+		std::map<std::string, TagInstance>::iterator it = InstanceMap.find(InputName);
+
+		if (it == InstanceMap.end())
+		{
+			BUTEL_THORWERROR("该信源 %s 不存在", InputName.c_str());
+		}
+
+		TagInstance &PVW = InstanceMap["PVW"];
+		FunCall(SLiveClearIntances(PVW.InstanceID, false));
+		FunCall(SLiveSetSenceToBackUp());
+
+		VideoArea Area = { 0 };
+
+		Area.width = LiveParam.LiveSetting.Width;
+		Area.height = LiveParam.LiveSetting.Height;
+
+		FunCall(SLiveAdd2Intance(it->second.InstanceID, PVW.InstanceID, &Area, true));
+		FunCall(SLiveSwitchInstance(PVW.InstanceID, InstanceMap["PGM"].InstanceID, Cut));
+	}
+
+	JValueParam.clear();
+
+	Res.SetResType(RES_OK);
+
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
+	Res.SetRespond(JValueParam);
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
+}
+
+void WebInterFaceProcess::CloudSetAudioFollow(CRequse &Req, CRespond &Res)
+{
+	if (!bHasInit)
+	{
+		BUTEL_THORWERROR("请先调用initswitcher进行初始化");
+	}
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s CheckCloudIdAndToken", __FUNCTION__);
+	Json::Value JValueParam;
+	CheckCloudIdAndToken(Req.GetParam(), JValueParam);
+
+	int AutoFollow = JValueParam["autofollow"].asInt();
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke begin! AutoFollow = %d", __FUNCTION__, AutoFollow);
+
+	std::map<std::string, TagInstance>::iterator itBegin = InstanceMap.begin();
+	std::map<std::string, TagInstance>::iterator itEnd = InstanceMap.end();
+
+	for (; itBegin != itEnd; itBegin++)
+	{
+		if (itBegin->first.compare("PVW") && itBegin->first.compare("PGM"))
+		{
+			if (itBegin->second.SouceList.size() > 0)
+			{
+				FunCall(SLiveSetAudioMixAndFollow(itBegin->second.InstanceID, itBegin->second.SouceList[0].AudioId, 0, AutoFollow, false));
+			}
+		}
+	}
+
+
+	JValueParam.clear();
+
+	Res.SetResType(RES_OK);
+
+	JValueParam["state"]["rc"] = 0;
+	JValueParam["state"]["msg"] = "成功";
+	Res.SetRespond(JValueParam);
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
+}
+
 

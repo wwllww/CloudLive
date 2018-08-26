@@ -63,6 +63,23 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 
+	TCHAR FullName[1024] = { 0 };
+	int RetLen = GetModuleFileName(NULL, FullName, sizeof FullName);
+
+	for (int i = RetLen - 1; i >= 0; i--)
+	{
+		if (FullName[i] != '\\')
+		{
+			FullName[i] = 0;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	SetCurrentDirectory(FullName);
+
 	FunCall(CHttpNetWork::GetInstance()->InitLive());
 
 	return CHttpNetWork::GetInstance()->HttpMsgLoop();

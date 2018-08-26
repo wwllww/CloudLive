@@ -15,14 +15,20 @@ void SLiveRelese()
 	CSLiveManager::SLiveRelese();
 }
 
+void SLiveInitException()
+{
+	CSLiveManager::InitException();
+}
+
+
 int SLiveSetParam(const SLiveParam *Param)
 {
 	return CSLiveManager::GetInstance()->SLiveSetParam(Param);
 }
 
-int SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool bLiveIntance, bool bLittlePre)
+int SLiveCreateInstance(uint64_t *iIntanceID, VideoArea *PreArea, bool bLiveIntance, bool bLittlePre)
 {
-	return CSLiveManager::GetInstance()->SLiveCreateInstance(iIntanceID, hwnd, bLiveIntance,bLittlePre);
+	return CSLiveManager::GetInstance()->SLiveCreateInstance(iIntanceID, PreArea, bLiveIntance, bLittlePre);
 }
 
 int SLiveDestroyInstance(uint64_t iIntanceID)
@@ -193,9 +199,9 @@ int SLiveConfigStream(uint64_t iIntanceID, uint64_t iStreamID, const char *cJson
 	return CSLiveManager::GetInstance()->SLiveConfigStream(iIntanceID, iStreamID, cJson);
 }
 
-int SLiveClearIntances(uint64_t iIntanceID)
+int SLiveClearIntances(uint64_t iIntanceID, bool bRemoveTop)
 {
-	return CSLiveManager::GetInstance()->SLiveClearIntances(iIntanceID);
+	return CSLiveManager::GetInstance()->SLiveClearIntances(iIntanceID, bRemoveTop);
 }
 
 int SLiveReNameStream(uint64_t iIntanceID, uint64_t iStreamID, const char *NewName)
@@ -321,3 +327,19 @@ int SLiveQueryHardEncodeSupport()
 {
 	return CSLiveManager::GetInstance()->SLiveQueryHardEncodeSupport();
 }
+
+int SLiveSetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio)
+{
+	return CSLiveManager::GetInstance()->SLiveSetAudioNeed(bNeedPVMAudio, bNeedPGMAudio);
+}
+
+int SLiveSetAudioMixAndFollow(uint64_t iInstansID, uint64_t iStreamID, int Mix, int Follow, bool bUseMix)
+{
+	return CSLiveManager::GetInstance()->SLiveSetAudioMixAndFollow(iInstansID, iStreamID, Mix, Follow, bUseMix);
+}
+
+int SLiveSetOpacity(uint64_t iInstansID, uint64_t iStreamID, DWORD Opacity)
+{
+	return CSLiveManager::GetInstance()->SLiveSetOpacity(iInstansID, iStreamID, Opacity);
+}
+

@@ -26,6 +26,7 @@ void CInstanceProcess::DeleteStream(uint64_t StreamId)
 				{
 					if (m_AudioList[j].AudioStream.get() == m_VideoList[i].AudioStream)
 					{
+						m_AudioList[j].AudioStream->SetLiveInstance(false);
 						m_AudioList[j].AudioStream.reset();//2017/09/27
 						m_AudioList.Remove(j);
 						break;
@@ -162,7 +163,7 @@ void CInstanceProcess::DeleteStream(uint64_t StreamId)
 // 					Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invode end! Error occured!!", __FUNCTION__);
 // 					BUTEL_THORWERROR("该音频Id %llu 有视频,不允许删除!", StreamId);
 // 				}
-
+				m_AudioList[j].AudioStream->SetLiveInstance(false);
 				m_AudioList[j].AudioStream.reset();
 				m_AudioList[j].Config.reset();
 				bFind = true;
@@ -365,7 +366,18 @@ void CInstanceProcess::UpdateStream(uint64_t iStreamID, const char* cJsonParam)
 			try
 			{
 //				m_VideoList[i].bRender = true;
-				m_VideoList[i].VideoStream->UpdateSettings(Jvalue);
+
+				if (Jvalue["data"].isNull())
+				{
+					*m_VideoList[i].Config = Jvalue;
+				}
+				else
+				{
+					*m_VideoList[i].Config = Jvalue["data"];
+				}
+				
+				m_VideoList[i].VideoStream->UpdateSettings(*m_VideoList[i].Config);
+				
 
 // 				string &ClassName = Jvalue["ClassName"].asString();
 // 
@@ -1117,6 +1129,11 @@ void CInstanceProcess::StreamCallBack(void *Context, CSampleData* Data)
 	CInstanceProcess *Process = reinterpret_cast<CInstanceProcess*>(Context);
 	if (Process && !Process->bNoPreView)
 	{
+		if (Data->bAudio)
+		{
+			Process->LeftDb = Data->LeftDb;
+			Process->RightDb = Data->RightDb;
+		}
 		Process->MultiRender->Render(Data, Data->bDisableAudio);
 	}
 }
@@ -1364,4 +1381,58 @@ void CInstanceProcess::SetTopest(uint64_t iStreamID, bool bTopest)
 	}
 
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
+}
+
+AudioStruct CInstanceProcess::SetAudioMixAndFollow(uint64_t iStreamID, int Mix, int Follow, bool bUseMix)
+{
+	AudioStruct RetStruct;
+	bool bFind = false;
+	EnterCriticalSection(&AudioSection);
+	for (UINT j = 0; j < m_AudioList.Num(); ++j)
+	{
+		if ((uint64_t)m_AudioList[j].AudioStream.get() == iStreamID)
+		{
+			if (bUseMix)
+				m_AudioList[j].MixOpen = Mix;
+			else
+			{
+				m_AudioList[j].FollowOpen = Follow;
+			}
+			
+			bFind = true;
+			RetStruct = m_AudioList[j];
+			break;
+		}
+	}
+	LeaveCriticalSection(&AudioSection);
+
+	if (!bFind)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! StreamId = %llu", __FUNCTION__, iStreamID);
+	}
+
+	return RetStruct;
+}
+
+void CInstanceProcess::SetOpacity(uint64_t iStreamID, DWORD Opacity)
+{
+	bool bFind = false;
+
+	EnterCriticalSection(&VideoSection);
+	for (UINT i = 0; i < m_VideoList.Num(); ++i)
+	{
+		if ((uint64_t)m_VideoList[i].VideoStream.get() == iStreamID)
+		{
+			m_VideoList[i].VideoStream->SetOpacity(Opacity);
+			bFind = true;
+			break;
+		}
+	}
+	LeaveCriticalSection(&VideoSection);
+
+	if (!bFind)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! StreamId = %llu", __FUNCTION__, iStreamID);
+		BUTEL_THORWERROR("没有找到或该流不是视频流,StreamID为 %llu", iStreamID);
+	}
 }

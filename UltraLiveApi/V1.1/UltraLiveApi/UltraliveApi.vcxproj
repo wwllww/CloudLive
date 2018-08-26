@@ -82,7 +82,7 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);$(DXSDK_DIR)Include;</IncludePath>
     <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);$(DXSDK_DIR)Lib\x64;</LibraryPath>
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>Z:\releaseM_x64\</OutDir>
+    <OutDir>Z:\release_Cloud_M_x64\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -135,8 +135,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;__STDC_LIMIT_MACROS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\;Z:\Log_writer;Z:\public\;..\..\..\D3DRender\v1.1\;..\..\..\Common\v1.1\;Z:\x264\;Z:\libfaac;Z:\librtmp\;Z:\tbb;Z:\RDCodec;Z:\Cur64bit\include\Curl;</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;ULTRALIVEAPI_EXPORTS;__STDC_LIMIT_MACROS;WIN32_LEAN_AND_MEAN;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\;Z:\Log_writer;Z:\public\;..\..\..\D3DRender\v1.1\;..\..\..\Common\v1.1\;Z:\x264\;Z:\libfaac;Z:\librtmp\;Z:\tbb;Z:\RDCodec;Z:\Cur64bit\include\Curl;Z:\AsynIoControl;Z:\BaseLibrary\GMHelper;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
     </ClCompile>
@@ -146,7 +146,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ImportLibrary>Z:\rlib_x64\$(TargetName).lib</ImportLibrary>
-      <AdditionalDependencies>NvEncode.lib;libcurl.lib;json_vc71_libmt.lib;libsamplerate.lib;Winmm.lib;Psapi.lib;strmiids.lib;D3DRender.lib;Iphlpapi.lib;Common.lib;libx264.lib;Ws2_32.lib;libfaac.lib;librtmp.lib;Winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;Gdiplus.lib;d3dx11.lib;libmp3lame-static.lib;;dxgi.lib;RDCodec.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>NvEncode.lib;libcurl.lib;json_vc71_libmt.lib;libsamplerate.lib;Winmm.lib;Psapi.lib;strmiids.lib;D3DRender.lib;Iphlpapi.lib;Common.lib;libx264.lib;Ws2_32.lib;libfaac.lib;librtmp.lib;Winhttp.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;Gdiplus.lib;d3dx11.lib;libmp3lame-static.lib;;dxgi.lib;RDCodec.lib;AsynIoControl.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>Z:\rlib_x64;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -172,7 +172,9 @@
     <ClInclude Include="..\Exception.h" />
     <ClInclude Include="..\FileStream.h" />
     <ClInclude Include="..\HTTPClient.h" />
+    <ClInclude Include="..\HttpLive.h" />
     <ClInclude Include="..\Instance.h" />
+    <ClInclude Include="..\MetaData.h" />
     <ClInclude Include="..\MultimediaRender.h" />
     <ClInclude Include="..\OperatNew.h" />
     <ClInclude Include="..\PArry.h" />
@@ -182,6 +184,7 @@
     <ClInclude Include="..\SLiveApi.h" />
     <ClInclude Include="..\SLiveInterface.h" />
     <ClInclude Include="..\SLiveManager.h" />
+    <ClInclude Include="..\TCPSocketControl.h" />
     <ClInclude Include="..\TThread.h" />
     <ClInclude Include="..\VolumeControl.h" />
     <ClInclude Include="..\VolumeMeter.h" />
@@ -208,6 +211,7 @@
     <ClCompile Include="..\Exception.cpp" />
     <ClCompile Include="..\FLVFileStream.cpp" />
     <ClCompile Include="..\HTTPClient.cpp" />
+    <ClCompile Include="..\HttpLive.cpp" />
     <ClCompile Include="..\Instance.cpp" />
     <ClCompile Include="..\ManagerOperator.cpp" />
     <ClCompile Include="..\MP3Encoder.cpp" />
@@ -224,6 +228,7 @@
     <ClCompile Include="..\NewEncoder_x264_RD.cpp" />
     <ClCompile Include="..\NewFLVFileStream.cpp" />
     <ClCompile Include="..\StreamProcesser.cpp" />
+    <ClCompile Include="..\TCPSocketControl.cpp" />
     <ClCompile Include="..\ThreadCapture.cpp" />
     <ClCompile Include="..\VideoCapture.cpp" />
     <ClCompile Include="..\VolumeControl.cpp" />

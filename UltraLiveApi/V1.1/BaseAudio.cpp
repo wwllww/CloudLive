@@ -3,6 +3,7 @@
 #include "samplerate.h"
 #include "Error.h"
 #include <Audioclient.h>
+#include "SLiveManager.h"
 
 #ifdef OPERATOR_NEW
 #define new OPERATOR_NEW
@@ -16,6 +17,7 @@
 struct NotAResampler
 {
 	SRC_STATE *resampler;
+	SRC_STATE *resamplerLocal;
 	QWORD     jumpRange;
 };
 
@@ -87,10 +89,12 @@ IBaseAudio::IBaseAudio()
 	lastUsedTimestamp = 0;
 	AudioDbCB = NULL;
 	LastTimeTimeStamp = 0;
+	LastTimeTimeStamp_Local = 0;
 	Volume = 1.0f;
 	resampler = (void*)new NotAResampler;
 	MoreVariables->jumpRange = 10;
 	MoreVariables->resampler = NULL;
+	MoreVariables->resamplerLocal = NULL;
 	bResample = false;
 
 	bFloat = false;
@@ -108,6 +112,7 @@ IBaseAudio::IBaseAudio()
 	m_bPlayPcmLive = false;
 	m_quotietyVolume = 3.0f;
 	bProjector = false;
+	m_bPlayPre = false;
 	audioFramesUpdate = 0;
 }
 
@@ -116,8 +121,14 @@ IBaseAudio::~IBaseAudio()
 	if (MoreVariables->resampler)
 		src_delete(MoreVariables->resampler);
 
+	if (MoreVariables->resamplerLocal)
+		src_delete(MoreVariables->resamplerLocal);
+
 	for (UINT i = 0; i < audioSegments.Num(); i++)
 		delete audioSegments[i];
+
+	for (UINT i = 0; i < audioSegmentsLoacl.Num(); i++)
+		delete audioSegmentsLoacl[i];
 
 	delete (NotAResampler*)resampler;
 }
@@ -144,6 +155,7 @@ void IBaseAudio::InitAudioData(bool bFloat, UINT channels, UINT samplesPerSec, U
 		{
 			int converterType = SRC_SINC_FASTEST;
 			MoreVariables->resampler = src_new(converterType, 2, &errVal);
+			MoreVariables->resamplerLocal = src_new(converterType, 2, &errVal);
 		}
 		
 		if (!MoreVariables->resampler)
@@ -170,6 +182,7 @@ void IBaseAudio::InitAudioData(bool bFloat, UINT channels, UINT samplesPerSec, U
 		UINT newFrameSize = frameAdjust * 2;
 
 		tempResampleBuffer.SetSize(newFrameSize);
+		tempResampleBufferLocal.SetSize(newFrameSize);
 
 		data.data_out = tempResampleBuffer.Array();
 		data.output_frames = frameAdjust;
@@ -177,6 +190,9 @@ void IBaseAudio::InitAudioData(bool bFloat, UINT channels, UINT samplesPerSec, U
 		data.end_of_input = 0;
 
 		int err = src_process(MoreVariables->resampler, &data);
+
+		data.data_out = tempResampleBufferLocal.Array();
+		src_process(MoreVariables->resamplerLocal,&data);
 	}
 	else
 	{
@@ -237,13 +253,20 @@ const float surroundMix4 = dbMinus6;
 const float attn5dot1 = 1.0f / (1.0f + centerMix + surroundMix);
 const float attn4dotX = 1.0f / (1.0f + surroundMix4);
 
-void IBaseAudio::AddAudioSegment(AudioSegment *newSegment, float curVolume)
+void IBaseAudio::AddAudioSegment(AudioSegment *newSegment, float curVolume, bool bLiveAdd)
 {
 	if (newSegment && curVolume != 1.0f)
 		MultiplyAudioBuffer(newSegment->audioData.Array(), newSegment->audioData.Num(), curVolume*sourceVolume);
 
 	if (newSegment)
-		audioSegments << newSegment;
+	{
+		if (bLiveAdd)
+			audioSegments << newSegment;
+		else
+		{
+			audioSegmentsLoacl << newSegment;
+		}
+	}
 }
 
 void IBaseAudio::SortAudio(QWORD timestamp)
@@ -332,27 +355,27 @@ float IBaseAudio::GetVolume() const
 	return Volume;
 }
 
-UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
+UINT IBaseAudio::QueryAudio(float curVolume, bool LiveQuery, bool bCanBurstHack /*= false*/)
 {
 	LPVOID buffer;
 	UINT numAudioFrames;
 	QWORD newTimestamp;
 
-	if (GetNextBuffer((void**)&buffer, &numAudioFrames, &newTimestamp))
+	if (GetNextBuffer((void**)&buffer, &numAudioFrames, &newTimestamp, LiveQuery))
 	{
 		//------------------------------------------------------------
 		// convert to float
 		float *captureBuffer;
-
+		List<float> &TemcoverBuffer = LiveQuery ? convertBuffer : convertBufferLocal;
 		if (!bFloat)
 		{
 			UINT totalSamples = numAudioFrames*inputChannels;
-			if (convertBuffer.Num() < totalSamples)
-				convertBuffer.SetSize(totalSamples);
+			if (TemcoverBuffer.Num() < totalSamples)
+				TemcoverBuffer.SetSize(totalSamples);
 
 			if (inputBitsPerSample == 8)
 			{
-				float *tempConvert = convertBuffer.Array();
+				float *tempConvert = TemcoverBuffer.Array();
 				char *tempSByte = (char*)buffer;
 
 				while (totalSamples--)
@@ -362,7 +385,7 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 			}
 			else if (inputBitsPerSample == 16)
 			{
-				float *tempConvert = convertBuffer.Array();
+				float *tempConvert = TemcoverBuffer.Array();
 				short *tempShort = (short*)buffer;
 
 				while (totalSamples--)
@@ -372,7 +395,7 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 			}
 			else if (inputBitsPerSample == 24)
 			{
-				float *tempConvert = convertBuffer.Array();
+				float *tempConvert = TemcoverBuffer.Array();
 				BYTE *tempTriple = (BYTE*)buffer;
 				TripleToLong valOut;
 
@@ -391,7 +414,7 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 			}
 			else if (inputBitsPerSample == 32)
 			{
-				float *tempConvert = convertBuffer.Array();
+				float *tempConvert = TemcoverBuffer.Array();
 				long *tempShort = (long*)buffer;
 
 				while (totalSamples--)
@@ -400,7 +423,7 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 				}
 			}
 
-			captureBuffer = convertBuffer.Array();
+			captureBuffer = TemcoverBuffer.Array();
 		}
 		else
 			captureBuffer = (float*)buffer;
@@ -408,10 +431,12 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 		//------------------------------------------------------------
 		// channel upmix/downmix
 
-		if (tempBuffer.Num() < numAudioFrames * 2)
-			tempBuffer.SetSize(numAudioFrames * 2);
+		List<float> &TemBuff = LiveQuery ? tempBuffer : tempBufferLocal;
 
-		float *dataOutputBuffer = tempBuffer.Array();
+		if (TemBuff.Num() < numAudioFrames * 2)
+			TemBuff.SetSize(numAudioFrames * 2);
+
+		float *dataOutputBuffer = TemBuff.Array();
 		float *tempOut = dataOutputBuffer;
 
 		if (inputChannels == 1)
@@ -679,27 +704,34 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 
 		//------------------------------------------------------------
 		// resample
-
+		List<float> &TemResampleBuff = LiveQuery ? tempResampleBuffer : tempResampleBufferLocal;
 		if (bResample)
 		{
 			UINT frameAdjust = UINT((double(numAudioFrames) * resampleRatio) + 1.0);
 			UINT newFrameSize = frameAdjust * 2;
 
-			if (tempResampleBuffer.Num() < newFrameSize)
-				tempResampleBuffer.SetSize(newFrameSize);
+			if (TemResampleBuff.Num() < newFrameSize)
+				TemResampleBuff.SetSize(newFrameSize);
 
 			SRC_DATA data;
 			data.src_ratio = resampleRatio;
 
-			data.data_in = tempBuffer.Array();
+			data.data_in = TemBuff.Array();
 			data.input_frames = numAudioFrames;
 
-			data.data_out = tempResampleBuffer.Array();
+			data.data_out = TemResampleBuff.Array();
 			data.output_frames = frameAdjust;
 
 			data.end_of_input = 0;
 
-			int err = src_process(MoreVariables->resampler, &data);
+			//是否需要加锁？
+			int err = 0;
+			if (LiveQuery)
+				err = src_process(MoreVariables->resampler, &data);
+			else
+			{
+				err = src_process(MoreVariables->resamplerLocal, &data);
+			}
 			if (err)
 			{
 				//RUNONCE AppWarning(TEXT("AudioSource::QueryAudio: Was unable to resample audio for device '%s'"), GetDeviceName());
@@ -718,31 +750,31 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 		//------------------------------------------------------
 		// timestamp smoothing (keep audio within 70ms of target time)
 
-		if (!lastUsedTimestamp)
-			lastUsedTimestamp = newTimestamp;
-		else
-			lastUsedTimestamp += 10;
+		QWORD &TemTimestamp = LiveQuery ? lastUsedTimestamp : lastUsedTimestampLocal;
 
-		QWORD difVal = GetQWDif(newTimestamp, lastUsedTimestamp);
+		if (!TemTimestamp)
+			TemTimestamp = newTimestamp;
+		else
+			TemTimestamp += 10;
+
+		QWORD difVal = GetQWDif(newTimestamp, TemTimestamp);
 
 		if (difVal >= MoreVariables->jumpRange) {
-// 			if (lastGetTimestamp != newTimestamp)
-// 			{
-// 				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:dif<%llu> 使用获取的时间戳,计算时戳跳变过大,",difVal);
-// 			}
-			lastUsedTimestamp = newTimestamp;
+			TemTimestamp = newTimestamp;
 		}
 		lastGetTimestamp = newTimestamp;
 
-		float *newBuffer = (bResample) ? tempResampleBuffer.Array() : tempBuffer.Array();
+		float *newBuffer = (bResample) ? TemResampleBuff.Array() : TemBuff.Array();
 
-		bool overshotAudio = (lastUsedTimestamp < lastSentTimestamp + 10);
+		QWORD &TemLastTimestamp = LiveQuery ? lastSentTimestamp : lastSentTimestampLocal;
+
+		bool overshotAudio = (TemTimestamp < TemLastTimestamp + 10);
 		if (bCanBurstHack || !overshotAudio)
 		{
-			AudioSegment *newSegment = new AudioSegment(newBuffer, numAudioFrames * 2, lastUsedTimestamp);
+			AudioSegment *newSegment = new AudioSegment(newBuffer, numAudioFrames * 2, TemTimestamp);
 
-			AddAudioSegment(newSegment, curVolume*sourceVolume);
-			lastSentTimestamp = lastUsedTimestamp;
+			AddAudioSegment(newSegment, curVolume*sourceVolume,LiveQuery);
+			TemLastTimestamp = TemTimestamp;
 		}
 		else
 		{
@@ -758,22 +790,28 @@ UINT IBaseAudio::QueryAudio(float curVolume, bool bCanBurstHack /*= false*/)
 }
 
 
-bool IBaseAudio::GetBuffer(float **buffer, QWORD targetTimestamp)
+bool IBaseAudio::GetBuffer(float **buffer, QWORD targetTimestamp, bool bLiveGet)
 {
 	bool bSuccess = false;
 	bool bDeleted = false;
-	outputBuffer.Clear();
+
+	List<float> &outputBufferTem = bLiveGet ? outputBuffer : outputBufferLocal;
+	outputBufferTem.Clear();
 
 	bool bReportedOnce = false;
 	QWORD timestamp = 0;
 	int  nDeletedCnt = 0;
 	QWORD timestampDel = 0;
-	while (audioSegments.Num())
+
+	List<AudioSegment*> &TmeAudioSegment = bLiveGet ? audioSegments : audioSegmentsLoacl;
+
+
+	while (TmeAudioSegment.Num())
 	{
-		timestamp = audioSegments[0]->timestamp;
-		if (audioSegments[0]->timestamp < targetTimestamp)
+		timestamp = TmeAudioSegment[0]->timestamp;
+		if (TmeAudioSegment[0]->timestamp < targetTimestamp)
 		{
-			QWORD diff = targetTimestamp - audioSegments[0]->timestamp;
+			QWORD diff = targetTimestamp - TmeAudioSegment[0]->timestamp;
 
 			if (!bReportedOnce)
 			{
@@ -784,8 +822,8 @@ bool IBaseAudio::GetBuffer(float **buffer, QWORD targetTimestamp)
 			{
 				timestampDel = timestamp;
 			}
-			delete audioSegments[0];
-			audioSegments.Remove(0);
+			delete TmeAudioSegment[0];
+			TmeAudioSegment.Remove(0);
 			nDeletedCnt++;
 			bDeleted = true;
 		}
@@ -798,32 +836,32 @@ bool IBaseAudio::GetBuffer(float **buffer, QWORD targetTimestamp)
 			targetTimestamp,
 			timestampDel,
 			nDeletedCnt,
-			audioSegments.Num(),
+			TmeAudioSegment.Num(),
 			LastTimeTimeStamp
 			);
 	}
-	if (audioSegments.Num())
+	if (TmeAudioSegment.Num())
 	{
 		bool bUseSegment = false;
 
-		AudioSegment *segment = audioSegments[0];
+		AudioSegment *segment = TmeAudioSegment[0];
 
 		QWORD difference = (segment->timestamp - targetTimestamp);
 		if (bDeleted || difference <= 11)
 		{
 			//Log(TEXT("segment.timestamp: %llu, targetTimestamp: %llu"), segment.timestamp, targetTimestamp);
-			outputBuffer.TransferFrom(segment->audioData);
+			outputBufferTem.TransferFrom(segment->audioData);
 
 			delete segment;
-			audioSegments.Remove(0);
+			TmeAudioSegment.Remove(0);
 
 			bSuccess = true;
 		}
 	}
 
-	outputBuffer.SetSize(OutputsampleRateHz / 100 * 2);
+	outputBufferTem.SetSize(OutputsampleRateHz / 100 * 2);
 
-	*buffer = outputBuffer.Array();
+	*buffer = outputBufferTem.Array();
 	return bSuccess;
 }
 
@@ -857,6 +895,12 @@ void IBaseAudio::StopRenderAStream()
 void IBaseAudio::SetLastTimeStamp(QWORD &TimeStamp)
 {
 	LastTimeTimeStamp = TimeStamp;
+}
+
+
+void IBaseAudio::SetLastTimeStamp_Local(QWORD &TimeStamp)
+{
+	LastTimeTimeStamp_Local = TimeStamp;
 }
 
 void IBaseAudio::SetAudioParam(float LVolumeQuotiety, float RVolumeQuotiety, float PVolumeQuotiety, bool bPlayPcmLocal, bool bPlayPcmLive, float quotietyVolume, bool Projector)
@@ -931,25 +975,25 @@ void IBaseAudio::CaculateVolume(LPVOID pBuffer, int& numAudioFrames, void **OutB
 
 	char *TemChar = NULL;
 	float *TemFloat = NULL;
-	if (1 == inputChannels)
-	{
-		if (OutputaudioData.Num() < numAudioFrames * 2)
-		{
-			OutputaudioData.SetSize(numAudioFrames * 2);
-		}
-
-		char *pTemChar = (char*)pBuffer;
-
-		for (int index = 0, iCount = 0; index < numAudioFrames; index += 2, iCount += 4)
-		{
-			memcpy(&OutputaudioData[iCount], &pTemChar[index], 2);
-			memcpy(&OutputaudioData[iCount + 2], &pTemChar[index], 2);
-		}
-
-		TemChar = OutputaudioData.Array();
-		numAudioFrames *= 2;
-	}
-	else
+// 	if (1 == inputChannels)
+// 	{
+// 		if (OutputaudioData.Num() < numAudioFrames * 2)
+// 		{
+// 			OutputaudioData.SetSize(numAudioFrames * 2);
+// 		}
+// 
+// 		char *pTemChar = (char*)pBuffer;
+// 
+// 		for (int index = 0, iCount = 0; index < numAudioFrames; index += 2, iCount += 4)
+// 		{
+// 			memcpy(&OutputaudioData[iCount], &pTemChar[index], 2);
+// 			memcpy(&OutputaudioData[iCount + 2], &pTemChar[index], 2);
+// 		}
+// 
+// 		TemChar = OutputaudioData.Array();
+// 		numAudioFrames *= 2;
+// 	}
+// 	else
 	{
 		if (bFloat)
 		{
@@ -964,7 +1008,7 @@ void IBaseAudio::CaculateVolume(LPVOID pBuffer, int& numAudioFrames, void **OutB
 
 	UINT SampleSize = inputSamplesPerSec;
 
-	if (AudioDbCB)
+	//if (AudioDbCB)
 	{
 		if (bFloat)
 		{
@@ -978,9 +1022,9 @@ void IBaseAudio::CaculateVolume(LPVOID pBuffer, int& numAudioFrames, void **OutB
 		}
 	}
 	
-	if (AudioDbCB && audioFramesUpdate >= SampleSize * 200)//200ms计算一次
+	if (/*AudioDbCB && */audioFramesUpdate >= SampleSize * 40)//40ms计算一次
 	{
-		float LeftDb = 0, RightDb = 0;
+		float LDb = -96, RDb = -96;
 		if (bFloat)
 		{
 			//将左右声道拆开
@@ -990,23 +1034,34 @@ void IBaseAudio::CaculateVolume(LPVOID pBuffer, int& numAudioFrames, void **OutB
 				memcpy(&rightaudioDataf[iCount], &TemFloat[iIndex + 1], 4);
 			}
 			//计算左右声道分贝值
-			CalculateVolumeLevelsFloat(leftaudioDataf.Array(), numAudioFrames / 2, LeftDb);
-			CalculateVolumeLevelsFloat(rightaudioDataf.Array(), numAudioFrames / 2, RightDb);
+			CalculateVolumeLevelsFloat(leftaudioDataf.Array(), numAudioFrames / 2, LDb);
+			CalculateVolumeLevelsFloat(rightaudioDataf.Array(), numAudioFrames / 2, RDb);
 		}
 		else
 		{
-			//将左右声道拆开
-			for (int iIndex = 0, iCount = 0; iIndex < numAudioFrames; iIndex += 4, iCount += 2)
+			if (2 == inputChannels)
 			{
-				memcpy(&leftaudioData[iCount], &TemChar[iIndex], 2);
-				memcpy(&rightaudioData[iCount], &TemChar[iIndex + 2], 2);
+				//将左右声道拆开
+				for (int iIndex = 0, iCount = 0; iIndex < numAudioFrames; iIndex += 4, iCount += 2)
+				{
+					memcpy(&leftaudioData[iCount], &TemChar[iIndex], 2);
+					memcpy(&rightaudioData[iCount], &TemChar[iIndex + 2], 2);
+				}
+				//计算左右声道分贝值
+				CalculateVolumeLevelsShort(leftaudioData.Array(), numAudioFrames / 2, LDb);
+				CalculateVolumeLevelsShort(rightaudioData.Array(), numAudioFrames / 2, RDb);
 			}
-			//计算左右声道分贝值
-			CalculateVolumeLevelsShort(leftaudioData.Array(), numAudioFrames / 2, LeftDb);
-			CalculateVolumeLevelsShort(rightaudioData.Array(), numAudioFrames / 2, RightDb);
+			else
+			{
+				CalculateVolumeLevelsShort(TemChar, numAudioFrames, LDb);
+				RDb = LDb;
+			}
 		}
 
-		AudioDbCB((uint64_t)this, toDB(LeftDb), toDB(RightDb));
+		//AudioDbCB((uint64_t)this, toDB(LeftDb), toDB(RightDb));
+
+		LeftDb = toDB(LDb);
+		RightDb = toDB(RDb);
 
 		audioFramesUpdate = 0;
 	}
@@ -1147,5 +1202,28 @@ void IBaseAudio::ResetAudioDB()
 {
 	if (AudioDbCB)
 		AudioDbCB((uint64_t)this, -96.0f, -96.0f);
+}
+
+void IBaseAudio::SetLiveInstance(bool bLiveInstance)
+{
+	if (bLiveInstance)
+	{
+		CSLiveManager::GetInstance()->AddPreviewInstanceAudio(this);
+	}
+	else
+	{
+		CSLiveManager::GetInstance()->RemovePreviewInstanceAudio(this);
+	}
+}
+
+void IBaseAudio::SetPlayPreview(bool bPlay)
+{
+	m_bPlayPre = bPlay;
+}
+
+void IBaseAudio::GetDb(float &LeftDb, float &RightDb)
+{
+	LeftDb = this->LeftDb;
+	RightDb = this->RightDb;
 }
 

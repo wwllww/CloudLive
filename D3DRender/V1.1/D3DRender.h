@@ -7,7 +7,9 @@
 #define _WIN32_WINDOWS 0x0600
 #define _WIN32_WINNT   0x0600
 #define NTDDI_VERSION  NTDDI_VISTASP1
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #define ISOLATION_AWARE_ENABLED 1
 #include <windows.h>
 #include <commctrl.h>

@@ -14,7 +14,7 @@ public:
 	CMultimediaRender();
 	~CMultimediaRender();
 	void InitD3DReSize();
-	bool SetVideoRender(HWND Hwnd, const Vect2 &pos, const Vect2 &size);
+	bool SetVideoRender(const Vect2 &pos, const Vect2 &size);
 	bool SetAudioRender(int channels, int samplerate, int sampleperbits);
 	bool SetAudioRender();		
 	bool CanPlayAudio();
@@ -34,7 +34,7 @@ public:
 	bool FindAndRemoveId(int id);
 	void SetIsInteraction(bool bInteraction);
 	void GetDisPlayMode(SDIOUT_DISPLAYMODE mode,int &Width, int& Height);
-	void RenderTexture();
+	void RenderTexture(Shader *VertShader, Shader *PixShader);
 
 private:
 	void VideoRender(unsigned char* Buffer, int width, int height, int pixformat);

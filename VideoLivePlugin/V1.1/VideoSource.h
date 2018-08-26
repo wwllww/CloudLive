@@ -140,6 +140,7 @@ private:
 	bool bIsFieldSignal = false;
 	String strShaderOld;
 	D3DAPI *D3DRender;
+	DWORD opacity255 = 255;
 public:
 	void AudioPlayBack(const void *samples, unsigned int count, int64_t pts);
 	void InitAudioCSampleData();
@@ -205,6 +206,7 @@ public:
 	bool GetHasPreProcess() const;
     void GlobalSourceLeaveScene();
     void GlobalSourceEnterScene();
+	virtual void SetOpacity(DWORD Opacity);
 
 	virtual const char* GetAduioClassName() const;
 	virtual IBaseAudio * GetAudioRender();

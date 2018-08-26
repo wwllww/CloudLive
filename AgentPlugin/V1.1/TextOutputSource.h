@@ -12,6 +12,7 @@
 class TextOutputSource : public IBaseVideo
 {
 	DYNIC_DECLARE()
+private:
     bool        bUpdateTexture;
 	bool        bUpdateSubTitleTexture;
     String      strCurrentText;
@@ -92,6 +93,10 @@ class TextOutputSource : public IBaseVideo
 	bool  bHasPreprocess;
 
 	D3DAPI *D3DRender;
+	bool EnterSize = false;
+
+	bool bCanValue = true;
+	bool bChangedd = false;
 
     void DrawOutlineText(Gdiplus::Graphics *graphics,
                          Gdiplus::Font &font,

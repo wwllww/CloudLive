@@ -166,19 +166,14 @@ void TextOutputSource::Render(const Vect2 &pos, const Vect2 &size, Texture* tex,
 		}
 
 
-		bool HasVaule = false;
-		if (bUseExtents && UseExtentSize != Vect2(0, 0))
-		{
-			sizeMultiplier = UseExtentSize / OldbaseSize;
-			HasVaule = true;
-		}
+// 		bool HasVaule = false;
+// 		if (bUseExtents && UseExtentSize != Vect2(0, 0))
+// 		{
+// 			sizeMultiplier = UseExtentSize / OldbaseSize;
+// 			HasVaule = true;
+// 		}
 
 		Vect2 newSize = Vect2(float(textureSize.cx), float(textureSize.cy)) * sizeMultiplier;
-
-		static bool EnterSize = false;
-
-		static bool bCanValue = true;
-		static bool bChangedd = false;
 
 		if ((bHasUpDataTexture || OldMouseRenderPos != size) && !bIsLiveC)
 		{
@@ -214,22 +209,22 @@ void TextOutputSource::Render(const Vect2 &pos, const Vect2 &size, Texture* tex,
 			EnterSize = false;
 		}
 
-		if (!bUseExtents && OldNSize != Vect2(0, 0) && OldBSize != Vect2(0, 0) && !bIsLiveC)
-		{
-			sizeMultiplier = OldNSize / OldBSize;
-			newSize = Vect2(float(textureSize.cx), float(textureSize.cy)) * sizeMultiplier;
-
-			if (!EnterSize)
-				bCanValue = false;
-		}
-		else if (sizeMultiplier == Vect2(1.0f, 1.0f) && OldNSize != Vect2(0, 0) && OldBSize != Vect2(0, 0) && !bIsLiveC)//点自动大小两次
-		{
-			sizeMultiplier = OldNSize / OldBSize;
-			newSize = Vect2(float(textureSize.cx), float(textureSize.cy)) * sizeMultiplier;
-
-			if (!EnterSize)
-				bCanValue = false;
-		}
+//		if (!bUseExtents && OldNSize != Vect2(0, 0) && OldBSize != Vect2(0, 0) && !bIsLiveC)
+//		{
+// 			sizeMultiplier = OldNSize / OldBSize;
+// 			newSize = Vect2(float(textureSize.cx), float(textureSize.cy)) * sizeMultiplier;
+// 
+// 			if (!EnterSize)
+// 				bCanValue = false;
+// 		}
+// 		else if (sizeMultiplier == Vect2(1.0f, 1.0f) && OldNSize != Vect2(0, 0) && OldBSize != Vect2(0, 0) && !bIsLiveC)//点自动大小两次
+// 		{
+// 			sizeMultiplier = OldNSize / OldBSize;
+// 			newSize = Vect2(float(textureSize.cx), float(textureSize.cy)) * sizeMultiplier;
+// 
+// 			if (!EnterSize)
+// 				bCanValue = false;
+// 		}
 
 
 		if (OldSize != newSize && !bIsLiveC) //LiveCall不改变大小
@@ -242,7 +237,7 @@ void TextOutputSource::Render(const Vect2 &pos, const Vect2 &size, Texture* tex,
 			}
 
 			bUpdateSubTitleTexture = true;
-			if (!HasVaule && bCanWrite)
+			if (/*!HasVaule &&*/ bCanWrite)
 			{
 				if (OldNSize != Vect2(0, 0) && bCanValue)
 				{
@@ -533,7 +528,12 @@ void TextOutputSource::Render(const Vect2 &pos, const Vect2 &size, Texture* tex,
 
 Vect2 TextOutputSource::GetSize() const
 {
-	return RenderSize == Vect2(0, 0) ? baseSize : RenderSize;// baseSize;
+// 	if (bUseExtents)
+// 		return RenderSize == Vect2(0, 0) ? baseSize : RenderSize;// baseSize;
+// 	else
+	{
+		return baseSize;
+	}
 }
 
 void TextOutputSource::UpdateSettings(Value &data)
@@ -584,9 +584,80 @@ void TextOutputSource::UpdateSettings(Value &data)
 	if (!data["file"].isNull())
 		strFile = Asic2WChar(data["file"].asString().c_str()).c_str();
 
+	bUseOutline = data["useOutline"].asInt() != 0;
+
 	if (mode == 1 && !OSFileExists(strFile)) // 文件不存在
 	{
 		return;
+	}
+
+
+	if (bUseExtents)
+	{
+		data["baseSizeCX"] = float(extentWidth);
+		data["baseSizeCY"] = float(extentHeight);
+	}
+	else
+	{
+		String strOutputText;
+		if (mode == 0)
+			strOutputText = strText;
+
+		LOGFONT lf;
+		zero(&lf, sizeof(lf));
+		lf.lfHeight = size;
+		lf.lfWeight = bBold ? FW_BOLD : FW_DONTCARE;
+		lf.lfItalic = bItalic;
+		lf.lfQuality = ANTIALIASED_QUALITY;
+		if (strFont.IsValid())
+			scpy_n(lf.lfFaceName, strFont, 31);
+		else
+			scpy_n(lf.lfFaceName, TEXT("Arial"), 31);
+
+		HDC hDC = CreateCompatibleDC(NULL);
+
+		Gdiplus::Font font(hDC, &lf);
+
+		{
+			Gdiplus::Graphics graphics(hDC);
+			Gdiplus::StringFormat format(Gdiplus::StringFormat::GenericTypographic());
+
+			UINT formatFlags;
+
+			formatFlags = Gdiplus::StringFormatFlagsNoFitBlackBox
+				| Gdiplus::StringFormatFlagsMeasureTrailingSpaces;
+
+			if (bVertical)
+				formatFlags |= Gdiplus::StringFormatFlagsDirectionVertical
+				| Gdiplus::StringFormatFlagsDirectionRightToLeft;
+
+			format.SetFormatFlags(formatFlags);
+			format.SetTrimming(Gdiplus::StringTrimmingWord);
+
+			Gdiplus::RectF rcf;
+			graphics.MeasureString(strOutputText, -1, &font, Gdiplus::PointF(0.0f, 0.0f), &format, &rcf);
+
+			if (bUseOutline)
+			{
+				rcf.Height += outlineSize;
+				rcf.Width += outlineSize;
+			}
+
+			if (bVertical)
+			{
+				if (rcf.Width < size)
+					rcf.Width = (float)size;
+			}
+			else
+			{
+				if (rcf.Height < size)
+					rcf.Height = (float)size;
+			}
+			data["baseSizeCX"] = MAX(rcf.Width, 32.0f);
+			data["baseSizeCY"] = MAX(rcf.Height, 32.0f);
+		}
+
+		DeleteDC(hDC);
 	}
 
 	
@@ -606,7 +677,7 @@ void TextOutputSource::UpdateSettings(Value &data)
 		baseSize.y = data["baseSizeCY"].asInt();
 	}
 
-	bUseOutline = data["useOutline"].asInt() != 0;
+	
 	outlineColor = 0xFF000000;
 
 	if (!data["outlineColor"].isNull())

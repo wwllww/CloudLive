@@ -7,6 +7,8 @@
 #include "Respond.h"
 #include <fstream>
 #include "IRealAgent.h"
+#include "curl.h"
+#include <ppltasks.h>
 
 #define STREAM_NAME "1"
 
@@ -20,6 +22,14 @@ extern IRealAgent *EXE;
 typedef tbb::concurrent_hash_map<AIOID, __TimeInfo,hash_compare_socket> SocketMap;
 
 CHttpNetWork *CHttpNetWork::m_Intances = NULL;
+
+size_t curl_write_data_cb(void *buffer, size_t size, size_t nmemb, void *content)
+{
+	int written = 0;
+	written = fwrite(buffer, size, nmemb, (FILE*)content);
+	return written;
+}
+
 
 CHttpNetWork * CHttpNetWork::GetInstance()
 {
@@ -156,6 +166,23 @@ int CHttpNetWork::InitLive()
 			std::cout << "MediaPort = 0" << std::endl;
 			return -1;
 		}
+
+		LocalCachePath = JValue["localcachepath"].asCString();
+
+		if (LocalCachePath.empty())
+		{
+			std::cout << "localcachepath 为空" << std::endl;
+			return -1;
+		}
+
+		CreateDirectoryA(LocalCachePath.c_str(), NULL);
+
+		if (LocalCachePath[LocalCachePath.length() - 1] != '/')
+		{
+			LocalCachePath.resize(LocalCachePath.length() + 1);
+
+			LocalCachePath[LocalCachePath.length() - 1] = '/';
+		}
 	}
 	else
 	{
@@ -232,6 +259,7 @@ int CHttpNetWork::InitLive()
 
 	TcpControl->read_timeout(10000);
 	TcpControl->write_timeout(5000);
+	TcpControl->connect_timeout(1000);
 
 	bHasInit = true;
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end!", __FUNCTION__);
@@ -341,8 +369,13 @@ void CHttpNetWork::ParseResquest(const char *recvbuf, int buflen, std::string &C
 			{
 				CmdName = CmdName.substr(Last + 1, Pos - Last - 1);
 			}
+			else
+			{
+				CmdName = CmdName.substr(Last + 1, CmdName.length() - 1);
+			}
 		}
 	}
+
 }
 
 void CHttpNetWork::WaitAndCloseSocket(SOCKET sock)
@@ -412,8 +445,37 @@ void CHttpNetWork::DoAcceptProcess(AIOID Id, char *recbuf, int iRecLen, ULL64 ct
 	}
 }
 
+const char *Respond = "HTTP/1.1 200 OK\r\n"
+"Content-Type: application/json\r\n"
+"Content-Length: %d\r\n"
+"Accept-Language: zh-CN,en*\r\n"
+"User-Agent: Mozilla/5.0\r\n\r\n"
+"%s";
+
+const char g_sCrossdomain[] = {
+	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
+	"<cross-domain-policy xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://www.adobe.com/xml/schemas/PolicyFile.xsd\">" \
+	"<site-control permitted-cross-domain-policies=\"master-only\"/>" \
+	"<allow-access-from domain=\"*\"/>" \
+	"<allow-http-request-headers-from domain=\"*\" headers=\"*\"/>" \
+	"</cross-domain-policy>"
+};
+
+const char *RespondCrossdoMain = "HTTP/1.1 200 OK\r\n"
+"Content-Type: application/xml\r\n"
+"Content-Length: %d\r\n"
+"Accept-Language: zh-CN,en*\r\n"
+"Access-Control-Allow-Origin: *\r\n"
+"User-Agent: Mozilla/5.0\r\n\r\n"
+"%s";
+
 int CHttpNetWork::HttpMsgLoop()
 {
+	if (!bHasInit)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "程序还未初化始.");
+		return 0;
+	}
 	DEBUG_PRINT("进入消息循环...");
 	
 	CRequse Req;
@@ -434,40 +496,43 @@ int CHttpNetWork::HttpMsgLoop()
 			ParseResquest(MsgInfo.Msgbuf, MsgInfo.MsgLen, CmdName,!MsgInfo.bPost);
 
 
-			Req.SetCmd(CmdName.c_str());
-			Res.SetResType(RES_FAILED);
-
-			QueryInterface()->ExecuseInvoke(Req, Res);
-
-			const char *Respond = "HTTP/1.1 200 OK\r\n"
-				"Content-Type: application/json\r\n"
-				"Content-Length: %d\r\n"
-				"Accept-Language: zh-CN,en,*\r\n"
-				"User-Agent: Mozilla/5.0\r\n\r\n"
-				"%s";
-
 			__PDATAINFO DataInfo = (__PDATAINFO)MsgInfo.Context;
 
-			ZeroMemory(DataInfo->buf, DataInfo->len);
-			DataInfo->SendStatus = SEND_OK;
-
-			std::string &StrRes = Res.GetRespond().toStyledString();
-
-			//这里要把ANSI转成UTF-8
-
-			char *Utf_8 = GBToUTF8(StrRes.c_str());
-
-			if (Utf_8)
+			if (stricmp(CmdName.c_str(), "crossdomain.xml"))
 			{
-				sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, strlen(Utf_8), Utf_8);
+				Req.SetCmd(CmdName.c_str());
+				Res.SetResType(RES_FAILED);
 
-				delete[] Utf_8;
+				QueryInterface()->ExecuseInvoke(Req, Res);
+
+				ZeroMemory(DataInfo->buf, DataInfo->len);
+				DataInfo->SendStatus = SEND_OK;
+
+				std::string &StrRes = Res.GetRespond().toStyledString();
+
+				//这里要把ANSI转成UTF-8
+
+				char *Utf_8 = GBToUTF8(StrRes.c_str());
+
+				if (Utf_8)
+				{
+					sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, strlen(Utf_8), Utf_8);
+
+					delete[] Utf_8;
+				}
+				else
+				{
+					sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, StrRes.length(), StrRes.c_str());
+				}
+
 			}
 			else
 			{
-				sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, StrRes.length(), StrRes.c_str());
+				ZeroMemory(DataInfo->buf, DataInfo->len);
+				DataInfo->SendStatus = SEND_OK;
+				sprintf_s((char*)DataInfo->buf, DataInfo->len, RespondCrossdoMain, strlen(g_sCrossdomain), g_sCrossdomain);
 			}
-
+			
 			DEBUG_PRINT((const char*)DataInfo->buf);
 
 			TcpControl->asyn_write(MsgInfo.id, (char*)DataInfo->buf, strlen((char*)DataInfo->buf), (ULL64)this, MsgInfo.Context);
@@ -700,3 +765,85 @@ Json::Value CHttpNetWork::GetDefaultSences() const
 	return DefaultSences;
 }
 
+std::string CHttpNetWork::GetLocalCachePath() const
+{
+	return LocalCachePath;
+}
+
+bool CHttpNetWork::HTTPGetFile(const char* url, FILE *wFile)
+{
+	if (!url || !wFile)
+	{
+		return false;
+	}
+
+
+	CURL *curl = NULL;
+	CURLcode return_code;
+	//curl初始化   
+	curl = curl_easy_init();
+	if (!curl)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "%s[%d]: curl easy init failed\n", __FUNCTION__, __LINE__);
+		return false;
+	}
+
+	if (strncmp(url, "https://", 8) == 0)
+	{
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+		curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
+	}
+
+	curl_easy_setopt(curl, CURLOPT_HEADER, 0);    //设置httpheader 解析, 不需要将HTTP头写传入回调函数  
+
+	curl_easy_setopt(curl, CURLOPT_URL, url);   //设置远端地址
+
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data_cb);  //执行写入文件流操作的回调函数
+
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5);
+
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)wFile);
+
+	return_code = curl_easy_perform(curl);
+	if (CURLE_OK != return_code)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "curl_easy_perform() failed: %s\n", curl_easy_strerror(return_code));
+		curl_easy_cleanup(curl);
+		return false;
+	}
+
+// 	int responseCode = 0;
+// 	return_code = curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, responseCode);
+// 
+// 	if (CURLE_OK != return_code)
+// 	{
+// 		Log::writeError(LOG_RTSPSERV, 1, "curl_easy_getinfo() failed: %s\n", curl_easy_strerror(return_code));
+// 		curl_easy_cleanup(curl);
+// 		return false;
+// 	}
+
+	curl_easy_cleanup(curl);
+	return true;
+}
+
+void CHttpNetWork::DoAsnycDownLoadFile(std::string& url, std::string& FileName, DownLoadCompleteCb DCCb, void *context, const std::string& Name)
+{
+	auto TaskEnCoder = concurrency::create_task([this, url, FileName, DCCb, context, Name](){
+		FILE *File = fopen(FileName.c_str(), "wb");
+		if (!File)
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "%s fopen failed! FileName = %s", __FUNCTION__, FileName.c_str());
+			return;
+		}
+		bool Success = HTTPGetFile(url.c_str(), File); 
+		fclose(File);
+
+		if (!Success)
+		{
+			DeleteFileA(FileName.c_str());
+		}
+
+		DCCb(context, Name, Success);
+	
+	});
+}

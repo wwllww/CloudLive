@@ -604,6 +604,8 @@ void D3D10System::initD3D(UINT adapterID)
 
 	adapterName.KillSpaces();
 
+	Log::writeMessage(LOG_RTSPSERV, 1, "---adapterName %s---", Wchar2Ansi(adapterName.Array()).c_str());
+
 	err = D3D11CreateDevice(adapter, D3D_DRIVER_TYPE_UNKNOWN, NULL, createFlags, featureLevels, sizeof(featureLevels) / sizeof(featureLevels[0]), D3D11_SDK_VERSION, &d3d, &level, &context);
 	if (FAILED(err))
 	{

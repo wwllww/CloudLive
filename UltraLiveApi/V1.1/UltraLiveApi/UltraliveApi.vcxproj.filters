@@ -120,6 +120,15 @@
     <ClInclude Include="..\D3DResize.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\TCPSocketControl.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\HttpLive.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MetaData.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -237,6 +246,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="..\Encoder_Nvidia.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\TCPSocketControl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\HttpLive.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

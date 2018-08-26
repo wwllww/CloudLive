@@ -8,7 +8,7 @@
 
 #include "inc/NvHWEncoder.h"
 
-#define MAX_ENCODE_QUEUE 32
+#define MAX_ENCODE_QUEUE 1
 #define FRAME_QUEUE 240
 #define NUM_OF_MVHINTS_PER_BLOCK8x8   4
 #define NUM_OF_MVHINTS_PER_BLOCK8x16  2

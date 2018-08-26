@@ -2,6 +2,7 @@
 #include "OperatNew.h"
 #include "RTMPStuff.h"
 #include "RTMPPublisherVector.h"
+#include "HttpLive.h"
 
 #ifdef OPERATOR_NEW
 #define new OPERATOR_NEW
@@ -22,6 +23,12 @@ bool CInstanceProcess::ProcessFrame(FrameProcessInfo &frameInfo)
 	bool bProcessedFrame, bSendFrame = false;
 
 	static QWORD CallCount = 0;
+
+	if (bFristIn)
+	{
+		FristQPC = GetQPCMS();
+		bFristIn = false;
+	}
 
 	DWORD out_pts = 0;
 	videoEncoder->Encode(frameInfo.pic, videoPackets, videoPacketTypes, bufferedTimes[0], out_pts);
@@ -51,6 +58,12 @@ bool CInstanceProcess::ProcessFrame(FrameProcessInfo &frameInfo)
 		for (; pos != end; ++pos)
 		{
 			SendFrame(*((*pos).get()), frameInfo.firstFrameTime);
+		}
+
+		if (bFristOut)
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "编码出第一帧间隔 %llu ms,bufferedVideo.Num = %d", GetQPCMS() - FristQPC, bufferedVideo.Num());
+			bFristOut = false;
 		}
 	}
 
@@ -126,6 +139,11 @@ void CInstanceProcess::SendFrame(VideoSegment &curSegment, QWORD firstFrameTime)
 						if (network)
 							network->SendPacket(audioData.Array(), audioData.Num(), audioTimestamp, PacketType_Audio, EncodMajor);
 
+						if (__HttpLive)
+						{
+							__HttpLive->SendPacket(audioData.Array(), audioData.Num(), audioTimestamp, false);
+						}
+
 						if (fileStream)
 						{
 							auto shared_data = std::make_shared<const std::vector<BYTE>>(audioData.Array(), audioData.Array() + audioData.Num());
@@ -156,6 +174,11 @@ void CInstanceProcess::SendFrame(VideoSegment &curSegment, QWORD firstFrameTime)
 		{
 			network->SendPacket(packet.data.Array(), packet.data.Num(), curSegment.timestamp, packet.type, EncodMajor);
 			//Log::writeMessage(LOG_RTSPSERV, 1, "%s Send Video Frame VidoeTimestamp %d", __FUNCTION__, curSegment.timestamp);
+		}
+
+		if (__HttpLive)
+		{
+			__HttpLive->SendPacket(packet.data.Array(), packet.data.Num(), curSegment.timestamp, true);
 		}
 
 		if (fileStream)

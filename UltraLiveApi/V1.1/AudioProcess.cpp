@@ -93,8 +93,17 @@ void CInstanceProcess::QueryAudioBuffers()
 	EnterCriticalSection(&AudioSection);
 	for (UINT i = 0; i < m_AudioList.Num(); ++i)
 	{
-		m_AudioList[i].AudioStream->SetLastTimeStamp(CurrentAudioTime);
-		m_AudioList[i].AudioStream->QueryAudio(m_AudioList[i].AudioStream->GetVolume(), true);
+		if (IsLiveInstance)
+		{
+			m_AudioList[i].AudioStream->SetLastTimeStamp(CurrentAudioTime);
+			m_AudioList[i].AudioStream->QueryAudio(m_AudioList[i].AudioStream->GetVolume(), IsLiveInstance, true);
+		}
+		else if (m_AudioList[i].PreviewAudio)
+		{
+			m_AudioList[i].PreviewAudio->SetLastTimeStamp_Local(CurrentAudioTime);
+			m_AudioList[i].PreviewAudio->QueryAudio(m_AudioList[i].PreviewAudio->GetVolume(), IsLiveInstance, true);
+		}
+		
 	}
 
 	LeaveCriticalSection(&AudioSection);
@@ -114,7 +123,7 @@ bool CInstanceProcess::QueryNewAudio()
 		EnterCriticalSection(&AudioSection);
 		for (UINT i = 0; i < m_AudioList.Num();)
 		{
-			if (m_AudioList[i].AudioStream->IsNeedRemove())
+			if (IsLiveInstance && m_AudioList[i].AudioStream->IsNeedRemove())
 			{
 				m_AudioList[i].AudioStream.reset();
 				if (m_AudioList[i].Config)
@@ -124,8 +133,29 @@ bool CInstanceProcess::QueryNewAudio()
 			}
 			else
 			{
-				while (m_AudioList[i].bRender && m_AudioList[i].AudioStream->QueryAudio(m_AudioList[i].AudioStream->GetVolume(), true) != NoAudioAvailable);
-				++i;
+				if (IsLiveInstance)
+				{
+					while (m_AudioList[i].bRender && m_AudioList[i].AudioStream->QueryAudio(m_AudioList[i].AudioStream->GetVolume(), IsLiveInstance, true) != NoAudioAvailable);
+					++i;
+				}
+				else
+				{
+					//在这里区分要不要PGM
+
+					if (bNeedPGM)
+					{
+						while (m_AudioList[i].bRender && m_AudioList[i].PreviewAudio && m_AudioList[i].PreviewAudio->QueryAudio(m_AudioList[i].PreviewAudio->GetVolume(), IsLiveInstance, true) != NoAudioAvailable);
+						++i;
+					}
+					else
+					{
+						bool bNeed = !m_AudioList[i].PreviewAudio->IsLiveInstance() || (m_AudioList[i].PreviewAudio->IsLiveInstance() && m_AudioList[i].bLittlePlay);
+						while (m_AudioList[i].bRender && m_AudioList[i].PreviewAudio && bNeed && m_AudioList[i].PreviewAudio->QueryAudio(m_AudioList[i].PreviewAudio->GetVolume(), IsLiveInstance, true) != NoAudioAvailable);
+						++i;
+					}
+
+					
+				}
 			}
 		}
 

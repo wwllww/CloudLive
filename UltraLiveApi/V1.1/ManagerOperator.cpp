@@ -7,14 +7,10 @@
 #pragma message("new(__FILE__,__LINE__)")
 #endif
 
-bool CSLiveManager::ManagerInit(uint64_t hwnd)
+bool CSLiveManager::ManagerInit()
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
-	RECT Rect;
-	GetClientRect((HWND)hwnd, &Rect);
-	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s initD3D Invoke begin! width = %d,heigth = %d", __FUNCTION__, Rect.right, Rect.bottom);
-
-	m_D3DRender = new D3DAPI(Rect.right, Rect.bottom, (HWND)hwnd, BSParam.DeviceSetting.AdpterID);
+	m_D3DRender = new D3DAPI(BSParam.DeviceSetting.AdpterID);
 
 	if (!m_D3DRender)
 	{
@@ -76,16 +72,36 @@ bool CSLiveManager::ManagerInit(uint64_t hwnd)
 	HVideoCapture = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MainVideoCapture, this, 0, NULL);
 	SetThreadPriority(HVideoCapture, THREAD_PRIORITY_HIGHEST);
 
-	HVideoEncoder = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)VideoEncoderThread, this, 0, NULL);
-	SetThreadPriority(HVideoEncoder, THREAD_PRIORITY_HIGHEST);
+	for (int i = 0; i < 2; ++i)
+	{
+		EncoderThreadParam[i].Manger = this;
+		AudioThreadParam[i].Manger = this;
+		if (i == 0)
+		{
+			EncoderThreadParam[i].bLiveInstance = true;
+			HVideoEncoder[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)VideoEncoderThread, &EncoderThreadParam[i], 0, NULL);
+			SetThreadPriority(HVideoEncoder[i], THREAD_PRIORITY_HIGHEST);
 
-	HAudioCapture = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MainAudioCapture, this, 0, NULL);
-	SetThreadPriority(HAudioCapture, THREAD_PRIORITY_HIGHEST);
+			AudioThreadParam[i].bLiveInstance = true;
+			HAudioCapture[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MainAudioCapture, &AudioThreadParam[i], 0, NULL);
+			SetThreadPriority(HAudioCapture[i], THREAD_PRIORITY_HIGHEST);
+		}
+		else if (i == 1)
+		{
+			EncoderThreadParam[i].bLiveInstance = false;
+			HVideoEncoder[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)VideoEncoderThread, &EncoderThreadParam[i], 0, NULL);
+			SetThreadPriority(HVideoEncoder[i], THREAD_PRIORITY_HIGHEST);
+
+			AudioThreadParam[i].bLiveInstance = false;
+			HAudioCapture[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)MainAudioCapture, &AudioThreadParam[i], 0, NULL);
+			SetThreadPriority(HAudioCapture[i], THREAD_PRIORITY_HIGHEST);
+		}
+	}
 	
 	HVideoEncoder_back = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)VideoEncoderThread_back, this, 0, NULL);
 	SetThreadPriority(HVideoEncoder_back, THREAD_PRIORITY_HIGHEST);
 
-	HLittlePreview = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RenderLittlePreviewThreadProc, this, 0, NULL);
+	//HLittlePreview = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)RenderLittlePreviewThreadProc, this, 0, NULL);
 
 	HStatus = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)CheckStatusThreadProc, this, 0, NULL);
 
@@ -233,9 +249,14 @@ void CSLiveManager::BulidD3D()
 		SDITexture = NULL;
 	}
 
-	UINT Width, Heigth;
 
-	SDITexture = m_D3DRender->CreateTextureFromFile(L"./img/SDIOUT.png", FALSE, Width, Heigth);
+	MixRenderTarget.reset(m_D3DRender->CreateRenderTarget(BSParam.PreviewWidth, BSParam.PreviewHeight, GS_BGRA, FALSE));
+	MixCopyTexture.reset(m_D3DRender->CreateTextureRead(BSParam.PreviewWidth, BSParam.PreviewHeight));
+	MixyuvRenderTexture.reset(m_D3DRender->CreateRenderTarget(BSParam.PreviewWidth, BSParam.PreviewHeight, GS_BGRA, FALSE));
+
+// 	UINT Width, Heigth;
+// 
+// 	SDITexture = m_D3DRender->CreateTextureFromFile(L"./img/SDIOUT.png", FALSE, Width, Heigth);
 
 	if (ss)
 	{
@@ -271,9 +292,9 @@ DWORD CSLiveManager::MainVideoCapture(LPVOID lparam)
 DWORD CSLiveManager::MainAudioCapture(LPVOID lparam)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!,ThreadId %d", __FUNCTION__, GetCurrentThreadId());
-	CSLiveManager *__this = (CSLiveManager *)lparam;
+	ThreadParam *__this = (ThreadParam *)lparam;
 	CoInitialize(0);
-	__this->MainAudioLoop();
+	__this->Manger->MainAudioLoop(__this->bLiveInstance);
 	CoUninitialize();
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 	return 0;
@@ -281,8 +302,8 @@ DWORD CSLiveManager::MainAudioCapture(LPVOID lparam)
 DWORD CSLiveManager::VideoEncoderThread(LPVOID lparam)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!,ThreadId %d", __FUNCTION__, GetCurrentThreadId());
-	CSLiveManager *__this = (CSLiveManager *)lparam;
-	__this->VideoEncoderLoop();
+	ThreadParam *__this = (ThreadParam *)lparam;
+	__this->Manger->VideoEncoderLoop(__this->bLiveInstance);
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
 	return 0;
 }

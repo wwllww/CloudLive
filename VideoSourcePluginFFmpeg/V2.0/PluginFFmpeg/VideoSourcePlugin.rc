@@ -1,0 +1,236 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+#include <windows.h>
+/////////////////////////////////////////////////////////////////////////////
+// 中文(简体，中国) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+#pragma code_page(936)
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+102 DIALOGEX 0, 0, 405, 242
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION
+EXSTYLE WS_EX_WINDOWEDGE
+CAPTION "Plugins.VideoSource.Settings"
+FONT 8, "Ms Shell Dlg", 0, 0, 0x0
+BEGIN
+    PUSHBUTTON      "取消",2,306,210,56,20
+    DEFPUSHBUTTON   "确定",1,186,210,56,20
+    CONTROL         "Plugins.VideoSource.StretchImage",1002,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,387,12,13,8,WS_EX_RIGHT
+    RTEXT           "Plugins.VideoSource.Deinterlacing",IDC_DEINTERLACING,364,49,8,8,NOT WS_VISIBLE
+    COMBOBOX        IDC_DEINTERLACING,360,4,16,12,CBS_DROPDOWNLIST | CBS_HASSTRINGS | NOT WS_VISIBLE
+    CONTROL         "Plugins.VideoSource.AudioOutputToStream",1018,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_GROUP | WS_TABSTOP,379,5,10,8
+    CONTROL         "Plugins.VideoSource.AudioOutputToDevice",1019,"Button",BS_AUTORADIOBUTTON | NOT WS_VISIBLE | WS_TABSTOP,252,5,26,8
+    COMBOBOX        IDC_AUDIO_OUTPUT_TYPE,341,7,16,12,CBS_DROPDOWNLIST | CBS_HASSTRINGS | NOT WS_VISIBLE | WS_DISABLED
+    COMBOBOX        IDC_AUDIO_OUTPUT_DEVICE,385,42,16,30,CBS_DROPDOWNLIST | CBS_HASSTRINGS | NOT WS_VISIBLE | WS_DISABLED
+    LTEXT           "Plugins.VideoSource.AudioOutputType",IDC_AUDIO_OUTPUT_TYPE,354,47,8,8,NOT WS_VISIBLE
+    LTEXT           "Plugins.VideoSource.AudioOutputDevice",IDC_AUDIO_OUTPUT_DEVICE,394,27,8,40,NOT WS_VISIBLE
+    CONTROL         "",IDC_PLAYLIST,"SysListView32",LVS_LIST | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,13,43,371,125,WS_EX_ACCEPTFILES | WS_EX_LEFTSCROLLBAR
+    PUSHBUTTON      "添加视频",1023,27,12,56,20,BS_BITMAP
+    CONTROL         "",1028,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,181,9,8,WS_EX_RIGHT
+    PUSHBUTTON      "移除视频",ID_REMOVEALL,103,12,56,20,BS_BITMAP
+    CONTROL         "Plugins.VideoSource.ApplyVideoFilter",1000,"Button",BS_AUTOCHECKBOX | NOT WS_VISIBLE | WS_TABSTOP,386,5,19,8
+    PUSHBUTTON      "画面设置",40005,297,2,27,11,NOT WS_VISIBLE
+    PUSHBUTTON      "上移",IDC_UPITEM,255,12,56,20,BS_BITMAP
+    PUSHBUTTON      "下移",IDC_DOWNITEM,331,12,56,20,BS_BITMAP
+    LTEXT           "列表循环播放",IDC_STATIC8,37,183,49,8
+    CONTROL         "",ID_SENCECHANGEBEGINPLAY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,196,9,8,WS_EX_RIGHT
+    LTEXT           "场景切换从头播放",IDC_STATIC9,35,197,67,8
+    CONTROL         "",IDC_RADIOFILE,"Button",BS_AUTORADIOBUTTON,118,185,8,10
+    CONTROL         "",IDC_RADIOLIST,"Button",BS_AUTORADIOBUTTON,191,185,8,10
+    LTEXT           "单视频循环",IDC_STATIC10,134,186,41,8
+    LTEXT           "列表循环",IDC_STATIC11,204,186,33,8
+    CONTROL         "",ID_HARDWAREDECODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,13,206,9,19,WS_EX_RIGHT
+    LTEXT           "硬解码",IDC_STATIC12,35,212,74,8
+    LTEXT           "",IDC_STATIC13,13,224,155,12
+    GROUPBOX        "",IDC_STATICLOOP,109,173,135,28,NOT WS_VISIBLE | WS_GROUP
+    GROUPBOX        "",IDC_STATIC,253,173,135,28,NOT WS_VISIBLE | WS_GROUP
+    CONTROL         "",IDC_PROGRESSIVE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,260,185,8,10
+    CONTROL         "",IDC_INTERLACE,"Button",BS_AUTORADIOBUTTON,333,185,8,10
+    LTEXT           "逐行扫描",IDC_STATIC14,276,186,33,8
+    LTEXT           "隔行扫描",IDC_STATIC15,346,186,33,8
+    PUSHBUTTON      "移除全部",IDC_REMOVEALLVIDEO,179,12,56,20,BS_BITMAP
+    LTEXT           "循环方式",IDC_STATIC,114,173,34,8
+    LTEXT           "扫描方式",IDC_STATIC,258,173,34,8
+END
+
+IDD_DIALOGSENIOR DIALOGEX 0, 0, 310, 177
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION
+EXSTYLE WS_EX_OVERLAPPEDWINDOW
+CAPTION "高级设置"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDSENIOROK,235,149,59,21
+    CONTROL         "",IDC_VOLUMESENIOR,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,77,30,158,15
+    CONTROL         "",IDC_VIDEOGAMMASENIOR,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,77,62,158,15
+    CONTROL         "",IDC_VIDEOCONTRASTSENIOR,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,77,94,158,15
+    CONTROL         "",IDC_VIDEOBRIGHTNESSSENIOR,"msctls_trackbar32",TBS_BOTH | TBS_NOTICKS | WS_TABSTOP,77,126,158,15
+    LTEXT           "声音",IDC_VIDEOCONTRASTSENIOR,22,37,31,8
+    LTEXT           "珈码",IDC_VIDEOCONTRASTSENIOR,22,69,31,8
+    LTEXT           "亮度",IDC_VIDEOCONTRASTSENIOR,22,101,31,8
+    LTEXT           "对比",IDC_VIDEOCONTRASTSENIOR,22,133,31,8
+END
+
+IDD_DIRECTPLAY DIALOGEX 0, 0, 225, 207
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION
+CAPTION "选择要播放的视频"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,33,180,61,20
+    PUSHBUTTON      "取消",IDCANCEL,123,180,61,20
+    CONTROL         "",IDC_PLAYLIST,"SysListView32",LVS_SMALLICON | LVS_SINGLESEL | LVS_SHOWSELALWAYS | LVS_ALIGNLEFT | WS_BORDER | WS_TABSTOP,7,7,211,156,WS_EX_ACCEPTFILES
+END
+
+IDD_FILEHINT DIALOGEX 0, 0, 261, 134
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP | WS_CAPTION
+CAPTION "提示"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "确定",IDOK,90,84,80,30
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+1 VERSIONINFO
+ FILEVERSION 0,9,0,1
+ PRODUCTVERSION 2,4,0,8
+ FILEFLAGSMASK 0x0L
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x0L
+ FILETYPE 0x0L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "0409fde9"
+        BEGIN
+            VALUE "Comments", "Put this file in the BLive plugin directory"
+            VALUE "CompanyName", "北京红云融通有限公司"
+            VALUE "FileDescription", "plugin that plays videos"
+            VALUE "FileVersion", "0.9.0.1"
+            VALUE "LegalCopyright", "John Bradley"
+            VALUE "OriginalFilename", "VideoSourcePlugin.dll"
+            VALUE "ProductName", "Video Source Plugin"
+            VALUE "ProductVersion", "0, 9, 0, 1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 65001
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    102, DIALOG
+    BEGIN
+        VERTGUIDE, 27
+        VERTGUIDE, 72
+        VERTGUIDE, 137
+        VERTGUIDE, 310
+        VERTGUIDE, 353
+        BOTTOMMARGIN, 234
+        HORZGUIDE, 27
+        HORZGUIDE, 49
+        HORZGUIDE, 72
+        HORZGUIDE, 89
+        HORZGUIDE, 101
+        HORZGUIDE, 111
+        HORZGUIDE, 132
+        HORZGUIDE, 173
+    END
+
+    IDD_DIALOGSENIOR, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 303
+        VERTGUIDE, 22
+        VERTGUIDE, 77
+        VERTGUIDE, 235
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 170
+        HORZGUIDE, 45
+        HORZGUIDE, 78
+        HORZGUIDE, 108
+        HORZGUIDE, 141
+    END
+
+    IDD_DIRECTPLAY, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 218
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 200
+    END
+
+    IDD_FILEHINT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 254
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 127
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // 中文(简体，中国) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

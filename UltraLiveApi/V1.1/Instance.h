@@ -110,6 +110,7 @@ class VideoEncoder;
 class AudioEncoder;
 class RTMPPublisherVectorBase;
 class VideoFileStream;
+class HttpLive;
 
 enum PacketType
 {
@@ -347,14 +348,22 @@ typedef struct AudioStruct
 	bool bRender;
 	bool bMustDel;
 	bool bGlobalStream;
+	IBaseAudio *PreviewAudio;
+	bool bLittlePlay;
+	bool MixOpen;
+	bool FollowOpen;
 	AudioStruct()
 	{
 		AudioStream = NULL;
 		VideoStream = NULL;
+		PreviewAudio = NULL;
 		bSelect = false;
 		bRender = true;
 		bMustDel = false;
 		bGlobalStream = false;
+		bLittlePlay = false;
+		MixOpen = true;
+		FollowOpen = true;
 	}
 
 	AudioStruct(const AudioStruct & AStruct)
@@ -368,6 +377,10 @@ typedef struct AudioStruct
 			bRender = AStruct.bRender;
 			bMustDel = AStruct.bMustDel;
 			bGlobalStream = AStruct.bGlobalStream;
+			PreviewAudio = AStruct.PreviewAudio;
+			bLittlePlay = AStruct.bLittlePlay;
+			MixOpen = AStruct.MixOpen;
+			FollowOpen = AStruct.FollowOpen;
 		}
 	}
 
@@ -382,6 +395,10 @@ typedef struct AudioStruct
 			bRender = AStruct.bRender;
 			bMustDel = AStruct.bMustDel;
 			bGlobalStream = AStruct.bGlobalStream;
+			PreviewAudio = AStruct.PreviewAudio;
+			bLittlePlay = AStruct.bLittlePlay;
+			MixOpen = AStruct.MixOpen;
+			FollowOpen = AStruct.FollowOpen;
 		}
 
 		return *this;
@@ -400,6 +417,7 @@ class CInstanceProcess : public CPObject
 	friend class CSLiveManager;
 	friend struct SharedDevice;
 	friend class BlackMagic;
+	friend class HttpLive;
 
 public:
 	CInstanceProcess(const SLiveParam *Param);
@@ -436,6 +454,9 @@ public:
 	void UpdateFilter(uint64_t iStreamID, uint64_t iFilterID, Value &JValue);
 	void SetTopest(uint64_t iStreamID, bool bTopest);
 	uint64_t FindDShowDeviceID(uint64_t iStreamID);
+	AudioStruct SetAudioMixAndFollow(uint64_t iStreamID, int Mix, int Follow,bool bUseMix);
+	void SetOpacity(uint64_t iStreamID, DWORD Opacity);
+
 	static void StreamCallBack(void *Context, CSampleData* Data);
 	static void RecordCallBack(void *Context, CSampleData* Data);
 	static DWORD VideoEncoderThread(LPVOID lparam);
@@ -448,9 +469,9 @@ public:
 	void StopResize();
 	void CreateLittleRenderTarget();
 
-	void StartLive(bool bRecordOnly);
+	void StartLive(bool bRecordOnly,bool bCreatRtmp = true);
 	void StopLive(bool bUI = true);
-	void ClearVideo(bool bRemoveDelay = false,bool bCut = false,bool bCanAddAgent = true);
+	void ClearVideo(bool bRemoveDelay = false,bool bCut = false,bool bCanAddAgent = true,bool bRemoveTop = true);
 	void ClearVideoTransForm();
 	void ClearFilterTransForm();
 	void ClearAudio();
@@ -462,22 +483,28 @@ public:
 	void SetForceKillThread();
 
 	void DrawPreview(Texture* Prev, const Vect2 &renderSize, const Vect2 &renderOffset, const Vect2 &renderCtrlSize, Shader *solidVertexShader, Shader *solidPixelShader, Texture* SDITexture, bool HasOutSDI,bool bStart);
-	void DrawLittlePreview();
+	void DrawLittlePreview(Shader *VertShader,Shader *PixShader);
 	void DrawPreProcess(float fSeconds);
 	void DrawTransFormProcess(float fSeconds);
 	void DrawRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader,bool bDrawTop = false);
 	void DrawTransFormRender(Texture *PreTexture, Shader *VertexShader, Shader *PixShader, bool bDrawTop = false);
+	void DrawDb(Shader *PixShader);
 	void SetHasPreProcess(bool bPrePro);
 	void ResizeRenderFrame(bool bRedrawRenderFrame);
 	void BulidD3D();
 	void BulidX264Encoder();
 	void BulidEncoder();
 	void BulidRtmpNetWork();
+	void BulidThread();
 	void BulidFileStream();
+	void StopThread();
+	void SetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio);
 	String GetOutputFilename(bool bBack = false);
 	String GetOutputRecordFilename(const String &Path, const String &Name,int Width, int Height);
 	void ProcessRecord(CSampleData *Data);
 	void StopRecord();
+
+	bool CreateD3DRender();
 
 	//处理函数
 	void MixAudio(float *bufferDest, float *bufferSrc, UINT totalFloats, bool bForceMono);
@@ -509,6 +536,19 @@ public:
 	UINT GetFrameTime();
 
 	void RequestKeyframe(int waitTime);
+
+	//音视频采集线程
+	static DWORD WINAPI VideoCapture(LPVOID Param);
+	static DWORD WINAPI AudioCapture(LPVOID Param);
+
+	void VideoCaptureLoop();
+	void AudioCaptureLoop();
+
+	void DoMixOpenAndFollowOpen(AudioStruct& Audio);
+	void DoMixOpen(AudioStruct& Audio);
+	void DoMixClose(AudioStruct& Audio);
+	void RemoveMixOpenFollowoOpenAndNoInSences();
+
 public:
 	List<VideoStruct> m_VideoList;
 	bool bLittlePre;
@@ -536,6 +576,14 @@ private:
 	CircularList<QWORD> bufferedTimes;
 	CircularList<QWORD> bufferedTimes_back;
 
+
+	unique_ptr<Shader> mainVertexShader;
+	unique_ptr<Shader> mainPixelShader;
+	unique_ptr<Shader> yuvScalePixelShader;
+	unique_ptr<Texture> mainRenderTextures[2];
+	unique_ptr<Texture> yuvRenderTextures;
+	unique_ptr<Texture> copyTextures;
+	unique_ptr<Texture> DbTexture;
 	
 	bool bRunning;
 	bool bResizeRenderView;
@@ -567,6 +615,8 @@ private:
 	//timestamp
 	QWORD CurrentAudioTime;
 	QWORD lastAudioTimestamp, lastAudioTimestamp_back;
+	QWORD CurrentVideoTime;
+	QWORD StartVideoTime;
 
 	//编码
 	VideoEncoder            *videoEncoder,*videoEncoder_back;
@@ -614,6 +664,25 @@ private:
 	std::string         m_DeviceName;
 	D3DAPI              *D3DRender;
 	std::vector<shared_ptr<IBaseVideo>> vEffectAgentList;
+
+	bool bNewD3DSelf;
+	HANDLE HVideoCapture;
+	HANDLE HAudioCapture;
+
+	//HTTP-FLV
+
+	HttpLive *__HttpLive;
+	bool  bFristIn = true;
+	bool  bFristOut = true;
+	QWORD FristQPC;
+	float LeftDb;
+	float RightDb;
+	UINT  DbWidth;
+
+	VideoArea PreviewArea;//预览位置
+
+	bool                bNeedPGM;
+	bool                bNeedPVW;
 };
 
 #endif

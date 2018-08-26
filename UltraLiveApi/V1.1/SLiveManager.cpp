@@ -13,6 +13,8 @@
 #include "SLiveManager.h"
 #include "Error.h"
 #include "Instance.h"
+#undef new
+#include "HttpLive.h"
 
 
 #ifdef OPERATOR_NEW
@@ -466,15 +468,15 @@ LONG CALLBACK SLiveExceptionHandler(PEXCEPTION_POINTERS exceptionInfo)
 
 	fnSymCleanup(hProcess);
 
-	if (BLiveMessageBox(G_MainHwnd, TEXT("Woops! BLive has crashed. Would you like to view a crash report?"), NULL, MB_ICONERROR | MB_YESNO) == IDYES)
-		ShellExecute(NULL, NULL, logPath, NULL, searchPath, SW_SHOWDEFAULT);
+// 	if (BLiveMessageBox(G_MainHwnd, TEXT("Woops! BLive has crashed. Would you like to view a crash report?"), NULL, MB_ICONERROR | MB_YESNO) == IDYES)
+// 		ShellExecute(NULL, NULL, logPath, NULL, searchPath, SW_SHOWDEFAULT);
 
 	FreeLibrary(hDbgHelp);
 
 	//we really shouldn't be returning here, if we're at the bottom of the VEH chain this is a pretty legitimate crash
 	//and if we return we could end up invoking a second crash handler or other weird / annoying things
-	//ExitProcess(exceptionInfo->ExceptionRecord->ExceptionCode);
-	return EXCEPTION_CONTINUE_SEARCH;
+	ExitProcess(exceptionInfo->ExceptionRecord->ExceptionCode);//自杀
+	return EXCEPTION_EXECUTE_HANDLER;
 }
 
 typedef BOOL(WINAPI *getUserModeExceptionProc)(LPDWORD);
@@ -510,10 +512,20 @@ CSLiveManager * CSLiveManager::m_Intances = NULL;
 D3DAPI *CSLiveManager::m_D3DRender = NULL;
 MemStack *CSLiveManager::mem_stack = new MemStack;
 
+extern CreateOBJ g_DCreateOBJ[1024];
+
+extern CreateOBJFilter g_DCreateOBJFilter[1024];
+
 std::vector<MoudleStruct> ListPlugin;
 
 CSLiveManager::CSLiveManager()
 {
+	CreateOBJ::TotalCount = 0;
+	ZeroMemory(&g_DCreateOBJ, sizeof g_DCreateOBJ);
+
+	CreateOBJFilter::TotalCount = 0;
+	ZeroMemory(&g_DCreateOBJFilter, sizeof g_DCreateOBJFilter);
+
 	bInit = false;
 	Log::open(true, "-dGMfyds");
 	QueryPerformanceFrequency(&clockFre);
@@ -538,8 +550,11 @@ CSLiveManager::CSLiveManager()
 	yuvRenderTextures_back = NULL;
 	PreRenderTexture = NULL;
 	CurrentVideoTime = 0;
-	HAudioCapture = NULL;
-	HVideoEncoder = NULL;
+	for (int i = 0; i < 2; ++i)
+	{
+		HAudioCapture[i] = NULL;
+		HVideoEncoder[i] = NULL;
+	}
 	HVideoEncoder_back = NULL;
 	HLittlePreview = NULL;
 	transitionPixel = NULL;
@@ -554,6 +569,7 @@ CSLiveManager::CSLiveManager()
 	hVideoEvent_back = CreateEvent(NULL, false, false, NULL);
 	hVideoComplete = CreateEvent(NULL, false, false, NULL);
 	Outpic = NULL;
+	MixOutpic = NULL;
 	bFirstCreate = true;
 	bTransDisSolving = false;
 	TransFormTime = 1.0f;
@@ -602,6 +618,7 @@ CSLiveManager::CSLiveManager()
 	DeinterlacerLocal = NULL;
 	bNeedAgentInPGM = false;
 	bCanSecondCheck = true;
+	PreviewInstance = NULL;
 }
 
 CSLiveManager::~CSLiveManager()
@@ -609,19 +626,30 @@ CSLiveManager::~CSLiveManager()
 	Log::writeMessage(LOG_RTSPSERV, 1, " LiveSDK_Log:%s CSLiveManager 0x%p 开始析构", __FUNCTION__, this);
 	CoUninitialize();
 
+	if (PreviewInstance)
+	{
+		PreviewInstance->bRunning = false;
+		PreviewInstance->StopThread();
+		PreviewInstance->StopLive();
+	}
+
 	bRunning = false;
 	SetEvent(hVideoEvent);
 	SetEvent(hVideoEvent_back);
-	if (HVideoEncoder)
+
+	for (int i = 0; i < 2; ++i)
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待视频编码发送线程退出!");
-		if (WAIT_TIMEOUT == WaitForSingleObject(HVideoEncoder, 5000))
+		if (HVideoEncoder[i])
 		{
-			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:视频编码发送线程等待退出超过5000ms,强杀!");
-			TerminateThread(HVideoEncoder, 0);
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待视频编码发送线程退出!");
+			if (WAIT_TIMEOUT == WaitForSingleObject(HVideoEncoder[i], 5000))
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:视频编码发送线程等待退出超过5000ms,强杀!");
+				TerminateThread(HVideoEncoder[i], 0);
+			}
+			CloseHandle(HVideoEncoder[i]);
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:视频编码发送线程退出!");
 		}
-		CloseHandle(HVideoEncoder);
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:视频编码发送线程退出!");
 	}
 
 	if (HVideoEncoder_back)
@@ -661,17 +689,21 @@ CSLiveManager::~CSLiveManager()
 	}
 
 	bool bForceKill = false;
-	if (HAudioCapture)
+
+	for (int i = 0; i < 2; ++i)
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待音频采集线程退出!");
-		if (WAIT_TIMEOUT == WaitForSingleObject(HAudioCapture, 5000))
+		if (HAudioCapture[i])
 		{
-			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:音频采集线程等待退出超过5000,强杀!");
-			TerminateThread(HAudioCapture, 0);
-			bForceKill = true;
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:等待音频采集线程退出!");
+			if (WAIT_TIMEOUT == WaitForSingleObject(HAudioCapture[i], 5000))
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:音频采集线程等待退出超过5000,强杀!");
+				TerminateThread(HAudioCapture[i], 0);
+				bForceKill = true;
+			}
+			CloseHandle(HAudioCapture[i]);
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:音频采集线程退出!");
 		}
-		CloseHandle(HAudioCapture);
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:音频采集线程退出!");
 	}
 
 	if (HStatus)
@@ -688,6 +720,8 @@ CSLiveManager::~CSLiveManager()
 	}
 
 	DisableProjector();
+
+	
 
 	if (mainVertexShader)
 	{
@@ -828,6 +862,7 @@ CSLiveManager::~CSLiveManager()
 	if (DeinterlacerLocal)
 		delete DeinterlacerLocal;
 
+
 	for (int i = 0; i < m_InstanceList.GetSize();)
 	{
 		CInstanceProcess *Process = m_InstanceList.GetAt(i);
@@ -861,6 +896,8 @@ CSLiveManager::~CSLiveManager()
 		}
 
 	}
+
+	HttpLive::UnInitLive();
 
 	for (int i = 0; i < m_InstanceList.GetSize();)//删除掉互动连接源
 	{
@@ -902,6 +939,23 @@ CSLiveManager * CSLiveManager::GetInstance()
 	return m_Intances = new CSLiveManager;
 }
 
+void CSLiveManager::InitException()
+{
+	// 设置调试权限
+	LoadSeDebugPrivilege();
+
+	EnableProfiling(TRUE);
+
+	// 设置堆栈属性，堆破坏就结束
+	HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
+
+	// dep
+	SetProcessDEPPolicy(PROCESS_DEP_ENABLE | PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION);
+
+	//设置异常处理
+	InitializeExceptionHandler();
+}
+
 int CSLiveManager::SLiveInit(const SLiveParam *Param)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!",__FUNCTION__);
@@ -925,49 +979,38 @@ int CSLiveManager::SLiveInit(const SLiveParam *Param)
 		_set_FMA3_enable(0);
 #endif
 
-		// 设置调试权限
-		LoadSeDebugPrivilege();
-
-		EnableProfiling(TRUE);
-
-		// 设置堆栈属性，堆破坏就结束
-		HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, NULL, 0);
-
-		// dep
-		SetProcessDEPPolicy(PROCESS_DEP_ENABLE | PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION);
-
-		//设置异常处理
-		InitializeExceptionHandler();
-		
 		// gdi+支持
 		ULONG_PTR gdipToken;
 		const Gdiplus::GdiplusStartupInput gdipInput;
 		Gdiplus::GdiplusStartup(&gdipToken, &gdipInput, NULL);
 
-		WNDCLASS wc;
-		zero(&wc, sizeof(wc));
-		wc.hInstance = hMain;
-		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
-
-		wc.lpszClassName = L"ProjectorFrame";
-		wc.lpfnWndProc = (WNDPROC)ProjectorFrameProc;
-		wc.hbrBackground = GetSysColorBrush(COLOR_HIGHLIGHT);
-
-		if (!RegisterClass(&wc))
-		{
-			Log::writeError(LOG_RTSPSERV, 1, "注册 ProjectorFrame 窗口失败!");
-			return -2;
-		}
-
-		hwndProjector = CreateWindow(L"ProjectorFrame",
-			L"Projector Window",
-			WS_POPUP, 0, 0, 0, 0,
-			NULL, NULL, hMain, NULL);
+// 		WNDCLASS wc;
+// 		zero(&wc, sizeof(wc));
+// 		wc.hInstance = hMain;
+// 		wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+// 
+// 		wc.lpszClassName = L"ProjectorFrame";
+// 		wc.lpfnWndProc = (WNDPROC)ProjectorFrameProc;
+// 		wc.hbrBackground = GetSysColorBrush(COLOR_HIGHLIGHT);
+// 
+// 		if (!RegisterClass(&wc))
+// 		{
+// 			BUTEL_THORWERROR("注册 ProjectorFrame 窗口失败!");
+// 		}
+// 
+// 		hwndProjector = CreateWindow(L"ProjectorFrame",
+// 			L"Projector Window",
+// 			WS_POPUP, 0, 0, 0, 0,
+// 			NULL, NULL, hMain, NULL);
 
 		monitors.Clear();
 		EnumDisplayMonitors(NULL, NULL, (MONITORENUMPROC)MonitorInfoEnumProc, (LPARAM)&monitors);
 
 		memcpy(&BSParam, Param, sizeof SLiveParam);
+
+		BSParam.PreviewWidth = 1280;
+		BSParam.PreviewHeight = 720;
+
 		if (BSParam.LiveSetting.FPS == 0)
 			BSParam.LiveSetting.FPS = 25;
 		if (BSParam.Advanced.BufferTime == 0)
@@ -987,32 +1030,32 @@ int CSLiveManager::SLiveInit(const SLiveParam *Param)
 
 		G_MainHwnd = (HWND)Param->MainHwnd;
 
-		if (BSParam.SDIOut && BSParam.SDICount > 0)
-		{
-			__SDIOutInfo = new SDIOutInfo[BSParam.SDICount];
-
-			BUTEL_IFNULLRETURNERROR(__SDIOutInfo);
-
-			for (int i = 0; i < BSParam.SDICount; ++i)
-			{
-				__SDIOutInfo[i].bEnable = BSParam.SDIOut[i].bEnable;
-				__SDIOutInfo[i].Format = BSParam.SDIOut[i].Format;
-				__SDIOutInfo[i].id = BSParam.SDIOut[i].Id;
-				__SDIOutInfo[i].SourceName = BSParam.SDIOut[i].SourceName;
-				__SDIOutInfo[i].AudioName = BSParam.SDIOut[i].AudioName;
-			}
-			BlackMagic::Instance()->SDI_Init(__SDIOutInfo, BSParam.BlackMagic.bOutSDI);
-
-			if (BSParam.BlackMagic.bOutSDI)
-			{
-				BlackMagic::Instance()->ApplyOutOrInSettings(BSParam.BlackMagic.bOutSDI);
-			}
-
-		}
-		else
-		{
-			BlackMagic::Instance()->SDI_Init(NULL, BSParam.BlackMagic.bOutSDI);
-		}
+// 		if (BSParam.SDIOut && BSParam.SDICount > 0)
+// 		{
+// 			__SDIOutInfo = new SDIOutInfo[BSParam.SDICount];
+// 
+// 			BUTEL_IFNULLRETURNERROR(__SDIOutInfo);
+// 
+// 			for (int i = 0; i < BSParam.SDICount; ++i)
+// 			{
+// 				__SDIOutInfo[i].bEnable = BSParam.SDIOut[i].bEnable;
+// 				__SDIOutInfo[i].Format = BSParam.SDIOut[i].Format;
+// 				__SDIOutInfo[i].id = BSParam.SDIOut[i].Id;
+// 				__SDIOutInfo[i].SourceName = BSParam.SDIOut[i].SourceName;
+// 				__SDIOutInfo[i].AudioName = BSParam.SDIOut[i].AudioName;
+// 			}
+// 			BlackMagic::Instance()->SDI_Init(__SDIOutInfo, BSParam.BlackMagic.bOutSDI);
+// 
+// 			if (BSParam.BlackMagic.bOutSDI)
+// 			{
+// 				BlackMagic::Instance()->ApplyOutOrInSettings(BSParam.BlackMagic.bOutSDI);
+// 			}
+// 
+// 		}
+// 		else
+// 		{
+// 			BlackMagic::Instance()->SDI_Init(NULL, BSParam.BlackMagic.bOutSDI);
+// 		}
 
 		//加载所有插件
 
@@ -1050,9 +1093,18 @@ int CSLiveManager::SLiveInit(const SLiveParam *Param)
 			}
 		}
 
-		iHardEncoderType = QueryHardEncodeSupport();//1 Nvida 2Intel 3都支持
+		iHardEncoderType = BSParam.HardEncoderType;//1 Nvida 2Intel 3都支持
 
 		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s QueryHardEncodeSupport ret %d", __FUNCTION__, iHardEncoderType);
+
+		if (!HttpLive::InitLive(BSParam.MediaPort))
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 在 %d 端口上监听失败!", __FUNCTION__, BSParam.MediaPort);
+		}
+		else
+		{
+			Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s 在 %d 端口上监听成功!", __FUNCTION__, BSParam.MediaPort);
+		}
 	}
 	catch (CErrorBase& e)
 	{
@@ -1090,9 +1142,10 @@ void CSLiveManager::SLiveRelese()
 		if (ListPlugin[i].HMoudle)
 			FreeLibrary(ListPlugin[i].HMoudle);
 	}
+	ListPlugin.clear();
 	Log::writeMessage(LOG_RTSPSERV, 1, " LiveSDK_Log:%s CSLiveManager 结束析构", __FUNCTION__);
-	mem_stack->bDelete = false;
-	delete mem_stack;
+// 	mem_stack->bDelete = false;
+// 	delete mem_stack;
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log: %s invoke end!", __FUNCTION__);
 }
 
@@ -1241,7 +1294,7 @@ int CSLiveManager::SLiveSetParam(const SLiveParam *Param)
 	return 0;
 }
 
-int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool bLiveIntance, bool bLittlePre)
+int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, VideoArea *PreArea, bool bLiveIntance, bool bLittlePre)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
 	try
@@ -1255,11 +1308,11 @@ int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool
 
 
 
-		if (hwnd && bFirstCreate)
+		if (PreArea && bFirstCreate)
 		{
 			bFirstCreate = false;
 
-			ManagerInit(hwnd);
+			ManagerInit();
 
 			DeinterConfig.processor = DEINTERLACING_PROCESSOR_GPU;
 			DeinterConfig.doublesFramerate = false;
@@ -1293,37 +1346,18 @@ int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool
 		{
 			NewInstance->IsLiveInstance = bLiveIntance;
 			NewInstance->bLittlePre = bLittlePre;
-
-			if (hwnd)
+			
+			if (PreArea)
 			{
-				NewInstance->SetHwnd(hwnd);
+				NewInstance->PreviewArea = *PreArea;
 				NewInstance->BulidD3D();
-
-				if (hwnd && !bFirstCreate)
-				{
-					RECT Rect;
-					GetClientRect((HWND)hwnd, &Rect);
-					Texture * Swap = NULL;
-					if (!bLittlePre)
-					{
-						Swap = m_D3DRender->CreateRenderTargetSwapChain((HWND)hwnd, Rect.right, Rect.bottom);
-						BUTEL_IFNULLRETURNERROR(Swap);
-
-						NewInstance->SwapRender = Swap;
-					}
-					
-				}
 			}
 			else
 			{
 				NewInstance->bNoPreView = true;
 			}
 
-			if (bLittlePre && hwnd)
-			{
-				NewInstance->CreateLittleRenderTarget();
-			}
-			else if (!bLiveIntance && hwnd)
+			if (!bLittlePre && !bLiveIntance && PreArea)
 			{
 				LocalInstance = NewInstance;
 			}
@@ -1339,6 +1373,49 @@ int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool
 				G_LiveInstance = NewInstance;
 			}
 
+
+			if (!PreviewInstance)
+			{
+				SLiveParam WindowParam = BSParam;
+				if (iHardEncoderType == 1 || iHardEncoderType == 3)
+				{
+					WindowParam.LiveSetting.bUseHardEncoder = true;
+				}
+				else
+				{
+					WindowParam.LiveSetting.bUseHardEncoder = false;
+				}
+				
+				WindowParam.LiveSetting.Width = WindowParam.LiveSetting.WidthSec = BSParam.PreviewWidth;
+				WindowParam.LiveSetting.Height = WindowParam.LiveSetting.HeightSec = BSParam.PreviewHeight;
+				WindowParam.LiveSetting.bUseBackPushSec = WindowParam.LiveSetting.bUseBackPush = false;
+				WindowParam.LiveSetting.VideoBitRate = 1200;
+				WindowParam.LiveSetting.LivePushUrl[0] = 0;
+				WindowParam.LiveSetting.DelayTime = 0;
+				WindowParam.LiveSetting.bRecoder = false;
+				WindowParam.TipsCb = NULL;
+				//WindowParam.Advanced.BufferTime = 50;
+
+				strcpy(WindowParam.LiveSetting.LivePushUrl, "rtmp://cm.rtmppush.homecdn.com/live/e11a");
+
+				PreviewInstance = new CInstanceProcess(&WindowParam);
+
+				if (PreviewInstance)
+				{
+					PreviewInstance->IsLiveInstance = false;
+					PreviewInstance->bLittlePre = false;
+					PreviewInstance->bNoPreView = true;
+
+					EnterCriticalSection(&MapInstanceSec);
+					m_InstanceList[(uint64_t)PreviewInstance] = PreviewInstance;
+					LeaveCriticalSection(&MapInstanceSec);
+
+					//CreateD3DRender 要在SLiveAddStream之后调用
+					PreviewInstance->BulidD3D();
+					PreviewInstance->StartLive(false,false);
+				}
+			}
+
 			Log::writeMessage(LOG_RTSPSERV, 1, "%s 成功,InstanceID %llu", __FUNCTION__, (uint64_t)NewInstance);
 		}
 		else
@@ -1349,7 +1426,7 @@ int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, uint64_t hwnd, bool
 	}
 	catch (CErrorBase& e)
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end Error occur!", __FUNCTION__);
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end Error occur! msg = %s", __FUNCTION__,e.m_Error.c_str());
 		SLiveSetLastError(e.m_Error.c_str());
 		return -1;
 	}
@@ -1495,7 +1572,7 @@ int CSLiveManager::SLiveAddStream(uint64_t iIntanceID, const char* cParamJson, V
 		Proc = Process;
 
 		Value Jvalue;
-		Reader JReader;
+		Reader JReader(Json::Features::strictMode());
 
 		if (!JReader.parse(cParamJson, Jvalue))
 		{
@@ -2024,6 +2101,9 @@ int CSLiveManager::SLiveStopRenderAStream(uint64_t iIntanceID, uint64_t iStreamI
 int CSLiveManager::SLiveStartResize(uint64_t iIntanceID,bool bDragResize)
 {
 	//Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
+
+	return 0;
+
 	try
 	{
 		if (!bInit)
@@ -3093,7 +3173,7 @@ void CSLiveManager::SwitchInstanceCut(CInstanceProcess *InstanceS, CInstanceProc
 	BUTEL_IFNULLRETURNERROR(InstanceD);
 
 	InstanceD->ClearVideo(InstanceS->GetRenderCount() == 0, true);
-	InstanceD->ClearAudio();
+	//InstanceD->ClearAudio();//直播的先不Clear
 
 	ProcessSwitch(InstanceS, InstanceD, Cut);
 
@@ -3114,7 +3194,7 @@ void CSLiveManager::SwitchInstanceDisSolve(CInstanceProcess *InstanceS, CInstanc
 
 	TransFormTime = TransTime;
 
-	InstanceD->ClearAudio();
+	//InstanceD->ClearAudio();
 	InstanceD->ClearVideoTransForm();
 	InstanceD->ClearFilterTransForm();
 	InstanceD->ClearEmptyAgent();
@@ -3140,7 +3220,7 @@ void CSLiveManager::SwitchInstanceUpDownOrDiffuse(CInstanceProcess *InstanceS, C
 		BUTEL_THORWERROR("使用淡出模式iIntanceID_D必须为直播实例");
 	}
 
-	InstanceD->ClearAudio();
+	//InstanceD->ClearAudio();
 	InstanceD->ClearVideoTransForm();
 	InstanceD->ClearEmptyAgent();
 	InstanceD->ClearVideoTop();
@@ -3575,34 +3655,41 @@ void CSLiveManager::ProcessSwitch(CInstanceProcess *InstanceS, CInstanceProcess 
 	{
 		AudioStruct &ASTem = InstanceS->m_AudioList[i];
 
-		EnterCriticalSection(&InstanceD->AudioSection);
-
-		bool bFind = false;
-		for (int l = 0; l < InstanceD->m_AudioList.Num(); ++l)
+		if (ASTem.MixOpen && ASTem.FollowOpen) //只有混合和跟随开的情况才加入
 		{
-			AudioStruct &OneAudio = InstanceD->m_AudioList[l];
+			EnterCriticalSection(&InstanceD->AudioSection);
 
-			if (OneAudio.AudioStream.get() == ASTem.AudioStream.get())
+			bool bFind = false;
+			for (int l = 0; l < InstanceD->m_AudioList.Num(); ++l)
 			{
+				AudioStruct &OneAudio = InstanceD->m_AudioList[l];
+
+				if (OneAudio.AudioStream.get() == ASTem.AudioStream.get())
+				{
+					if (InstanceD->IsLiveInstance)
+						OneAudio.AudioStream->SetLiveInstance(true);
+					bFind = true;
+					break;
+				}
+
+			}
+			if (!bFind)
+			{
+				InstanceD->m_AudioList.SetSize(InstanceD->m_AudioList.Num() + 1);
+				AudioStruct &AS = InstanceD->m_AudioList[InstanceD->m_AudioList.Num() - 1];
+				AS = ASTem;
 				if (InstanceD->IsLiveInstance)
-					OneAudio.AudioStream->SetLiveInstance(true);
-				bFind = true;
-				break;
+					AS.AudioStream->SetLiveInstance(true);
 			}
 
+			LeaveCriticalSection(&InstanceD->AudioSection);
 		}
-		if (!bFind)
-		{
-			InstanceD->m_AudioList.SetSize(InstanceD->m_AudioList.Num() + 1);
-			AudioStruct &AS = InstanceD->m_AudioList[InstanceD->m_AudioList.Num() - 1];
-			AS = ASTem;
-			if (InstanceD->IsLiveInstance)
-				AS.AudioStream->SetLiveInstance(true);
-		}
-
-		LeaveCriticalSection(&InstanceD->AudioSection);
 	}
 
+	if (type == Cut)
+	{
+		InstanceD->RemoveMixOpenFollowoOpenAndNoInSences();
+	}
 
 	for (auto Audio : vAudioList)//去除之后再加回来
 	{
@@ -3923,7 +4010,7 @@ int CSLiveManager::SLiveConfigStream(uint64_t iIntanceID, uint64_t iStreamID, co
 	return 0;
 }
 
-int CSLiveManager::SLiveClearIntances(uint64_t iIntanceID)
+int CSLiveManager::SLiveClearIntances(uint64_t iIntanceID, bool bRemoveTop)
 {
 	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin!", __FUNCTION__);
 	try
@@ -3953,7 +4040,7 @@ int CSLiveManager::SLiveClearIntances(uint64_t iIntanceID)
 
 			Process->ClearVideoTransForm();
 			Process->ClearAudio();
-			Process->ClearVideo();
+			Process->ClearVideo(false, false, true, bRemoveTop);
 
 			EnterCriticalSection(&MapInstanceSec);
 			m_InstanceList[iIntanceID] = Process;
@@ -4538,6 +4625,29 @@ int CSLiveManager::SLiveSetPlayPreAudio(uint64_t iInstansID, uint64_t iStreamID,
 			if (Process->bLittlePre && !Process->bNoPreView)
 			{
 				Process->SetPlayPreAudio(iStreamID, bRet);
+				
+				if (Process->m_AudioList.Num() > 0)
+				{
+					Process->m_AudioList[0].AudioStream->SetPlayPreview(*bRet);
+
+					if (!Process->m_AudioList[0].AudioStream->IsLiveInstance())//如果不在PGM中
+					{
+						if (*bRet)
+							AddPreviewInstanceAudio(Process->m_AudioList[0].AudioStream.get());
+						else
+						{
+							RemovePreviewInstanceAudio(Process->m_AudioList[0].AudioStream.get());
+						}
+					}
+					else
+					{
+						//如果在PGM中设置小预览开关
+
+						SetPreviewLittlePlay(Process->m_AudioList[0].AudioStream.get(),*bRet);
+					}
+					
+				}
+				
 			}
 			else
 			{
@@ -5069,7 +5179,7 @@ void CSLiveManager::CheckStatus()
 	float CurrentMemory = 0;
 	int Min = m_CheckTime / 60 / 1000;
 
-	HANDLE ThreadHandle[] = { HVideoCapture, HVideoEncoder, HAudioCapture };
+	HANDLE ThreadHandle[] = { HVideoCapture, HVideoEncoder[0], HAudioCapture[0] };
 	float    ThreadCpuPercent[sizeof ThreadHandle / sizeof HANDLE];
 
 	LARGE_INTEGER g_slgProcessTimeOld[sizeof ThreadHandle / sizeof HANDLE] = { 0 };
@@ -6193,4 +6303,180 @@ int CSLiveManager::GetHardEncoderType() const
 {
 	return iHardEncoderType;
 }
+
+int CSLiveManager::GetCurrentFPS() const
+{
+	return FPS;
+}
+
+void CSLiveManager::AddPreviewInstanceAudio(IBaseAudio *Audio)
+{
+	if (!PreviewInstance || !Audio)
+		return;
+
+	EnterCriticalSection(&PreviewInstance->AudioSection);
+
+	bool bFind = false;
+	for (UINT i = 0; i < PreviewInstance->m_AudioList.Num(); ++i)
+	{
+		if (PreviewInstance->m_AudioList[i].PreviewAudio == Audio)
+		{
+			bFind = true;
+			break;
+		}
+	}
+
+	if (!bFind)
+	{
+		AudioStruct InAudio;
+		InAudio.PreviewAudio = Audio;
+
+		PreviewInstance->m_AudioList.SetSize(PreviewInstance->m_AudioList.Num() + 1);
+		AudioStruct &AS = PreviewInstance->m_AudioList[PreviewInstance->m_AudioList.Num() - 1];
+		AS = InAudio;
+	}
+	LeaveCriticalSection(&PreviewInstance->AudioSection);
+}
+
+void CSLiveManager::RemovePreviewInstanceAudio(IBaseAudio *Audio)
+{
+	if (!PreviewInstance || !Audio)
+		return;
+
+	EnterCriticalSection(&PreviewInstance->AudioSection);
+	for (UINT i = 0; i < PreviewInstance->m_AudioList.Num(); ++i)
+	{
+		if (PreviewInstance->m_AudioList[i].PreviewAudio == Audio)
+		{
+			PreviewInstance->m_AudioList.Remove(i);
+			break;
+		}
+	}
+	LeaveCriticalSection(&PreviewInstance->AudioSection);
+}
+
+void CSLiveManager::SetPreviewLittlePlay(IBaseAudio *Audio,bool bPlay)
+{
+	if (!PreviewInstance || !Audio)
+		return;
+
+	EnterCriticalSection(&PreviewInstance->AudioSection);
+	for (UINT i = 0; i < PreviewInstance->m_AudioList.Num(); ++i)
+	{
+		if (PreviewInstance->m_AudioList[i].PreviewAudio == Audio)
+		{
+			PreviewInstance->m_AudioList[i].bLittlePlay = bPlay;
+			break;
+		}
+	}
+	LeaveCriticalSection(&PreviewInstance->AudioSection);
+}
+
+int CSLiveManager::SLiveSetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio)
+{
+	if (PreviewInstance)
+	{
+		PreviewInstance->SetAudioNeed(bNeedPVMAudio, bNeedPGMAudio);
+	}
+
+
+	return 0;
+}
+
+int CSLiveManager::SLiveSetAudioMixAndFollow(uint64_t iInstansID, uint64_t iStreamID, int Mix, int Follow, bool bUseMix)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! Mix = %d,follow = %d", __FUNCTION__, Mix,Follow);
+	try
+	{
+		if (!bInit)
+		{
+			BUTEL_THORWERROR("SDK还未初始化,请先调用SLiveInit进行初始化!");
+		}
+		EnterCriticalSection(&MapInstanceSec);
+		CInstanceProcess *Process = m_InstanceList[iInstansID];
+		LeaveCriticalSection(&MapInstanceSec);
+
+		if (Process)
+		{
+			AudioStruct &Audio = Process->SetAudioMixAndFollow(iStreamID, Mix, Follow, bUseMix);
+
+			if (!Audio.AudioStream.get())
+			{
+				BUTEL_THORWERROR("没有iStreamID为 %llu 的音频流 ", iStreamID);
+			}
+
+			if (LocalInstance)
+			{
+				Log::writeMessage(LOG_RTSPSERV, 1, "Find LocalInstance");
+				LocalInstance->SetAudioMixAndFollow(iStreamID, Mix, Follow,bUseMix);
+			}
+
+			if (Audio.MixOpen && Audio.FollowOpen)
+			{
+				//当前在场景中才加入PGM，没在场景中还要把原来的去掉
+				if (LiveInstance)
+					LiveInstance->DoMixOpenAndFollowOpen(Audio);
+
+			}
+			else if (Audio.MixOpen)
+			{
+				//不管是否在场景中都加入PGM
+				if (LiveInstance)
+					LiveInstance->DoMixOpen(Audio);
+			}
+			else
+			{
+				//从PGM中去掉
+				if (LiveInstance)
+					LiveInstance->DoMixClose(Audio);
+			}
+
+		}
+		else
+		{
+			BUTEL_THORWERROR("没有找到实例ID为 %llu 的实例 ", iInstansID);
+		}
+	}
+	catch (CErrorBase& e)
+	{
+		SLiveSetLastError(e.m_Error.c_str());
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! return -1", __FUNCTION__);
+		return -1;
+	}
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
+	return 0;
+}
+
+int CSLiveManager::SLiveSetOpacity(uint64_t iInstansID, uint64_t iStreamID, DWORD Opacity)
+{
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke begin! Opacity = %u", __FUNCTION__, Opacity);
+	try
+	{
+		if (!bInit)
+		{
+			BUTEL_THORWERROR("SDK还未初始化,请先调用SLiveInit进行初始化!");
+		}
+		EnterCriticalSection(&MapInstanceSec);
+		CInstanceProcess *Process = m_InstanceList[iInstansID];
+		LeaveCriticalSection(&MapInstanceSec);
+
+		if (Process)
+		{
+			Process->SetOpacity(iStreamID, Opacity);
+		}
+		else
+		{
+			BUTEL_THORWERROR("没有找到实例ID为 %llu 的实例 ", iInstansID);
+		}
+	}
+	catch (CErrorBase& e)
+	{
+		SLiveSetLastError(e.m_Error.c_str());
+		Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end! return -1", __FUNCTION__);
+		return -1;
+	}
+	Log::writeMessage(LOG_RTSPSERV, 1, "LiveSDK_Log:%s Invoke end!", __FUNCTION__);
+	return 0;
+}
+
 

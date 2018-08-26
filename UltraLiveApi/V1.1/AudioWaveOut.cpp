@@ -141,11 +141,6 @@ int AudioWaveOut::push_pcm_data(char* pbuf, int nlen)
 		return -1;
 	if (!m_bInit && !bCanInPCM)
 	{
-		if (FailedCount++ >= 500)
-		{
-			FailedCount = 0;
-			Log::writeMessage(LOG_RTSPSERV, 1, "waveout devicename %s 没有初始化成功 return!", WcharToAnsi(m_DeviceName.c_str()).c_str());
-		}
 		return -2;
 	}
 	MMRESULT mr = MMSYSERR_NOERROR;

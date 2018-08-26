@@ -201,6 +201,12 @@ typedef struct SLiveParam
 	DelayPushTimeCallBack    DelayPushTimeCb;
 	NickNameCallBack         NickNameCb;
 	TipsCallBack             TipsCb;
+
+	unsigned  int            PreviewWidth;
+	unsigned  int            PreviewHeight;
+	unsigned  int            MediaPort;
+	int                      HardEncoderType;
+
 }SLiveParam;
 typedef struct VideoArea
 {
@@ -253,6 +259,18 @@ extern "C" {
 	/************************************************************************/
 	API_EXPORT void SLiveRelese();
 
+	/************************************************************************/
+	/* 函数功能：                  初如化异常
+	/* 输入参数：
+	/* 输出参数：                  无
+
+	/* 返 回 值：                  无
+
+	/* 时    间：                  操作人                     操作内容
+	2017年02月28日                                           修改定义接口
+	/************************************************************************/
+	API_EXPORT void SLiveInitException();
+
 
 	/************************************************************************/
 	/* 函数功能：                  设置参数
@@ -278,7 +296,7 @@ extern "C" {
 	/* 时    间：                  操作人                     操作内容
 	2017年02月28日                                           修改定义接口
 	/************************************************************************/
-	API_EXPORT int SLiveCreateInstance(uint64_t *iIntanceID,uint64_t hwnd,bool bLiveIntance = false,bool bLittlePre = false);
+	API_EXPORT int SLiveCreateInstance(uint64_t *iIntanceID,VideoArea *PreArea,bool bLiveIntance = false,bool bLittlePre = false);
 
 	/************************************************************************/
 	/* 函数功能：                  销毁实例ID
@@ -799,7 +817,7 @@ extern "C" {
 	2017年02月28日                                           修改定义接口
 	/************************************************************************/
 
-	API_EXPORT int SLiveClearIntances(uint64_t iIntanceID);
+	API_EXPORT int SLiveClearIntances(uint64_t iIntanceID, bool bRemoveTop = true);
 
 	/************************************************************************/
 	/* 函数功能：                  重命名Stream
@@ -1161,6 +1179,48 @@ extern "C" {
 	2017年02月28日                                           修改定义接口
 	/************************************************************************/
 	API_EXPORT int SLiveQueryHardEncodeSupport();
+
+	/************************************************************************/
+	/* 函数功能：                  设置本地推流需要的音频
+	/* 输入参数：                  bNeedPVMAudio 是否需要PVW的音频，bNeedPGMAudio是否需要PGM的音频
+	/* 输出参数：				   无
+
+	/* 返 回 值：                  0 : 成功
+	< 0 : 添加源失败 原因 SLiveGetLastError()
+
+	/* 时    间：                  操作人                     操作内容
+	2017年02月28日                                           修改定义接口
+	/************************************************************************/
+
+	API_EXPORT int SLiveSetAudioNeed(bool bNeedPVMAudio, bool bNeedPGMAudio);
+
+	/************************************************************************/
+	/* 函数功能：                  设置音频混音和跟随
+	/* 输入参数：                  iInstansID 实例ID,iStreamID 音频流ID,Mix 0:混音关闭，1：混音开启，Follow 0为关闭，1为开启
+	/* 输出参数：				   无
+
+	/* 返 回 值：                  0 : 成功
+	< 0 : 添加源失败 原因 SLiveGetLastError()
+
+	/* 时    间：                  操作人                     操作内容
+	2018年08月03日                                           修改定义接口
+	/************************************************************************/
+
+	API_EXPORT int SLiveSetAudioMixAndFollow(uint64_t iInstansID, uint64_t iStreamID, int Mix,int Follow,bool bUseMix);
+
+	/************************************************************************/
+	/* 函数功能：                  设置透明度
+	/* 输入参数：                  iInstansID 实例ID,iStreamID 音频流ID,Opacity :0为全透明，255为不透明
+	/* 输出参数：				   无
+
+	/* 返 回 值：                  0 : 成功
+	< 0 : 添加源失败 原因 SLiveGetLastError()
+
+	/* 时    间：                  操作人                     操作内容
+	2018年08月03日                                           修改定义接口
+	/************************************************************************/
+
+	API_EXPORT int SLiveSetOpacity(uint64_t iInstansID, uint64_t iStreamID, DWORD Opacity);
 
 #ifdef  __cplusplus
 }

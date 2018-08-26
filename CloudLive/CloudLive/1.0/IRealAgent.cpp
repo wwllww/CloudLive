@@ -60,8 +60,8 @@ void IRealAgent::ExecuseInvoke(CRequse &Req,CRespond &Res)
        DEBUG_PRINT( Error.m_Error.c_str());
 
 		Json::Value jVaule;
-		jVaule["rc"] = -1;
-		jVaule["msg"] = Error.m_Error.c_str();
+		jVaule["state"]["rc"] = -1;
+		jVaule["state"]["msg"] = Error.m_Error.c_str();
 		Res.SetRespond(jVaule);
     }
 	Log::writeMessage(LOG_RTSPSERV, 1, "%s Invoke end 函数 %s 调用用时 %llu ms!", __FUNCTION__,Req.GetCmd(),GetSysTickCount64() - StartTime);

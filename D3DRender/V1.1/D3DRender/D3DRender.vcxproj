@@ -67,7 +67,7 @@
     <OutDir>Z:\releaseM_x32\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>Z:\releaseM_x64\</OutDir>
+    <OutDir>Z:\release_Cloud_M_x64</OutDir>
     <IncludePath>$(WindowsSDK80Path)Include\um;$(WindowsSDK80Path)Include\shared;$(DXSDK_DIR)Include;$(IncludePath)</IncludePath>
     <LibraryPath>$(WindowsSDK80Path)Lib\win8\um\x64;$(WindowsSDK80Path)Lib\winv6.3\um\x64;$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
     <LinkIncremental>false</LinkIncremental>

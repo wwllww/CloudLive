@@ -46,7 +46,7 @@ void BitmapImageSource::Tick(float fSeconds)
 void BitmapImageSource::Render(const Vect2 &pos, const Vect2 &size, Texture* Text, bool bScaleFull, bool bIsLiveC)
 {
 	Texture *texture = bitmapImage.GetTexture();
-
+	bScaleFull = true;
 	if (texture)
 	{
 		if (bScaleFull)

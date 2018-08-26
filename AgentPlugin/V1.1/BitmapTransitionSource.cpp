@@ -86,6 +86,12 @@ void BitmapTransitionSource::Update()
 			continue;
 		}
 
+		if (GetPathExtension(strBitmap).CompareI(L"lnk"))
+		{
+			Log::writeError(LOG_RTSPSERV, 1, "BitmapTransitionSource::UpdateSettings: lnk");
+			continue;
+		}
+
 		if (!OSFileExists(strBitmap)) // 文件不存在
 		{
 			String info(strBitmap);

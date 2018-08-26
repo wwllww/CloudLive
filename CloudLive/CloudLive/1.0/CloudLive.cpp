@@ -63,8 +63,10 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 
 	SetConsoleCtrlHandler(ConsoleHandler, TRUE);
 
-	TCHAR FullName[1024] = { 0 };
-	int RetLen = GetModuleFileName(NULL, FullName, sizeof FullName);
+	char FullName[1024] = { 0 };
+	int RetLen = GetModuleFileNameA(NULL, FullName, sizeof FullName);
+
+	std::cout << "FullName: " << FullName << std::endl;
 
 	for (int i = RetLen - 1; i >= 0; i--)
 	{
@@ -78,7 +80,8 @@ int APIENTRY _tWinMain(_In_ HINSTANCE hInstance,
 		}
 	}
 
-	SetCurrentDirectory(FullName);
+	SetCurrentDirectoryA(FullName);
+	Log::writeMessage(LOG_RTSPSERV, 1, "当前运行目录 %s",FullName);
 
 	FunCall(CHttpNetWork::GetInstance()->InitLive());
 

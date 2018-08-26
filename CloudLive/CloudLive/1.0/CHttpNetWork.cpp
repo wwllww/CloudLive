@@ -100,8 +100,7 @@ int CHttpNetWork::InitLive()
 	
 	if (!ConfigFile)
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "Config.json 打开失败", __FUNCTION__);
-		std::cout << "Config.json 打开失败"<< std::endl;
+		Log::writeError(LOG_RTSPSERV, 1, " %s Config.json 打开失败", __FUNCTION__);
 		return -1;
 	}
 	ConfigFile.seekg(0,std::ios::end);
@@ -131,7 +130,7 @@ int CHttpNetWork::InitLive()
 
 		if (ServerIp.empty())
 		{
-			std::cout << "ServerIp 为空" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s ServerIp 为空", __FUNCTION__);
 			return -1;
 		}
 
@@ -139,7 +138,7 @@ int CHttpNetWork::InitLive()
 
 		if (0 == ServerPort)
 		{
-			std::cout << "ServerPort = 0" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s ServerPort = 0", __FUNCTION__);
 			return -1;
 		}
 
@@ -147,7 +146,7 @@ int CHttpNetWork::InitLive()
 
 		if (ServerId.empty())
 		{
-			std::cout << "ServerId 为空" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s ServerId 为空", __FUNCTION__);
 			return -1;
 		}
 
@@ -155,7 +154,7 @@ int CHttpNetWork::InitLive()
 
 		if (0 == uListenPort)
 		{
-			std::cout << "uListenPort = 0" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s uListenPort = 0", __FUNCTION__);
 			return -1;
 		}
 
@@ -163,15 +162,20 @@ int CHttpNetWork::InitLive()
 
 		if (0 == MediaPort)
 		{
-			std::cout << "MediaPort = 0" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s MediaPort = 0", __FUNCTION__);
 			return -1;
+		}
+
+		if (!JValue["localip"].isNull())
+		{
+			LocalIp = JValue["localip"].asCString();
 		}
 
 		LocalCachePath = JValue["localcachepath"].asCString();
 
 		if (LocalCachePath.empty())
 		{
-			std::cout << "localcachepath 为空" << std::endl;
+			Log::writeError(LOG_RTSPSERV, 1, " %s localcachepath 为空", __FUNCTION__);
 			return -1;
 		}
 
@@ -187,7 +191,7 @@ int CHttpNetWork::InitLive()
 	else
 	{
 		delete [] ReadBuf;
-		std::cout << "解析配置文件失败" << std::endl;
+		Log::writeError(LOG_RTSPSERV, 1, " %s 解析配置文件失败", __FUNCTION__);
 		return -1;
 	}
 
@@ -196,8 +200,7 @@ int CHttpNetWork::InitLive()
 
 	if (!DefaultSencesFile)
 	{
-		Log::writeMessage(LOG_RTSPSERV, 1, "DefaultSences.json 打开失败", __FUNCTION__);
-		std::cout << "DefaultSences.json 打开失败" << std::endl;
+		Log::writeMessage(LOG_RTSPSERV, 1, "%s DefaultSences.json 打开失败", __FUNCTION__);
 		return -1;
 	}
 	DefaultSencesFile.seekg(0, std::ios::end);
@@ -219,7 +222,7 @@ int CHttpNetWork::InitLive()
 	else
 	{
 		delete[] ReadBuf;
-		std::cout << "解析 DefaultSences.json 场景文件失败" << std::endl;
+		Log::writeMessage(LOG_RTSPSERV, 1, "解析 DefaultSences.json 场景文件失败");
 		return -1;
 	}
 
@@ -415,12 +418,18 @@ void CHttpNetWork::DoAcceptProcess(AIOID Id, char *recbuf, int iRecLen, ULL64 ct
 	{
 		bool bGet = strncmp(recbuf, "GET",3) == 0;
 		bool bPost = false;
+		bool bOptions = false;
 		if (!bGet)
 		{
 			bPost = iRecLen > 4 && (strncmp(recbuf, "POST", 4) == 0);
+
+			if (!bPost)
+			{
+				bOptions = iRecLen > 7 && (strncmp(recbuf, "OPTIONS", 7) == 0);
+			}
 		}
 
-		if (bGet || bPost)
+		if (bGet || bPost || bOptions)
 		{
 			__MsgInfo Msg;
 			Msg.id = Id;
@@ -428,13 +437,14 @@ void CHttpNetWork::DoAcceptProcess(AIOID Id, char *recbuf, int iRecLen, ULL64 ct
 			Msg.MsgLen = iRecLen;
 			Msg.Context = ctx1;
 			Msg.bPost = bPost;
+			Msg.bOptions = bOptions;
 
 			m_MsgQueue.push(Msg);
 
 		}
 		else
 		{
-			Log::writeMessage(LOG_RTSPSERV, 1, " %s 不是GET 请求 recbuf %s", __FUNCTION__, recbuf);
+			Log::writeMessage(LOG_RTSPSERV, 1, " %s 只接收GET, POST, OPTIONS请求 recbuf %s", __FUNCTION__, recbuf);
 			WaitAndCloseSocket(Id);
 		}
 	}
@@ -449,8 +459,19 @@ const char *Respond = "HTTP/1.1 200 OK\r\n"
 "Content-Type: application/json\r\n"
 "Content-Length: %d\r\n"
 "Accept-Language: zh-CN,en*\r\n"
+"Access-Control-Allow-Origin: *\r\n"
 "User-Agent: Mozilla/5.0\r\n\r\n"
 "%s";
+
+const char *OptionsRespond = "HTTP/1.1 200 OK\r\n"
+"Access-Control-Allow-Headers: Content-Type\r\n"
+"Access-Control-Allow-Methods: GET,POST,OPTIONS\r\n"
+"Access-Control-Allow-Origin: *\r\n"
+"Content-Type:  text/plain\r\n"
+"Content-Length: 0\r\n"
+"Accept-Language: zh-CN,en*\r\n"
+"Connection: Keep-Alive\r\n"
+"User-Agent: Mozilla/5.0\r\n\r\n";
 
 const char g_sCrossdomain[] = {
 	"<?xml version=\"1.0\" encoding=\"UTF-8\"?>" \
@@ -493,46 +514,55 @@ int CHttpNetWork::HttpMsgLoop()
 			DEBUG_PRINT(MsgInfo.Msgbuf);
 			Req.SetParam(MsgInfo.Msgbuf);
 
-			ParseResquest(MsgInfo.Msgbuf, MsgInfo.MsgLen, CmdName,!MsgInfo.bPost);
-
-
 			__PDATAINFO DataInfo = (__PDATAINFO)MsgInfo.Context;
 
-			if (stricmp(CmdName.c_str(), "crossdomain.xml"))
+			if (!MsgInfo.bOptions)
 			{
-				Req.SetCmd(CmdName.c_str());
-				Res.SetResType(RES_FAILED);
+				ParseResquest(MsgInfo.Msgbuf, MsgInfo.MsgLen, CmdName, !MsgInfo.bPost);
 
-				QueryInterface()->ExecuseInvoke(Req, Res);
-
-				ZeroMemory(DataInfo->buf, DataInfo->len);
-				DataInfo->SendStatus = SEND_OK;
-
-				std::string &StrRes = Res.GetRespond().toStyledString();
-
-				//这里要把ANSI转成UTF-8
-
-				char *Utf_8 = GBToUTF8(StrRes.c_str());
-
-				if (Utf_8)
+				if (stricmp(CmdName.c_str(), "crossdomain.xml"))
 				{
-					sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, strlen(Utf_8), Utf_8);
+					Req.SetCmd(CmdName.c_str());
+					Res.SetResType(RES_FAILED);
 
-					delete[] Utf_8;
+					QueryInterface()->ExecuseInvoke(Req, Res);
+
+					ZeroMemory(DataInfo->buf, DataInfo->len);
+					DataInfo->SendStatus = SEND_OK;
+
+					std::string &StrRes = Res.GetRespond().toStyledString();
+
+					//这里要把ANSI转成UTF-8
+
+					char *Utf_8 = GBToUTF8(StrRes.c_str());
+
+					if (Utf_8)
+					{
+						sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, strlen(Utf_8), Utf_8);
+
+						delete[] Utf_8;
+					}
+					else
+					{
+						sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, StrRes.length(), StrRes.c_str());
+					}
+
 				}
 				else
 				{
-					sprintf_s((char*)DataInfo->buf, DataInfo->len, Respond, StrRes.length(), StrRes.c_str());
+					ZeroMemory(DataInfo->buf, DataInfo->len);
+					DataInfo->SendStatus = SEND_OK;
+					sprintf_s((char*)DataInfo->buf, DataInfo->len, RespondCrossdoMain, strlen(g_sCrossdomain), g_sCrossdomain);
 				}
-
 			}
 			else
 			{
+				CmdName.clear();
 				ZeroMemory(DataInfo->buf, DataInfo->len);
 				DataInfo->SendStatus = SEND_OK;
-				sprintf_s((char*)DataInfo->buf, DataInfo->len, RespondCrossdoMain, strlen(g_sCrossdomain), g_sCrossdomain);
+				memcpy(DataInfo->buf, OptionsRespond, strlen(OptionsRespond));
 			}
-			
+
 			DEBUG_PRINT((const char*)DataInfo->buf);
 
 			TcpControl->asyn_write(MsgInfo.id, (char*)DataInfo->buf, strlen((char*)DataInfo->buf), (ULL64)this, MsgInfo.Context);
@@ -846,4 +876,9 @@ void CHttpNetWork::DoAsnycDownLoadFile(std::string& url, std::string& FileName, 
 		DCCb(context, Name, Success);
 	
 	});
+}
+
+std::string CHttpNetWork::GetLocalIp() const
+{
+	return LocalIp;
 }

@@ -249,10 +249,27 @@ void CSLiveManager::BulidD3D()
 		SDITexture = NULL;
 	}
 
-
+	Log::writeMessage(LOG_RTSPSERV, 1, "BSParam.PreviewWidth = %u,BSParam.PreviewHeight = %u", BSParam.PreviewWidth, BSParam.PreviewHeight);
 	MixRenderTarget.reset(m_D3DRender->CreateRenderTarget(BSParam.PreviewWidth, BSParam.PreviewHeight, GS_BGRA, FALSE));
+
+	if (!MixRenderTarget)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "MixRenderTarget 创建失败");
+	}
+
 	MixCopyTexture.reset(m_D3DRender->CreateTextureRead(BSParam.PreviewWidth, BSParam.PreviewHeight));
+
+	if (!MixCopyTexture)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "MixCopyTexture 创建失败");
+	}
+
 	MixyuvRenderTexture.reset(m_D3DRender->CreateRenderTarget(BSParam.PreviewWidth, BSParam.PreviewHeight, GS_BGRA, FALSE));
+
+	if (!MixyuvRenderTexture)
+	{
+		Log::writeError(LOG_RTSPSERV, 1, "MixyuvRenderTexture 创建失败");
+	}
 
 // 	UINT Width, Heigth;
 // 

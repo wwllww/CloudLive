@@ -600,7 +600,7 @@ void CSLiveManager::MainVideoLoop()
 
 
           //在这里把小预览混上并Map输出
-			if (PreviewInstance && PreviewInstance->bStartLive)
+			if (PreviewInstance && PreviewInstance->bStartLive && MixRenderTarget && MixyuvRenderTexture && MixCopyTexture)
 			{
 				m_D3DRender->SetRenderTarget(MixRenderTarget.get());
 

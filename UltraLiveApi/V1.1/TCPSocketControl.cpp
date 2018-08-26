@@ -18,6 +18,11 @@ void CTCPSocketControl::on_tcp_accept(AsynIoErr st, AIOID id, const AioAddrPair 
 	{
 		char *Read = new char[4096];
 		HttpLive::TcpControl->asyn_read(id,Read,4096,0,1000,false);
+
+		struct in_addr stInAddr;
+		stInAddr.S_un.S_addr = ntohl(addr.m_raddr.m_ip);
+
+		Log::writeMessage(((long long)1 << 49), 1, "接收请求媒体连接 %s:%d", inet_ntoa(stInAddr), addr.m_raddr.m_port);
 	}
 	else
 	{

@@ -124,6 +124,7 @@ protected:
 	//26-30
 	void CloudEmergencySwitch(CRequse &Req, CRespond &Res);
 	void CloudSetAudioFollow(CRequse &Req, CRespond &Res);
+	void CloudSetLiveDelayTime(CRequse &Req, CRespond &Res);
 
 
 	//自己内部调用函数

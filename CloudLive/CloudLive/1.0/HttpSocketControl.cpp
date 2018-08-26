@@ -174,7 +174,7 @@ void CTCPSocketControl::on_tcp_read( AsynIoErr st, AIOID id, const AioAddrPair &
 	{
 		const char *pFind = strstr((char*)DataInfo->buf, "\r\n\r\n");
 
-		if (strncmp((char*)DataInfo->buf, "GET", 3) == 0)
+		if (strncmp((char*)DataInfo->buf, "GET", 3) == 0 || strncmp((char*)DataInfo->buf, "OPTIONS", 7) == 0)
 		{
 			if (pFind)
 			{

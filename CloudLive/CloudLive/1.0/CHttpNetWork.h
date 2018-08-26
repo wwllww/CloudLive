@@ -54,6 +54,7 @@ public:
 	void ReportSwitcherStatus();
 	Json::Value GetDefaultSences() const;
 	std::string GetLocalCachePath() const;
+	std::string GetLocalIp() const;
 	void DoAsnycDownLoadFile(std::string& url, std::string& FileName, DownLoadCompleteCb DCCb, void *context, const std::string& Name);
 	bool HTTPGetFile(const char* url, FILE *wFile);
 
@@ -81,6 +82,7 @@ private:
 	std::string ServerId;
 	std::string CloudId;
 	std::string LocalCachePath;
+	std::string LocalIp;
 	
 	UINT uListenPort;
 	UINT MediaPort;

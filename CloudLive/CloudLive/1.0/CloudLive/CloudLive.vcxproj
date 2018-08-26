@@ -137,7 +137,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <StructMemberAlignment>Default</StructMemberAlignment>
       <AdditionalIncludeDirectories>..\..\..\..\UltraLiveApi\v1.1\;..\json\;Z:\Log_writer;Z:\tbb;Z:\AsynIoControl;Z:\BaseLibrary\GMHelper;Z:\Cur64bit\include\Curl;</AdditionalIncludeDirectories>
-      <ExceptionHandling>Sync</ExceptionHandling>
+      <ExceptionHandling>Async</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

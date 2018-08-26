@@ -862,7 +862,7 @@ CSLiveManager::~CSLiveManager()
 	if (DeinterlacerLocal)
 		delete DeinterlacerLocal;
 
-
+	m_InstanceList.earse(uint64_t(PreviewInstance));
 	for (int i = 0; i < m_InstanceList.GetSize();)
 	{
 		CInstanceProcess *Process = m_InstanceList.GetAt(i);
@@ -1305,8 +1305,6 @@ int CSLiveManager::SLiveCreateInstance(uint64_t *iIntanceID, VideoArea *PreArea,
 		}
 
 		BUTEL_IFNULLRETURNERROR(iIntanceID);
-
-
 
 		if (PreArea && bFirstCreate)
 		{

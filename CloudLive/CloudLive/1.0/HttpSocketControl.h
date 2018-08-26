@@ -28,12 +28,14 @@ typedef struct _MsgInfo{
 	int MsgLen;
 	ULL64 Context;
 	bool bPost;
+	bool bOptions;
 	_MsgInfo()
 	{
 		id = -1;
 		Msgbuf = NULL;
 		Context = 0;
 		bPost = false;
+		bOptions = false;
 	}
 
 }__MsgInfo, *__pMsgInfo;

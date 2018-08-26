@@ -139,6 +139,7 @@
       <AdditionalIncludeDirectories>.\;Z:\Log_writer;Z:\public\;..\..\..\D3DRender\v1.1\;..\..\..\Common\v1.1\;Z:\x264\;Z:\libfaac;Z:\librtmp\;Z:\tbb;Z:\RDCodec;Z:\Cur64bit\include\Curl;Z:\AsynIoControl;Z:\BaseLibrary\GMHelper;</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
+      <ExceptionHandling>Sync</ExceptionHandling>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

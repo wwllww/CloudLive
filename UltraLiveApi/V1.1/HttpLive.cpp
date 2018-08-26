@@ -63,6 +63,7 @@ HttpLive::HttpLive(CInstanceProcess *Process)
 
 HttpLive::~HttpLive()
 {
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke begin! m_ListSocket.size = %d", __FUNCTION__, m_ListSocket.size());
 	if(m_ListSocket.size())
 	{
 		SocketMap::iterator MapBegin = m_ListSocket.begin();
@@ -94,6 +95,7 @@ HttpLive::~HttpLive()
 			delete Data;
 		}
 	}
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
 }
 
 bool HttpLive::InitLive( UINT uListenPort )
@@ -141,7 +143,7 @@ bool HttpLive::InitLive( UINT uListenPort )
 	memset(&Addr,0,sizeof AioAddr);
 
 	Addr.m_port = uListenPort;
-	Addr.m_ip = inet_addr("0.0.0.0");
+	Addr.m_ip = ntohl(inet_addr("0.0.0.0"));
 	Addr.m_v4 = true;
 
 	if(!TcpControl->listen_tcp(Addr,5))
@@ -191,6 +193,7 @@ bool HttpLive::InitLive( UINT uListenPort )
 
 void HttpLive::UnInitLive()
 {
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke begin! bHasInit = %s",__FUNCTION__, bHasInit ? "true" : "false");
 	if(bHasInit)
 	{
 		bRuning = false;
@@ -221,6 +224,8 @@ void HttpLive::UnInitLive()
 
 		bHasInit = false;
 	}
+
+	Log::writeMessage(LOG_RTSPSERV, 1, "%s invoke end!", __FUNCTION__);
 }
 
 // DWORD HttpLive::AcceptThread( LPVOID Param )
